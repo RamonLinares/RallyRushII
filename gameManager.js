@@ -101,7 +101,8 @@ class GameManager {
                 steeringSpeed: 0.15,
                 turnSpeed: 0.08,
                 grip: 0.7,
-                borderCollisionCooldown: 0
+                borderCollisionCooldown: 0,
+                trafficCollisionCooldown: 0
             },
             terrain: { width: 300 },
             traffic: [],
@@ -433,6 +434,13 @@ class GameManager {
 
 
     updateTraffic() {
+        if (this.game.car.trafficCollisionCooldown > 0) {
+            this.game.car.trafficCollisionCooldown--;
+        }
+
+        const playerBox = new THREE.Box3().setFromObject(this.playerCar);
+        const safetyOffset = 2.5;
+
         this.trafficCars.forEach((trafficCar, index) => {
             trafficCar.mesh.position.z += trafficCar.speed;
 
@@ -452,11 +460,26 @@ class GameManager {
             trafficCar.mesh.rotation.set(0, Math.PI, 0);
             trafficCar.mesh.rotateX(Math.atan2(nextTrafficRoadData.y - trafficRoadData.y, 1));
 
-            // Simple collision detection
-            if (Math.abs(trafficCar.mesh.position.z - this.playerCar.position.z) < 3 &&
-                Math.abs(trafficCar.mesh.position.x - this.playerCar.position.x) < 2) {
-                console.log("Collision!");
-                this.game.car.speed *= 0.5; // Reduce speed on collision
+            const trafficBox = new THREE.Box3().setFromObject(trafficCar.mesh);
+
+            if (playerBox.intersectsBox(trafficBox) && this.game.car.trafficCollisionCooldown === 0) {
+                const targetZ = trafficCar.mesh.position.z + safetyOffset;
+                this.game.car.position.z = targetZ;
+                this.game.car.speed = 0;
+                this.game.car.xOffset = trafficCar.xOffset;
+
+                const adjustedRoadData = getRoadDataAtZ(targetZ, this.game);
+                this.carPosition.set(
+                    this.game.car.xOffset + adjustedRoadData.curve,
+                    adjustedRoadData.y + 0.25,
+                    targetZ
+                );
+                this.game.car.position.x = this.carPosition.x;
+                this.game.car.position.y = this.carPosition.y;
+                this.playerCar.position.copy(this.carPosition);
+                playerBox.setFromObject(this.playerCar);
+
+                this.game.car.trafficCollisionCooldown = 20;
             }
         });
     }
