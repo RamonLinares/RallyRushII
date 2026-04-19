@@ -195,6 +195,7 @@
     // Override the end game logic to hide controls
     gameManager.endGame = function (time) {
         cancelAnimationFrame(this.animationId);
+        this.animationId = null;
         this.updateBestTimes(time);
         this.displayEndScreen(time);
         hideMobileControls(); // Hide mobile controls when the game ends

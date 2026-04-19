@@ -270,6 +270,11 @@ class GameManager {
     }
 
     startGame() {
+        if (this.animationId !== null) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+
         const selectedCircuit = document.getElementById('circuitSelect').value;
         const environment = environments[selectedCircuit]; // Use the selected environment
         // Stop all music
@@ -325,6 +330,7 @@ class GameManager {
 
     endGame(time) {
         cancelAnimationFrame(this.animationId);
+        this.animationId = null;
         this.updateBestTimes(time);
         this.displayEndScreen(time);
     }
@@ -350,17 +356,6 @@ class GameManager {
             });
         }
 
-        // Event listener for changing the circuit
-        document.getElementById('changeCircuitButton').addEventListener('click', () => {
-            document.getElementById('endScreen').style.display = 'none';
-            document.getElementById('startScreen').style.display = 'grid';
-        });
-
-        // Event listener for restarting the game
-        document.getElementById('restartButton').addEventListener('click', () => {
-            document.getElementById('endScreen').style.display = 'none';
-            this.startGame();
-        });
     }
 
 
