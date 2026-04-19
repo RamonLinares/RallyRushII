@@ -31,6 +31,207 @@ class SimplexNoise {
     }
 }
 
+function createCanvasTexture(width, height, repeatX, repeatY, draw) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    draw(context, width, height);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeatX, repeatY);
+    texture.anisotropy = 4;
+    return texture;
+}
+
+function drawSpeckle(context, width, height, colors, count, minSize, maxSize, alpha = 1) {
+    for (let i = 0; i < count; i++) {
+        const size = minSize + Math.random() * (maxSize - minSize);
+        context.globalAlpha = alpha * (0.45 + Math.random() * 0.55);
+        context.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+        context.fillRect(Math.random() * width, Math.random() * height, size, size);
+    }
+    context.globalAlpha = 1;
+}
+
+function drawGrassStrokes(context, width, height, colors, count) {
+    context.lineCap = 'round';
+    for (let i = 0; i < count; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const length = 5 + Math.random() * 18;
+        const lean = -3 + Math.random() * 6;
+        context.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
+        context.globalAlpha = 0.25 + Math.random() * 0.5;
+        context.lineWidth = 1 + Math.random();
+        context.beginPath();
+        context.moveTo(x, y);
+        context.lineTo(x + lean, y - length);
+        context.stroke();
+    }
+    context.globalAlpha = 1;
+}
+
+function drawWavyLines(context, width, height, color, count, alpha) {
+    context.strokeStyle = color;
+    context.globalAlpha = alpha;
+    context.lineWidth = 2;
+    for (let i = 0; i < count; i++) {
+        const y = Math.random() * height;
+        const amplitude = 4 + Math.random() * 10;
+        const frequency = 0.012 + Math.random() * 0.018;
+        context.beginPath();
+        for (let x = 0; x <= width; x += 12) {
+            const waveY = y + Math.sin(x * frequency + i) * amplitude;
+            if (x === 0) {
+                context.moveTo(x, waveY);
+            } else {
+                context.lineTo(x, waveY);
+            }
+        }
+        context.stroke();
+    }
+    context.globalAlpha = 1;
+}
+
+function createRoadTexture(environment, segmentCount) {
+    const repeatY = Math.max(24, segmentCount / 8);
+    const palette = {
+        'sun-baked-asphalt': {
+            base: '#5b5147',
+            flecks: ['#776c5d', '#473f38', '#8b7d67'],
+            line: '#f8dfa0',
+            edge: '#f2eee0'
+        },
+        'cold-asphalt': {
+            base: '#4e5d64',
+            flecks: ['#62737b', '#354249', '#8aa0a7'],
+            line: '#e8f5ff',
+            edge: '#f7fbff'
+        },
+        'country-asphalt': {
+            base: '#4d5558',
+            flecks: ['#667073', '#343b3d', '#7a8585'],
+            line: '#f2f2e8',
+            edge: '#f7f8ef'
+        }
+    }[environment.roadStyle] || {
+        base: '#4d5558',
+        flecks: ['#667073', '#343b3d', '#7a8585'],
+        line: '#f2f2e8',
+        edge: '#f7f8ef'
+    };
+
+    return createCanvasTexture(512, 1024, 1, repeatY, (context, width, height) => {
+        context.fillStyle = palette.base;
+        context.fillRect(0, 0, width, height);
+        drawSpeckle(context, width, height, palette.flecks, 5500, 1, 4, 0.75);
+
+        context.globalAlpha = 0.2;
+        context.strokeStyle = '#151719';
+        context.lineWidth = 2;
+        for (let i = 0; i < 26; i++) {
+            const y = Math.random() * height;
+            const x = Math.random() * width;
+            context.beginPath();
+            context.moveTo(x, y);
+            context.bezierCurveTo(x + 24, y + 14, x + 42, y - 20, x + 72, y + 6);
+            context.stroke();
+        }
+        context.globalAlpha = 1;
+
+        context.fillStyle = palette.edge;
+        context.fillRect(34, 0, 10, height);
+        context.fillRect(width - 44, 0, 10, height);
+
+        context.fillStyle = palette.line;
+        const dashHeight = 86;
+        const dashGap = 86;
+        for (let y = 24; y < height; y += dashHeight + dashGap) {
+            context.fillRect(width / 2 - 5, y, 10, dashHeight);
+        }
+
+        context.globalAlpha = 0.12;
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, width, 18);
+        context.globalAlpha = 1;
+    });
+}
+
+function createTerrainTexture(environment, segmentCount) {
+    const repeatY = Math.max(24, segmentCount / 7);
+
+    if (environment.terrainStyle === 'sand') {
+        return createCanvasTexture(512, 512, 7, repeatY, (context, width, height) => {
+            context.fillStyle = '#cdbb82';
+            context.fillRect(0, 0, width, height);
+            drawSpeckle(context, width, height, ['#e1cf98', '#b89d64', '#a98851', '#f0dda5'], 7200, 1, 5, 0.7);
+            drawWavyLines(context, width, height, '#8f7543', 28, 0.16);
+            drawWavyLines(context, width, height, '#f4dea0', 16, 0.14);
+        });
+    }
+
+    if (environment.terrainStyle === 'snow-rock') {
+        return createCanvasTexture(512, 512, 6, repeatY, (context, width, height) => {
+            context.fillStyle = '#d9f1f4';
+            context.fillRect(0, 0, width, height);
+            drawSpeckle(context, width, height, ['#f7ffff', '#b8d6dc', '#8fa7ad', '#63777e'], 5000, 1, 6, 0.52);
+            context.globalAlpha = 0.26;
+            context.strokeStyle = '#607078';
+            context.lineWidth = 5;
+            for (let i = 0; i < 34; i++) {
+                const x = Math.random() * width;
+                context.beginPath();
+                context.moveTo(x, Math.random() * height);
+                context.lineTo(x + 50 + Math.random() * 120, Math.random() * height);
+                context.stroke();
+            }
+            context.globalAlpha = 1;
+        });
+    }
+
+    return createCanvasTexture(512, 512, 7, repeatY, (context, width, height) => {
+        context.fillStyle = '#497b3a';
+        context.fillRect(0, 0, width, height);
+        drawSpeckle(context, width, height, ['#5f9348', '#315b2d', '#79a85a', '#b6c06a'], 6000, 1, 6, 0.62);
+        drawGrassStrokes(context, width, height, ['#88b25c', '#6d9949', '#adc770', '#3b6a35'], 1800);
+
+        context.globalAlpha = 0.35;
+        drawSpeckle(context, width, height, ['#d8d177', '#b8a0d8', '#ffffff'], 95, 1, 3, 0.7);
+        context.globalAlpha = 1;
+    });
+}
+
+function createShoulderTexture(environment, segmentCount) {
+    const repeatY = Math.max(24, segmentCount / 7);
+
+    if (environment.shoulderStyle === 'sand-gravel') {
+        return createCanvasTexture(256, 512, 1, repeatY, (context, width, height) => {
+            context.fillStyle = '#b8965f';
+            context.fillRect(0, 0, width, height);
+            drawSpeckle(context, width, height, ['#d3b77b', '#80653f', '#eee0b4', '#594536'], 4200, 1, 5, 0.85);
+            drawWavyLines(context, width, height, '#785d39', 12, 0.16);
+        });
+    }
+
+    if (environment.shoulderStyle === 'snow-gravel') {
+        return createCanvasTexture(256, 512, 1, repeatY, (context, width, height) => {
+            context.fillStyle = '#b7c8c9';
+            context.fillRect(0, 0, width, height);
+            drawSpeckle(context, width, height, ['#f5ffff', '#82939a', '#58646a', '#d3e8eb'], 4000, 1, 5, 0.76);
+        });
+    }
+
+    return createCanvasTexture(256, 512, 1, repeatY, (context, width, height) => {
+        context.fillStyle = '#6f7657';
+        context.fillRect(0, 0, width, height);
+        drawSpeckle(context, width, height, ['#9a9b7a', '#575840', '#c8c8aa', '#3d6a35'], 4300, 1, 5, 0.82);
+        drawGrassStrokes(context, width, height, ['#82a85d', '#53743d', '#b4c171'], 420);
+    });
+}
+
 function generateRoadAndTerrain(scene, game, environment) {
     const terrainNoise = new SimplexNoise();
     const roadNoise = new SimplexNoise();
@@ -79,24 +280,28 @@ function generateRoadAndTerrain(scene, game, environment) {
         const roadUVs = [];
         const leftTerrainPositions = [];
         const leftTerrainIndices = [];
+        const leftTerrainUVs = [];
         const rightTerrainPositions = [];
         const rightTerrainIndices = [];
+        const rightTerrainUVs = [];
 
         game.road.segments.forEach((segment, i) => {
             const leftX = segment.curve - halfRoadWidth;
             const rightX = segment.curve + halfRoadWidth;
+            const v = i / game.road.segments.length;
 
             // Road vertices
             roadPositions.push(leftX, segment.y, segment.z);
             roadPositions.push(rightX, segment.y, segment.z);
-            roadUVs.push(0, i / game.road.segments.length);
-            roadUVs.push(1, i / game.road.segments.length);
+            roadUVs.push(0, v);
+            roadUVs.push(1, v);
 
             // Left terrain vertices
             for (let j = 0; j <= terrainSteps; j++) {
                 const x = leftX - (j / terrainSteps) * terrainWidth;
                 const heightOffset = generateMountainHeight(x, segment.z) * (j / terrainSteps);
                 leftTerrainPositions.push(x, segment.y + heightOffset, segment.z);
+                leftTerrainUVs.push(j / terrainSteps, v);
             }
 
             // Right terrain vertices
@@ -104,6 +309,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 const x = rightX + (j / terrainSteps) * terrainWidth;
                 const heightOffset = generateMountainHeight(x, segment.z) * (j / terrainSteps);
                 rightTerrainPositions.push(x, segment.y + heightOffset, segment.z);
+                rightTerrainUVs.push(j / terrainSteps, v);
             }
 
             if (i < game.road.segments.length - 1) {
@@ -130,43 +336,86 @@ function generateRoadAndTerrain(scene, game, environment) {
         roadGeometry.computeVertexNormals();
 
         leftTerrainGeometry.setAttribute('position', new THREE.Float32BufferAttribute(leftTerrainPositions, 3));
+        leftTerrainGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(leftTerrainUVs, 2));
         leftTerrainGeometry.setIndex(leftTerrainIndices);
         leftTerrainGeometry.computeVertexNormals();
 
         rightTerrainGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rightTerrainPositions, 3));
+        rightTerrainGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(rightTerrainUVs, 2));
         rightTerrainGeometry.setIndex(rightTerrainIndices);
         rightTerrainGeometry.computeVertexNormals();
     }
 
     updateGeometries();
 
-    // Load road texture
-    const textureLoader = new THREE.TextureLoader();
-    const roadTexture = textureLoader.load('road_texture.png', () => {
-        roadTexture.wrapS = THREE.RepeatWrapping;
-        roadTexture.wrapT = THREE.RepeatWrapping;
-        roadTexture.repeat.set(1, game.road.segments.length);
-    });
+    function createShoulderGeometry(side) {
+        const shoulderGeometry = new THREE.BufferGeometry();
+        const shoulderPositions = [];
+        const shoulderIndices = [];
+        const shoulderUVs = [];
+        const shoulderWidth = 4;
 
-    const road = new THREE.Mesh(roadGeometry, new THREE.MeshPhongMaterial({ map: roadTexture }));
+        game.road.segments.forEach((segment, i) => {
+            const roadEdgeX = segment.curve + side * halfRoadWidth;
+            const shoulderEdgeX = roadEdgeX + side * shoulderWidth;
+            const y = segment.y + 0.04;
+            const v = i / game.road.segments.length;
+
+            shoulderPositions.push(roadEdgeX, y, segment.z);
+            shoulderPositions.push(shoulderEdgeX, y, segment.z);
+            shoulderUVs.push(0, v);
+            shoulderUVs.push(1, v);
+
+            if (i < game.road.segments.length - 1) {
+                const index = i * 2;
+                shoulderIndices.push(index, index + 1, index + 2, index + 1, index + 3, index + 2);
+            }
+        });
+
+        shoulderGeometry.setAttribute('position', new THREE.Float32BufferAttribute(shoulderPositions, 3));
+        shoulderGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(shoulderUVs, 2));
+        shoulderGeometry.setIndex(shoulderIndices);
+        shoulderGeometry.computeVertexNormals();
+        return shoulderGeometry;
+    }
+
+    const roadTexture = createRoadTexture(environment, game.road.segments.length);
+    const road = new THREE.Mesh(roadGeometry, new THREE.MeshPhongMaterial({
+        map: roadTexture,
+        shininess: 14
+    }));
     road.receiveShadow = true;
 
-    // Load sand texture for the desert terrain
-    let terrainMaterial;
-
-    terrainMaterial = new THREE.MeshPhongMaterial({
-        color: environment.terrainColor,
+    const terrainTexture = createTerrainTexture(environment, game.road.segments.length);
+    const terrainMaterial = new THREE.MeshPhongMaterial({
+        color: environment.terrainTint || 0xffffff,
+        map: terrainTexture,
+        bumpMap: terrainTexture,
+        bumpScale: environment.terrainStyle === 'snow-rock' ? 0.18 : 0.28,
         side: THREE.DoubleSide,
-        flatShading: false
+        flatShading: false,
+        shininess: environment.terrainStyle === 'snow-rock' ? 8 : 3
+    });
+
+    const shoulderTexture = createShoulderTexture(environment, game.road.segments.length);
+    const shoulderMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        map: shoulderTexture,
+        side: THREE.DoubleSide,
+        shininess: 4
     });
 
     const leftTerrain = new THREE.Mesh(leftTerrainGeometry, terrainMaterial);
     const rightTerrain = new THREE.Mesh(rightTerrainGeometry, terrainMaterial);
+    const leftShoulder = new THREE.Mesh(createShoulderGeometry(-1), shoulderMaterial);
+    const rightShoulder = new THREE.Mesh(createShoulderGeometry(1), shoulderMaterial);
     
     leftTerrain.receiveShadow = true;
     rightTerrain.receiveShadow = true;
+    leftShoulder.receiveShadow = true;
+    rightShoulder.receiveShadow = true;
 
-    scene.add(road, leftTerrain, rightTerrain);
+    scene.add(road, leftShoulder, rightShoulder, leftTerrain, rightTerrain);
 
     // Place trees if the environment has any
     if (environment.treeDensity > 0) {
@@ -177,14 +426,14 @@ function generateRoadAndTerrain(scene, game, environment) {
         function createTree(x, y, z) {
             const tree = new THREE.Group();
             const trunkHeight = 2;
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, trunkHeight, 8), new THREE.MeshPhongMaterial({ color: 0x8B4513 }));
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, trunkHeight, 8), new THREE.MeshPhongMaterial({ color: environment.trunkColor || 0x8B4513 }));
             trunk.position.y = trunkHeight / 2;
             trunk.castShadow = true;
             trunk.receiveShadow = true;
             tree.add(trunk);
             
             const leavesHeight = 4;
-            const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.5, leavesHeight, 8), new THREE.MeshPhongMaterial({ color: 0x228B22 }));
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.5, leavesHeight, 8), new THREE.MeshPhongMaterial({ color: environment.treeColor || 0x228B22 }));
             leaves.position.y = trunkHeight + leavesHeight / 2;
             leaves.castShadow = true;
             leaves.receiveShadow = true;

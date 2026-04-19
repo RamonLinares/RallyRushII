@@ -1,7 +1,7 @@
 (function () {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -15,12 +15,35 @@
     const mobileControls = document.getElementById('mobileControls');
     const startScreen = document.getElementById('startScreen');
     const endScreen = document.getElementById('endScreen');
+    const circuitSelect = document.getElementById('circuitSelect');
 
     // Mobile button controls setup
     const accelerateButton = document.getElementById('accelerateButton');
     const brakeButton = document.getElementById('brakeButton');
     const leftButton = document.getElementById('leftButton');
     const rightButton = document.getElementById('rightButton');
+
+    window.render_game_to_text = function () {
+        const mode = startScreen.style.display !== 'none'
+            ? 'start'
+            : endScreen.style.display !== 'none'
+                ? 'end'
+                : 'driving';
+        const game = gameManager.game;
+        return JSON.stringify({
+            mode,
+            stage: circuitSelect.value,
+            car: game ? {
+                x: Number(game.car.xOffset.toFixed(2)),
+                z: Number(game.car.position.z.toFixed(2)),
+                speed: Number(game.car.speed.toFixed(2))
+            } : null,
+            road: game ? {
+                width: game.road.width,
+                segments: game.road.segments.length
+            } : null
+        }, null, 2);
+    };
 
     // Hide mobile controls on start and end screens
     function hideMobileControls() {

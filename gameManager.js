@@ -1,22 +1,41 @@
 // Define environments at the top of your script
 const environments = {
     scotland: {
+        id: 'scotland',
+        terrainStyle: 'meadow',
+        roadStyle: 'country-asphalt',
+        shoulderStyle: 'grass-gravel',
         terrainColor: 0x3f7c47,
+        terrainTint: 0xd6ead0,
         treeDensity: 0.2,
+        treeColor: 0x2f7d3b,
+        trunkColor: 0x6d4b2d,
         maxMountainHeight: 15,
         fogColor: 0x87CEEB
     },
     desert: {
-        terrainColor: 0xC2B280, // Remove or set to null
-        treeDensity: 0, // No trees in the desert
-        maxMountainHeight: 40, // Lower mountains
-        fogColor: 0xF0E68C
+        id: 'desert',
+        terrainStyle: 'sand',
+        roadStyle: 'sun-baked-asphalt',
+        shoulderStyle: 'sand-gravel',
+        terrainColor: 0xC2B280,
+        terrainTint: 0xc69a58,
+        treeDensity: 0,
+        maxMountainHeight: 40,
+        fogColor: 0xeec36a
     },
     alpine: {
+        id: 'alpine',
+        terrainStyle: 'snow-rock',
+        roadStyle: 'cold-asphalt',
+        shoulderStyle: 'snow-gravel',
         terrainColor: 0x7DFFFF,
+        terrainTint: 0xe6f5f6,
         treeDensity: 0.4,
-        maxMountainHeight: 180, // Higher mountains
-        fogColor: 0x00E0FF
+        treeColor: 0x175234,
+        trunkColor: 0x4b3524,
+        maxMountainHeight: 180,
+        fogColor: 0x8edff2
     }
 };
 
