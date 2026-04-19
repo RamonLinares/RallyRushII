@@ -62,6 +62,12 @@ class GameManager {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.trafficCars = [];
         this.maxTrafficCars = 8; // Maximum number of traffic cars
+        this.activeCollision = null;
+        this.collisionEffects = [];
+        this.cameraShakeFrames = 0;
+        this.cameraShakeDuration = 0;
+        this.cameraShakeStrength = 0;
+        this.lastCollisionType = null;
         // Audio elements
         this.desertMusic = document.getElementById('desertMusic');
         this.alpineMusic = document.getElementById('alpineMusic');
@@ -71,6 +77,8 @@ class GameManager {
     }
 
     initGame(environment) {
+        this.resetCollisionVisuals();
+
         // Clear the scene
         while (this.scene.children.length > 0) {
             this.scene.remove(this.scene.children[0]);
@@ -140,6 +148,35 @@ class GameManager {
         this.createInitialTrafficCars();
         this.resetCarPosition();
         this.updateCameraPosition();
+    }
+
+    resetCollisionVisuals() {
+        if (this.collisionEffects) {
+            this.collisionEffects.forEach(effect => {
+                this.scene.remove(effect.mesh);
+                this.disposeObject(effect.mesh);
+            });
+        }
+
+        this.activeCollision = null;
+        this.collisionEffects = [];
+        this.cameraShakeFrames = 0;
+        this.cameraShakeDuration = 0;
+        this.cameraShakeStrength = 0;
+        this.lastCollisionType = null;
+    }
+
+    disposeObject(object) {
+        object.traverse(child => {
+            if (child.geometry) {
+                child.geometry.dispose();
+            }
+
+            if (child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach(material => material.dispose());
+            }
+        });
     }
 
 
@@ -373,8 +410,13 @@ class GameManager {
             this.game.startTime = Date.now();
         }
 
-        this.updateCarPosition();
+        if (this.activeCollision) {
+            this.updateCollisionAnimation();
+        } else {
+            this.updateCarPosition();
+        }
         this.updateTraffic(); // Make sure this line is present
+        this.updateCollisionEffects();
         this.updateCameraPosition();
         this.updateLightPosition(); // Add this line to update light position
 
@@ -461,6 +503,296 @@ class GameManager {
         this.playerCar.rotateZ(roll);
     }
 
+    triggerTrafficCollision(trafficCar, forcedType) {
+        const variants = ['spinout', 'lift-roll', 'side-slam'];
+        const type = forcedType || variants[Math.floor(Math.random() * variants.length)];
+        const side = Math.sign(this.playerCar.position.x - trafficCar.mesh.position.x) || (Math.random() < 0.5 ? -1 : 1);
+        const borderThreshold = this.game.road.width / 2 - 2.2;
+        const impactPosition = this.playerCar.position.clone().add(trafficCar.mesh.position).multiplyScalar(0.5);
+        const playerStart = this.playerCar.position.clone();
+        const trafficStart = trafficCar.mesh.position.clone();
+        const playerRotStart = this.playerCar.rotation.clone();
+        const trafficRotStart = trafficCar.mesh.rotation.clone();
+
+        let duration = 70;
+        let playerLift = 0.35;
+        let trafficLift = 0.25;
+        let playerSlide = 3.2;
+        let trafficSlide = 4.2;
+        let playerZKick = 2.8;
+        let trafficZKick = -5.5;
+        let playerRotPeak = new THREE.Euler(
+            playerRotStart.x + 0.15,
+            playerRotStart.y + side * Math.PI * 1.6,
+            playerRotStart.z + side * 0.55
+        );
+        let trafficRotEnd = new THREE.Euler(
+            trafficRotStart.x + 0.12,
+            trafficRotStart.y - side * Math.PI * 1.15,
+            trafficRotStart.z - side * 0.48
+        );
+
+        if (type === 'lift-roll') {
+            duration = 94;
+            playerLift = 2.2;
+            trafficLift = 0.95;
+            playerSlide = 4.4;
+            trafficSlide = 3.4;
+            playerZKick = 4.2;
+            trafficZKick = -7.5;
+            playerRotPeak = new THREE.Euler(
+                playerRotStart.x + Math.PI * 2.05,
+                playerRotStart.y + side * Math.PI * 1.05,
+                playerRotStart.z + side * Math.PI * 1.2
+            );
+            trafficRotEnd = new THREE.Euler(
+                trafficRotStart.x + 0.45,
+                trafficRotStart.y - side * Math.PI * 0.8,
+                trafficRotStart.z - side * 0.85
+            );
+        } else if (type === 'side-slam') {
+            duration = 58;
+            playerLift = 0.18;
+            trafficLift = 0.18;
+            playerSlide = 5.2;
+            trafficSlide = 5.4;
+            playerZKick = 1.6;
+            trafficZKick = -3.6;
+            playerRotPeak = new THREE.Euler(
+                playerRotStart.x,
+                playerRotStart.y + side * Math.PI * 0.72,
+                playerRotStart.z + side * 0.38
+            );
+            trafficRotEnd = new THREE.Euler(
+                trafficRotStart.x,
+                trafficRotStart.y - side * Math.PI * 0.62,
+                trafficRotStart.z - side * 0.5
+            );
+        }
+
+        const playerPeakZ = playerStart.z + playerZKick;
+        const playerPeakRoad = getRoadDataAtZ(playerPeakZ, this.game);
+        const playerPeakOffset = THREE.MathUtils.clamp(this.game.car.xOffset + side * playerSlide, -borderThreshold, borderThreshold);
+        const playerPeak = new THREE.Vector3(playerPeakRoad.curve + playerPeakOffset, playerPeakRoad.y + 0.25, playerPeakZ);
+        const playerEndZ = playerPeakZ + 4;
+        const playerEndRoad = getRoadDataAtZ(playerEndZ, this.game);
+        const playerEnd = new THREE.Vector3(playerEndRoad.curve, playerEndRoad.y + 0.25, playerEndZ);
+        const playerRotEnd = new THREE.Euler(0, 0, 0);
+
+        const trafficEndZ = trafficStart.z + trafficZKick;
+        const trafficEndRoad = getRoadDataAtZ(trafficEndZ, this.game);
+        const trafficEndOffset = THREE.MathUtils.clamp(trafficCar.xOffset - side * trafficSlide, -borderThreshold, borderThreshold);
+        const trafficEnd = new THREE.Vector3(trafficEndRoad.curve + trafficEndOffset, trafficEndRoad.y + 0.35, trafficEndZ);
+
+        this.activeCollision = {
+            type,
+            trafficCar,
+            frame: 0,
+            duration,
+            playerStart,
+            playerPeak,
+            playerEnd,
+            trafficStart,
+            trafficEnd,
+            playerRotStart,
+            playerRotPeak,
+            playerRotEnd,
+            trafficRotStart,
+            trafficRotEnd,
+            playerLift,
+            trafficLift
+        };
+
+        this.lastCollisionType = type;
+        this.game.car.speed = 0;
+        this.game.car.trafficCollisionCooldown = duration + 80;
+        trafficCar.speed *= 0.25;
+        this.cameraShakeDuration = Math.round(duration * 0.55);
+        this.cameraShakeFrames = this.cameraShakeDuration;
+        this.cameraShakeStrength = type === 'lift-roll' ? 0.55 : 0.38;
+        this.createCrashBurst(impactPosition, type);
+    }
+
+    updateCollisionAnimation() {
+        if (!this.activeCollision) {
+            return;
+        }
+
+        const collision = this.activeCollision;
+        collision.frame++;
+        const t = Math.min(collision.frame / collision.duration, 1);
+        const crashProgress = Math.min(t / 0.7, 1);
+        const settleProgress = Math.max((t - 0.7) / 0.3, 0);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const crashEase = 1 - Math.pow(1 - crashProgress, 3);
+        const settleEase = 1 - Math.pow(1 - settleProgress, 3);
+        const lift = Math.sin(crashProgress * Math.PI);
+
+        if (t < 0.7) {
+            this.playerCar.position.lerpVectors(collision.playerStart, collision.playerPeak, crashEase);
+            this.playerCar.position.y += lift * collision.playerLift;
+            this.playerCar.rotation.set(
+                THREE.MathUtils.lerp(collision.playerRotStart.x, collision.playerRotPeak.x, crashEase),
+                THREE.MathUtils.lerp(collision.playerRotStart.y, collision.playerRotPeak.y, crashEase),
+                THREE.MathUtils.lerp(collision.playerRotStart.z, collision.playerRotPeak.z, crashEase)
+            );
+        } else {
+            this.playerCar.position.lerpVectors(collision.playerPeak, collision.playerEnd, settleEase);
+            this.playerCar.rotation.set(
+                THREE.MathUtils.lerp(collision.playerRotPeak.x, collision.playerRotEnd.x, settleEase),
+                THREE.MathUtils.lerp(collision.playerRotPeak.y, collision.playerRotEnd.y, settleEase),
+                THREE.MathUtils.lerp(collision.playerRotPeak.z, collision.playerRotEnd.z, settleEase)
+            );
+        }
+
+        collision.trafficCar.mesh.position.lerpVectors(collision.trafficStart, collision.trafficEnd, eased);
+        collision.trafficCar.mesh.position.y += lift * collision.trafficLift;
+        collision.trafficCar.mesh.rotation.set(
+            THREE.MathUtils.lerp(collision.trafficRotStart.x, collision.trafficRotEnd.x, eased),
+            THREE.MathUtils.lerp(collision.trafficRotStart.y, collision.trafficRotEnd.y, eased),
+            THREE.MathUtils.lerp(collision.trafficRotStart.z, collision.trafficRotEnd.z, eased)
+        );
+
+        this.carPosition.copy(this.playerCar.position);
+
+        if (t >= 1) {
+            const trafficRoadData = getRoadDataAtZ(collision.trafficEnd.z, this.game);
+            this.game.car.position.z = collision.playerEnd.z;
+            this.game.car.xOffset = 0;
+            this.game.car.angle = 0;
+            this.game.car.speed = 0;
+            collision.trafficCar.xOffset = collision.trafficEnd.x - trafficRoadData.curve;
+            collision.trafficCar.mesh.position.copy(collision.trafficEnd);
+            this.playerCar.position.copy(collision.playerEnd);
+            this.playerCar.rotation.set(0, 0, 0);
+            this.carPosition.copy(collision.playerEnd);
+            this.activeCollision = null;
+        }
+    }
+
+    createCrashBurst(position, type) {
+        const ringColor = type === 'lift-roll' ? 0x5fe2ff : type === 'side-slam' ? 0xff4f5f : 0xffd447;
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(1.3, 0.045, 8, 40),
+            new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.85 })
+        );
+        ring.position.copy(position);
+        ring.position.y += 0.3;
+        ring.rotation.x = Math.PI / 2;
+        this.scene.add(ring);
+        this.collisionEffects.push({
+            mesh: ring,
+            velocity: new THREE.Vector3(0, 0.02, 0),
+            spin: new THREE.Vector3(0, 0, 0),
+            age: 0,
+            life: 34,
+            startOpacity: 0.85,
+            grow: 4.2
+        });
+
+        const flash = new THREE.Mesh(
+            new THREE.SphereGeometry(0.65, 14, 10),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.68 })
+        );
+        flash.position.copy(position);
+        flash.position.y += 0.55;
+        this.scene.add(flash);
+        this.collisionEffects.push({
+            mesh: flash,
+            velocity: new THREE.Vector3(0, 0.015, 0),
+            spin: new THREE.Vector3(0, 0, 0),
+            age: 0,
+            life: 18,
+            startOpacity: 0.68,
+            grow: 2.4
+        });
+
+        const sparkGeometry = new THREE.BoxGeometry(0.09, 0.09, 0.34);
+        const debrisGeometry = new THREE.BoxGeometry(0.2, 0.12, 0.28);
+        const sparkColors = [0xfff1a8, 0xff9c2e, 0xff4f5f, 0x5fe2ff];
+
+        for (let i = 0; i < 32; i++) {
+            const color = sparkColors[Math.floor(Math.random() * sparkColors.length)];
+            const spark = new THREE.Mesh(
+                sparkGeometry.clone(),
+                new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 })
+            );
+            spark.position.copy(position);
+            spark.position.y += 0.45;
+            spark.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            this.scene.add(spark);
+            this.collisionEffects.push({
+                mesh: spark,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.55,
+                    0.18 + Math.random() * 0.45,
+                    (Math.random() - 0.5) * 0.65
+                ),
+                spin: new THREE.Vector3(Math.random() * 0.35, Math.random() * 0.35, Math.random() * 0.35),
+                age: 0,
+                life: 28 + Math.floor(Math.random() * 24),
+                startOpacity: 0.95,
+                grow: 0
+            });
+        }
+
+        for (let i = 0; i < 10; i++) {
+            const debris = new THREE.Mesh(
+                debrisGeometry.clone(),
+                new THREE.MeshPhongMaterial({ color: i % 2 ? 0x222831 : 0x8f9ba5, transparent: true, opacity: 0.9 })
+            );
+            debris.position.copy(position);
+            debris.position.y += 0.25;
+            this.scene.add(debris);
+            this.collisionEffects.push({
+                mesh: debris,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.32,
+                    0.12 + Math.random() * 0.32,
+                    (Math.random() - 0.5) * 0.42
+                ),
+                spin: new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.22, Math.random() * 0.18),
+                age: 0,
+                life: 42 + Math.floor(Math.random() * 30),
+                startOpacity: 0.9,
+                grow: 0
+            });
+        }
+
+        sparkGeometry.dispose();
+        debrisGeometry.dispose();
+    }
+
+    updateCollisionEffects() {
+        this.collisionEffects = this.collisionEffects.filter(effect => {
+            effect.age++;
+            const progress = effect.age / effect.life;
+            effect.mesh.position.add(effect.velocity);
+            effect.velocity.y -= 0.018;
+            effect.velocity.multiplyScalar(0.985);
+            effect.mesh.rotation.x += effect.spin.x;
+            effect.mesh.rotation.y += effect.spin.y;
+            effect.mesh.rotation.z += effect.spin.z;
+
+            if (effect.grow) {
+                const scale = 1 + progress * effect.grow;
+                effect.mesh.scale.setScalar(scale);
+            }
+
+            if (effect.mesh.material && typeof effect.mesh.material.opacity === 'number') {
+                effect.mesh.material.opacity = Math.max(0, effect.startOpacity * (1 - progress));
+            }
+
+            if (effect.age >= effect.life) {
+                this.scene.remove(effect.mesh);
+                this.disposeObject(effect.mesh);
+                return false;
+            }
+
+            return true;
+        });
+    }
+
 
 
     updateTraffic() {
@@ -469,9 +801,12 @@ class GameManager {
         }
 
         const playerBox = new THREE.Box3().setFromObject(this.playerCar);
-        const safetyOffset = 2.5;
 
-        this.trafficCars.forEach((trafficCar, index) => {
+        this.trafficCars.forEach(trafficCar => {
+            if (this.activeCollision && this.activeCollision.trafficCar === trafficCar) {
+                return;
+            }
+
             trafficCar.mesh.position.z += trafficCar.speed;
 
             // If car is behind the player, move it to the back of the visible road
@@ -492,24 +827,9 @@ class GameManager {
 
             const trafficBox = new THREE.Box3().setFromObject(trafficCar.mesh);
 
-            if (playerBox.intersectsBox(trafficBox) && this.game.car.trafficCollisionCooldown === 0) {
-                const targetZ = trafficCar.mesh.position.z + safetyOffset;
-                this.game.car.position.z = targetZ;
-                this.game.car.speed = 0;
-                this.game.car.xOffset = trafficCar.xOffset;
-
-                const adjustedRoadData = getRoadDataAtZ(targetZ, this.game);
-                this.carPosition.set(
-                    this.game.car.xOffset + adjustedRoadData.curve,
-                    adjustedRoadData.y + 0.25,
-                    targetZ
-                );
-                this.game.car.position.x = this.carPosition.x;
-                this.game.car.position.y = this.carPosition.y;
-                this.playerCar.position.copy(this.carPosition);
+            if (!this.activeCollision && playerBox.intersectsBox(trafficBox) && this.game.car.trafficCollisionCooldown === 0) {
+                this.triggerTrafficCollision(trafficCar);
                 playerBox.setFromObject(this.playerCar);
-
-                this.game.car.trafficCollisionCooldown = 20;
             }
         });
     }
@@ -539,12 +859,25 @@ class GameManager {
             cameraPosition = rayStart.add(rayDirection.multiplyScalar(adjustedDistance));
         }
 
-        // Set camera position
-        this.camera.position.copy(cameraPosition);
-
         // Calculate look-at position (slightly ahead of the car)
         const lookAtPosition = this.carPosition.clone()
             .add(carDirection.clone().multiplyScalar(10)); // Look 10 units ahead
+
+        if (this.cameraShakeFrames > 0) {
+            const falloff = this.cameraShakeFrames / this.cameraShakeDuration;
+            const shake = this.cameraShakeStrength * falloff;
+            const shakeOffset = new THREE.Vector3(
+                (Math.random() - 0.5) * shake,
+                (Math.random() - 0.5) * shake * 0.5,
+                (Math.random() - 0.5) * shake
+            );
+            cameraPosition.add(shakeOffset);
+            lookAtPosition.add(shakeOffset.clone().multiplyScalar(0.35));
+            this.cameraShakeFrames--;
+        }
+
+        // Set camera position
+        this.camera.position.copy(cameraPosition);
 
         // Set camera to look at this position
         this.camera.lookAt(lookAtPosition);

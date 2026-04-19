@@ -9,6 +9,7 @@
     scene.fog = new THREE.FogExp2(0x87CEEB, 0.002);
 
     const gameManager = new GameManager(scene, camera, renderer);
+    window.rallyRushGame = gameManager;
 
     const controls = { left: false, right: false, accelerate: false, brake: false };
 
@@ -41,7 +42,13 @@
             road: game ? {
                 width: game.road.width,
                 segments: game.road.segments.length
-            } : null
+            } : null,
+            collision: gameManager.activeCollision ? {
+                type: gameManager.activeCollision.type,
+                progress: Number((gameManager.activeCollision.frame / gameManager.activeCollision.duration).toFixed(2)),
+                effects: gameManager.collisionEffects.length
+            } : null,
+            lastCollisionType: gameManager.lastCollisionType
         }, null, 2);
     };
 
@@ -77,6 +84,7 @@
         resetControls();
         hideMobileControls();
         gameManager.stopAllMusic();
+        gameManager.resetCollisionVisuals();
         gameManager.game = null;
         gameManager.playerCar = null;
         gameManager.trafficCars = [];
