@@ -299,7 +299,7 @@ class GameManager {
 
         document.getElementById('ui').style.display = 'none';
         const endScreen = document.getElementById('endScreen');
-        endScreen.style.display = 'block';
+        endScreen.style.display = 'grid';
         document.getElementById('finalTime').textContent = `${time.toFixed(2)} s`;
 
         const scoreboard = document.getElementById('scoreboard');
@@ -316,7 +316,7 @@ class GameManager {
         // Event listener for changing the circuit
         document.getElementById('changeCircuitButton').addEventListener('click', () => {
             document.getElementById('endScreen').style.display = 'none';
-            document.getElementById('startScreen').style.display = 'block';
+            document.getElementById('startScreen').style.display = 'grid';
         });
 
         // Event listener for restarting the game

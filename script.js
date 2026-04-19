@@ -59,7 +59,39 @@
         mobileControls.style.display = shouldShowMobileControls() ? 'block' : 'none';
     }
 
+    function resetControls() {
+        controls.left = false;
+        controls.right = false;
+        controls.accelerate = false;
+        controls.brake = false;
+        gameManager.setControls(controls);
+    }
+
+    function returnToMainMenu() {
+        if (startScreen.style.display !== 'none') {
+            return;
+        }
+
+        cancelAnimationFrame(gameManager.animationId);
+        gameManager.animationId = null;
+        resetControls();
+        hideMobileControls();
+        gameManager.stopAllMusic();
+        gameManager.game = null;
+        gameManager.playerCar = null;
+        gameManager.trafficCars = [];
+        document.getElementById('ui').style.display = 'none';
+        endScreen.style.display = 'none';
+        startScreen.style.display = 'grid';
+        renderer.render(scene, camera);
+    }
+
     document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            returnToMainMenu();
+            return;
+        }
+
         let controlChanged = false;
         if (e.key === 'ArrowLeft') { controls.left = true; controlChanged = true; }
         if (e.key === 'ArrowRight') { controls.right = true; controlChanged = true; }
@@ -145,7 +177,7 @@
 
     document.getElementById('changeCircuitButton').addEventListener('click', () => {
         endScreen.style.display = 'none';
-        startScreen.style.display = 'block';
+        startScreen.style.display = 'grid';
         hideMobileControls();
     });
 
