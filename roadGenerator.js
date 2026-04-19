@@ -249,6 +249,57 @@ function generateRoadAndTerrain(scene, game, environment) {
     scene.background = new THREE.Color(environment.fogColor);
     scene.fog = new THREE.FogExp2(environment.fogColor, 0.002);
 
+    function createBannerTexture(label) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 256;
+        const context = canvas.getContext('2d');
+        const squareSize = 32;
+
+        context.fillStyle = '#22242b';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+        gradient.addColorStop(0, '#15171d');
+        gradient.addColorStop(0.5, '#343741');
+        gradient.addColorStop(1, '#15171d');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let x = 0; x < canvas.width; x += squareSize) {
+            for (let y = 0; y < canvas.height; y += squareSize) {
+                if (((x / squareSize) + (y / squareSize)) % 2 === 0) {
+                    context.fillStyle = 'rgba(255, 255, 255, 0.92)';
+                } else {
+                    context.fillStyle = 'rgba(20, 20, 24, 0.95)';
+                }
+                if (x < squareSize * 4 || x >= canvas.width - squareSize * 4) {
+                    context.fillRect(x, y, squareSize, squareSize);
+                }
+            }
+        }
+
+        context.strokeStyle = '#f4f1df';
+        context.lineWidth = 10;
+        context.strokeRect(96, 36, canvas.width - 192, canvas.height - 72);
+
+        context.fillStyle = '#f4f1df';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.font = '900 112px Arial, sans-serif';
+        context.fillText(label, canvas.width / 2, 108);
+
+        context.font = '900 44px Arial, sans-serif';
+        context.fillStyle = '#ffd447';
+        context.fillText('RALLYRUSHII', canvas.width / 2, 190);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.repeat.x = -1;
+        return texture;
+    }
+
     function createRallyStructure(scene, game, zPosition, isFinishLine) {
         const poleHeight = 10;
         const poleWidth = 0.5;
@@ -269,12 +320,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         leftPole.position.set(roadData.curve - bannerWidth / 2, roadData.y + poleHeight / 2, zPosition);
         rightPole.position.set(roadData.curve + bannerWidth / 2, roadData.y + poleHeight / 2, zPosition);
     
-        // Load the appropriate texture
-        const bannerTexture = textureLoader.load(isFinishLine ? 'assets/finish_banner.webp' : 'assets/start_banner.webp');
-        
-        // Flip the texture horizontally if needed
-        bannerTexture.wrapS = THREE.RepeatWrapping;
-        bannerTexture.repeat.x = -1;
+        const bannerTexture = createBannerTexture(isFinishLine ? 'FINISH' : 'START');
     
         // Create banner
         const bannerGeometry = new THREE.PlaneGeometry(bannerWidth, bannerHeight);

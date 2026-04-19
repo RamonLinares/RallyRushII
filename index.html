@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rally Rush</title>
+    <title>RallyRushII</title>
+    <meta name="description" content="RallyRushII, a standalone continuation of RallyRush.">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -21,7 +22,10 @@
     </div>
     <!-- Start Screen -->
     <div id="startScreen">
-        <img id="startLogo" src="assets/game_logo.jpeg" alt="Rally Rush Logo" />
+        <div class="gameLogo" role="img" aria-label="RallyRushII logo">
+            <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
+            <span class="gameLogoTitle">RallyRush<span>II</span></span>
+        </div>
         <p>Use arrow keys to control the car.</p>
         <select id="circuitSelect">
             <option value="scotland">Scotland</option>
@@ -34,7 +38,10 @@
 
     <!-- End Screen -->
     <div id="endScreen" style="display:none;">
-        <img id="endLogo" src="assets/game_logo.jpeg" alt="Rally Rush Logo" />
+        <div class="gameLogo" role="img" aria-label="RallyRushII logo">
+            <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
+            <span class="gameLogoTitle">RallyRush<span>II</span></span>
+        </div>
         <h1>Game Over!</h1>
         <p id="finalTime"></p>
         <div id="scoreboard"></div>
