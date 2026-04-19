@@ -50,9 +50,13 @@
         mobileControls.style.display = 'none';
     }
 
+    function shouldShowMobileControls() {
+        return window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
+    }
+
     // Show mobile controls during gameplay
     function showMobileControls() {
-        mobileControls.style.display = 'block';
+        mobileControls.style.display = shouldShowMobileControls() ? 'block' : 'none';
     }
 
     document.addEventListener('keydown', e => {
@@ -164,5 +168,8 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        if (startScreen.style.display === 'none' && endScreen.style.display === 'none') {
+            showMobileControls();
+        }
     });
 })();

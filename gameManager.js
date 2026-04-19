@@ -300,13 +300,16 @@ class GameManager {
         document.getElementById('ui').style.display = 'none';
         const endScreen = document.getElementById('endScreen');
         endScreen.style.display = 'block';
-        document.getElementById('finalTime').textContent = `Your Time: ${time.toFixed(2)} seconds`;
+        document.getElementById('finalTime').textContent = `${time.toFixed(2)} s`;
 
         const scoreboard = document.getElementById('scoreboard');
         if (scoreboard) { // Check if the scoreboard element exists
-            scoreboard.innerHTML = '<h2>Best Times:</h2>';
+            scoreboard.innerHTML = '<h2>Best times</h2><ol></ol>';
+            const list = scoreboard.querySelector('ol');
             this.bestTimes.forEach((t, i) => {
-                scoreboard.innerHTML += `<p>${i + 1}. ${t.toFixed(2)} seconds</p>`;
+                const item = document.createElement('li');
+                item.innerHTML = `<span>P${i + 1}</span><strong>${t.toFixed(2)} s</strong>`;
+                list.appendChild(item);
             });
         }
 
@@ -339,10 +342,18 @@ class GameManager {
 
 
     updateUI() {
-        document.getElementById('speed').textContent = `Speed: ${(this.game.car.speed * 100).toFixed(0)} km/h`;
+        const speedValue = document.getElementById('speedValue');
+        const timerValue = document.getElementById('timerValue');
+
+        if (speedValue) {
+            speedValue.textContent = (this.game.car.speed * 100).toFixed(0);
+        }
+
         if (this.game.startTime && !this.game.finishTime) {
             const elapsedTime = (Date.now() - this.game.startTime) / 1000;
-            document.getElementById('timer').textContent = `Time: ${elapsedTime.toFixed(2)}s`;
+            if (timerValue) {
+                timerValue.textContent = elapsedTime.toFixed(2);
+            }
         }
     }
 

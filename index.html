@@ -16,46 +16,83 @@
     <audio id="scotlandMusic" src="assets/scotland.mp3" preload="auto"></audio>
     
 
-    <div id="ui">
-        <div id="speed"></div>
-        <div id="timer"></div>
+    <div id="ui" class="hud">
+        <div class="hudTelemetry" aria-label="Race telemetry">
+            <div class="hudBrand">RallyRushII</div>
+            <div class="metric metricSpeed">
+                <span class="metricLabel">Speed</span>
+                <span class="metricReadout"><span id="speedValue">0</span><span class="metricUnit">km/h</span></span>
+            </div>
+            <div class="hudRule"></div>
+            <div class="metric">
+                <span class="metricLabel">Time</span>
+                <span class="metricReadout"><span id="timerValue">0.00</span><span class="metricUnit">s</span></span>
+            </div>
+        </div>
     </div>
     <!-- Start Screen -->
-    <div id="startScreen">
-        <div class="gameLogo" role="img" aria-label="RallyRushII logo">
-            <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
-            <span class="gameLogoTitle">RallyRush<span>II</span></span>
+    <div id="startScreen" class="screenOverlay">
+        <div class="menuPanel">
+            <div class="gameLogo" role="img" aria-label="RallyRushII logo">
+                <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
+                <span class="gameLogoTitle">RallyRush<span>II</span></span>
+            </div>
+            <div class="menuCopy">
+                <p class="eyebrow">Stage select</p>
+                <h1>Choose your route</h1>
+                <p>Telemetry online.</p>
+            </div>
+            <label class="selectLabel" for="circuitSelect">Circuit</label>
+            <div class="selectShell">
+                <select id="circuitSelect">
+                    <option value="scotland">Scotland</option>
+                    <option value="desert">Desert</option>
+                    <option value="alpine">Alpine</option>
+                </select>
+            </div>
+            <button id="startButton" class="primaryButton">Start race</button>
         </div>
-        <p>Use arrow keys to control the car.</p>
-        <select id="circuitSelect">
-            <option value="scotland">Scotland</option>
-            <option value="desert">Desert</option>
-            <option value="alpine">Alpine</option>
-        </select>
-        <button id="startButton">Start Game</button>
-        <p>Press Enter to start</p>
     </div>
 
     <!-- End Screen -->
-    <div id="endScreen" style="display:none;">
-        <div class="gameLogo" role="img" aria-label="RallyRushII logo">
-            <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
-            <span class="gameLogoTitle">RallyRush<span>II</span></span>
+    <div id="endScreen" class="screenOverlay" style="display:none;">
+        <div class="menuPanel endPanel">
+            <div class="gameLogo compactLogo" role="img" aria-label="RallyRushII logo">
+                <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
+                <span class="gameLogoTitle">RallyRush<span>II</span></span>
+            </div>
+            <div class="menuCopy">
+                <p class="eyebrow">Stage complete</p>
+                <h1>Game over</h1>
+                <p id="finalTime" class="finalTime"></p>
+            </div>
+            <div id="scoreboard" class="scoreboard"></div>
+            <div class="menuActions">
+                <button id="restartButton" class="primaryButton">Restart</button>
+                <button id="changeCircuitButton" class="secondaryButton">Change circuit</button>
+            </div>
         </div>
-        <h1>Game Over!</h1>
-        <p id="finalTime"></p>
-        <div id="scoreboard"></div>
-        <button id="restartButton">Restart</button>
-        <button id="changeCircuitButton">Change Circuit</button>
     </div>
-    <div id="mobileControls">
-        <div id="leftControls">
-            <button id="accelerateButton">Accelerate</button>
-            <button id="brakeButton">Brake</button>
+    <div id="mobileControls" aria-label="Driving controls">
+        <div id="leftControls" class="pedalControls">
+            <button id="accelerateButton" class="controlButton controlButtonPrimary">
+                <span class="controlKey">RT</span>
+                <span>Accelerate</span>
+            </button>
+            <button id="brakeButton" class="controlButton">
+                <span class="controlKey">LT</span>
+                <span>Brake</span>
+            </button>
         </div>
-        <div id="rightControls">
-            <button id="leftButton">Left</button>
-            <button id="rightButton">Right</button>
+        <div id="rightControls" class="steerControls">
+            <button id="leftButton" class="controlButton">
+                <span class="controlKey">L</span>
+                <span>Left</span>
+            </button>
+            <button id="rightButton" class="controlButton">
+                <span class="controlKey">R</span>
+                <span>Right</span>
+            </button>
         </div>
     </div>
     

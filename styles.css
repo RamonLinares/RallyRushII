@@ -1,55 +1,200 @@
+:root {
+    --ui-bg: rgba(8, 12, 18, 0.72);
+    --ui-bg-strong: rgba(7, 10, 15, 0.9);
+    --ui-border: rgba(255, 255, 255, 0.22);
+    --ui-border-strong: rgba(255, 255, 255, 0.4);
+    --ui-line: rgba(95, 226, 255, 0.5);
+    --ui-text: #f7fbff;
+    --ui-muted: rgba(230, 240, 248, 0.68);
+    --ui-accent: #5fe2ff;
+    --ui-accent-2: #ffd447;
+    --ui-danger: #ff4f5f;
+    --ui-green: #68ff9a;
+    --ui-shadow: rgba(0, 0, 0, 0.42);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
 body {
     margin: 0;
     overflow: hidden;
-    font-family: Arial, sans-serif;
+    color: var(--ui-text);
+    font-family: "Arial Narrow", "Aptos", "Arial", sans-serif;
+    background: #05070b;
 }
 
 canvas {
     display: block;
 }
 
-#ui,
-#startScreen,
-#endScreen {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    font-size: 20px;
-    text-shadow: 2px 2px 2px black;
-}
-
-#startScreen,
-#endScreen {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.7);
-    padding: 20px;
-    border-radius: 10px;
-    text-align: center;
+button,
+select {
+    font: inherit;
 }
 
 button {
-    font-size: 18px;
-    padding: 10px 20px;
-    margin-top: 20px;
     cursor: pointer;
+    border: 0;
 }
 
-#scoreboard {
-    margin-top: 20px;
-    text-align: left;
+.hud,
+.screenOverlay,
+#mobileControls {
+    position: fixed;
+    z-index: 10;
 }
+
+.hud {
+    top: 16px;
+    left: 16px;
+    display: none;
+    pointer-events: none;
+}
+
+.hudTelemetry {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    align-items: end;
+    gap: 12px;
+    min-width: 318px;
+    padding: 12px 14px 13px;
+    overflow: hidden;
+    border: 1px solid var(--ui-border);
+    border-left: 4px solid var(--ui-accent);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(95, 226, 255, 0.14), transparent 34%),
+        var(--ui-bg);
+    box-shadow: 0 16px 42px var(--ui-shadow);
+    backdrop-filter: blur(18px) saturate(1.35);
+}
+
+.hudTelemetry::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.28);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent 54%);
+}
+
+.hudBrand {
+    align-self: center;
+    padding: 6px 9px;
+    border-radius: 6px;
+    color: #071017;
+    background: var(--ui-accent-2);
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.metric {
+    display: grid;
+    gap: 3px;
+    min-width: 72px;
+}
+
+.metricSpeed {
+    min-width: 116px;
+}
+
+.metricLabel {
+    color: var(--ui-muted);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.metricReadout {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    font-variant-numeric: tabular-nums;
+}
+
+#speedValue,
+#timerValue {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 0.9;
+    text-shadow: 0 3px 16px rgba(95, 226, 255, 0.35);
+}
+
+.metricUnit {
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.hudRule {
+    width: 1px;
+    height: 38px;
+    background: linear-gradient(180deg, transparent, var(--ui-border-strong), transparent);
+}
+
+.screenOverlay {
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: linear-gradient(180deg, rgba(3, 7, 12, 0.3), rgba(3, 7, 12, 0.64));
+}
+
+.menuPanel {
+    position: relative;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 16px;
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background:
+        linear-gradient(145deg, rgba(95, 226, 255, 0.12), transparent 38%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%),
+        var(--ui-bg-strong);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.64);
+    backdrop-filter: blur(22px) saturate(1.35);
+}
+
+.menuPanel::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+}
+
+.endPanel {
+    width: min(500px, calc(100vw - 32px));
+}
+
 .gameLogo {
     position: relative;
-    width: min(500px, 100%);
-    height: 230px;
-    margin: 0 auto 20px;
+    width: 100%;
+    height: 220px;
+    margin: 0 0 18px;
     overflow: hidden;
     border-radius: 8px;
-    background: #111;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+    background: #10141b;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+
+.compactLogo {
+    height: 150px;
 }
 
 .gameLogo img {
@@ -58,13 +203,14 @@ button {
     display: block;
     object-fit: cover;
     object-position: center top;
+    filter: saturate(1.1) contrast(1.03);
 }
 
 .gameLogo::after {
     content: "";
     position: absolute;
-    inset: 42% 0 0;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.88));
+    inset: 34% 0 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(2, 5, 10, 0.9));
 }
 
 .gameLogoTitle {
@@ -74,109 +220,437 @@ button {
     left: 18px;
     z-index: 1;
     color: #ffffff;
-    font-size: 52px;
+    font-size: 48px;
     font-weight: 900;
-    line-height: 0.9;
-    letter-spacing: 0;
+    line-height: 0.92;
     text-transform: uppercase;
-    text-shadow: 0 4px 0 #000000, 0 8px 18px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 4px 0 #000000, 0 12px 28px rgba(0, 0, 0, 0.9);
     white-space: nowrap;
 }
 
+.compactLogo .gameLogoTitle {
+    font-size: 38px;
+}
+
 .gameLogoTitle span {
-    color: #ffd447;
+    color: var(--ui-accent-2);
 }
 
-#startScreen, #endScreen {
-    text-align: center; /* Centers the content horizontally */
+.menuCopy {
+    position: relative;
+    display: grid;
+    gap: 6px;
+    margin-bottom: 18px;
 }
 
-#startScreen h1, #endScreen h1 {
-    margin-top: 10px; /* Adds space between the logo and the title */
+.eyebrow {
+    margin: 0;
+    color: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
 }
 
-#startScreen p, #endScreen p {
-    margin-top: 15px;
+.menuCopy h1 {
+    margin: 0;
+    font-size: 36px;
+    line-height: 1;
+    text-transform: uppercase;
 }
 
-@media only screen and (max-width: 600px) {
-    #startScreen, #endScreen {
-        width: 90%;
-        padding: 10px;
-        font-size: 16px;
+.menuCopy p {
+    margin: 0;
+    color: var(--ui-muted);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.selectLabel {
+    display: block;
+    margin: 0 0 8px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.selectShell {
+    position: relative;
+    margin-bottom: 14px;
+}
+
+.selectShell::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid var(--ui-accent);
+    border-bottom: 2px solid var(--ui-accent);
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+}
+
+select {
+    width: 100%;
+    min-height: 54px;
+    padding: 0 44px 0 16px;
+    appearance: none;
+    color: var(--ui-text);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 20px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+select:focus,
+button:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 3px;
+}
+
+.menuActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.primaryButton,
+.secondaryButton {
+    position: relative;
+    min-height: 56px;
+    padding: 0 18px;
+    overflow: hidden;
+    border-radius: 8px;
+    font-size: 17px;
+    font-weight: 900;
+    text-transform: uppercase;
+    transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.primaryButton {
+    width: 100%;
+    color: #061016;
+    background: linear-gradient(135deg, var(--ui-accent), var(--ui-green));
+    box-shadow: 0 16px 36px rgba(95, 226, 255, 0.28);
+}
+
+.secondaryButton {
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.primaryButton::after,
+.secondaryButton::after,
+.controlButton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+    transform: translateX(-120%);
+    transition: transform 240ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.controlButton:hover {
+    transform: translateY(-1px);
+}
+
+.primaryButton:hover::after,
+.secondaryButton:hover::after,
+.controlButton:hover::after {
+    transform: translateX(120%);
+}
+
+.finalTime {
+    display: inline-flex;
+    width: fit-content;
+    padding: 8px 12px;
+    color: #051018 !important;
+    border-radius: 6px;
+    background: var(--ui-accent-2);
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.scoreboard {
+    position: relative;
+    margin: 0 0 14px;
+    padding: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.scoreboard h2 {
+    margin: 0 0 10px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.scoreboard ol {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.scoreboard li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    font-variant-numeric: tabular-nums;
+}
+
+.scoreboard span {
+    color: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.scoreboard strong {
+    font-size: 14px;
+}
+
+#mobileControls {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: none;
+    pointer-events: none;
+}
+
+.pedalControls,
+.steerControls {
+    position: absolute;
+    bottom: 18px;
+    display: flex;
+    gap: 10px;
+}
+
+.pedalControls {
+    left: 18px;
+    flex-direction: column;
+}
+
+.steerControls {
+    right: 18px;
+}
+
+.controlButton {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    min-width: 128px;
+    min-height: 58px;
+    padding: 10px 14px;
+    pointer-events: all;
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 44%),
+        var(--ui-bg);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(16px) saturate(1.25);
+    font-size: 16px;
+    font-weight: 900;
+    text-align: left;
+    text-transform: uppercase;
+    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.controlButton:active {
+    transform: translateY(2px) scale(0.98);
+    border-color: var(--ui-accent);
+    background:
+        linear-gradient(145deg, rgba(95, 226, 255, 0.22), transparent 44%),
+        rgba(6, 12, 18, 0.86);
+}
+
+.controlButtonPrimary {
+    border-color: rgba(104, 255, 154, 0.48);
+}
+
+.controlKey {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: #061016;
+    border-radius: 6px;
+    background: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.controlButtonPrimary .controlKey {
+    background: var(--ui-green);
+}
+
+@media (max-width: 720px) {
+    .hud {
+        top: 10px;
+        left: 10px;
     }
 
-    button {
-        font-size: 16px;
-        padding: 8px 16px;
+    .hudTelemetry {
+        grid-template-columns: auto auto auto;
+        gap: 9px;
+        min-width: 0;
+        padding: 10px 11px;
     }
 
-    #ui {
-        top: 5px;
-        left: 5px;
-        font-size: 16px;
+    .hudBrand {
+        display: none;
+    }
+
+    .metricSpeed {
+        min-width: 94px;
+    }
+
+    #speedValue,
+    #timerValue {
+        font-size: 26px;
+    }
+
+    .screenOverlay {
+        padding: 12px;
+        place-items: start center;
+        overflow: auto;
+    }
+
+    .menuPanel,
+    .endPanel {
+        width: min(390px, calc(100vw - 20px));
+        margin-top: 12px;
+        padding: 12px;
     }
 
     .gameLogo {
-        height: 48vw;
-        max-height: 230px;
+        height: 176px;
+    }
+
+    .compactLogo {
+        height: 126px;
     }
 
     .gameLogoTitle {
         right: 12px;
         bottom: 12px;
         left: 12px;
-        font-size: clamp(28px, 11vw, 52px);
+        font-size: 34px;
     }
-}
 
-#mobileControls {
-    display: none;
-    position: fixed;
-    bottom: 10px;
-    width: 100%;
-    z-index: 10;
-    pointer-events: none; /* To ensure they are not blocking any other interactions */
-}
+    .compactLogo .gameLogoTitle {
+        font-size: 30px;
+    }
 
-#mobileControls button {
-    pointer-events: all; /* Re-enable pointer events on buttons */
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: none;
-    padding: 15px 20px;
-    margin: 5px;
-    font-size: 18px;
-    border-radius: 5px;
-    cursor: pointer;
-}
+    .menuCopy h1 {
+        font-size: 28px;
+    }
 
-#leftControls {
-    position: absolute;
-    left: 10px;
-    bottom: 0;
-    display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-}
+    .menuActions {
+        grid-template-columns: 1fr;
+    }
 
-#rightControls {
-    position: absolute;
-    right: 10px;
-    bottom: 0;
-    display: flex;
-    flex-direction: row; /* Place buttons side by side */
-}
-
-@media only screen and (max-width: 600px) {
     #mobileControls {
         display: block;
     }
 
-    #ui {
-        font-size: 14px;
+    .pedalControls,
+    .steerControls {
+        bottom: 14px;
+        gap: 8px;
     }
 
-    button {
-        font-size: 14px;
+    .pedalControls {
+        left: 10px;
+    }
+
+    .steerControls {
+        right: 10px;
+    }
+
+    .controlButton {
+        min-width: 92px;
+        min-height: 54px;
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 8px 10px;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .controlKey {
+        width: 28px;
+        height: 24px;
+        justify-self: center;
+    }
+}
+
+@media (max-width: 420px) {
+    .hudTelemetry {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .hudRule {
+        display: none;
+    }
+
+    .metric {
+        min-width: 0;
+    }
+
+    .pedalControls,
+    .steerControls {
+        position: static;
+    }
+
+    #mobileControls {
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    #mobileControls[style*="block"] {
+        display: grid !important;
+    }
+
+    .pedalControls,
+    .steerControls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .controlButton {
+        min-width: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
     }
 }
