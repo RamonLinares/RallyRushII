@@ -43,6 +43,7 @@
                 width: game.road.width,
                 segments: game.road.segments.length
             } : null,
+            trafficTypes: game ? gameManager.trafficCars.slice(0, 6).map(traffic => traffic.vehicleType) : [],
             collision: gameManager.activeCollision ? {
                 type: gameManager.activeCollision.type,
                 progress: Number((gameManager.activeCollision.frame / gameManager.activeCollision.duration).toFixed(2)),

@@ -52,7 +52,7 @@ class GameManager {
         this.animationId = null;
         this.bestTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
         this.controls = { left: false, right: false, accelerate: false, brake: false };
-        this.cameraOffset = new THREE.Vector3(0, 5, 15);
+        this.cameraOffset = new THREE.Vector3(0, 4.6, 12);
         this.carPosition = new THREE.Vector3(0, 0, 0);
         this.minCameraDistance = 5;
         // Add a reference to the directional light
@@ -61,7 +61,16 @@ class GameManager {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.trafficCars = [];
-        this.maxTrafficCars = 8; // Maximum number of traffic cars
+        this.maxTrafficCars = 10; // Maximum number of traffic cars
+        this.trafficVehicleTypes = ['muscle', 'suv', 'hatchback', 'pickup', 'supercar'];
+        this.trafficPaints = [
+            { body: 0x1558ff, accent: 0xf7fbff, stripe: 0xffd447 },
+            { body: 0xff7a1a, accent: 0x181c22, stripe: 0xffffff },
+            { body: 0x2bd17e, accent: 0x061016, stripe: 0x5fe2ff },
+            { body: 0xf2e94e, accent: 0x141820, stripe: 0xff4f5f },
+            { body: 0x7c43ff, accent: 0xf7fbff, stripe: 0x68ff9a },
+            { body: 0xd9e2ec, accent: 0x10141b, stripe: 0x5fe2ff }
+        ];
         this.activeCollision = null;
         this.collisionEffects = [];
         this.cameraShakeFrames = 0;
@@ -142,7 +151,9 @@ class GameManager {
         // Generate the road and terrain based on the environment
         generateRoadAndTerrain(this.scene, this.game, environment);
 
-        this.playerCar = this.createCar(0xff0000);
+        this.playerCar = this.createCar(0xe30f24, 'rally', {
+            palette: { body: 0xe30f24, accent: 0xf7fbff, stripe: 0x5fe2ff }
+        });
         this.scene.add(this.playerCar);
 
         this.createInitialTrafficCars();
@@ -174,53 +185,639 @@ class GameManager {
 
             if (child.material) {
                 const materials = Array.isArray(child.material) ? child.material : [child.material];
-                materials.forEach(material => material.dispose());
+                materials.forEach(material => {
+                    ['map', 'bumpMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'].forEach(key => {
+                        if (material[key]) {
+                            material[key].dispose();
+                        }
+                    });
+                    material.dispose();
+                });
             }
         });
     }
 
 
-    createCar(color) {
-        const car = new THREE.Group();
+    createVehicleMaterials(palette) {
+        return {
+            body: new THREE.MeshPhysicalMaterial({
+                color: palette.body,
+                metalness: 0.46,
+                roughness: 0.26,
+                clearcoat: 0.65,
+                clearcoatRoughness: 0.18
+            }),
+            accent: new THREE.MeshPhysicalMaterial({
+                color: palette.accent,
+                metalness: 0.34,
+                roughness: 0.28,
+                clearcoat: 0.45,
+                clearcoatRoughness: 0.2
+            }),
+            stripe: new THREE.MeshPhysicalMaterial({
+                color: palette.stripe || palette.accent,
+                metalness: 0.24,
+                roughness: 0.24,
+                clearcoat: 0.5,
+                clearcoatRoughness: 0.16
+            }),
+            glass: new THREE.MeshStandardMaterial({
+                color: 0x101a25,
+                metalness: 0.1,
+                roughness: 0.08,
+                transparent: true,
+                opacity: 0.76
+            }),
+            dark: new THREE.MeshStandardMaterial({
+                color: 0x080b10,
+                metalness: 0.38,
+                roughness: 0.5
+            }),
+            tire: new THREE.MeshStandardMaterial({
+                color: 0x050608,
+                metalness: 0.05,
+                roughness: 0.78
+            }),
+            rim: new THREE.MeshStandardMaterial({
+                color: 0xcfd7df,
+                metalness: 0.72,
+                roughness: 0.22
+            }),
+            brake: new THREE.MeshStandardMaterial({
+                color: 0xff4f5f,
+                metalness: 0.45,
+                roughness: 0.3
+            }),
+            headlight: new THREE.MeshStandardMaterial({
+                color: 0xf8fbff,
+                emissive: 0xddeeff,
+                emissiveIntensity: 0.55,
+                metalness: 0.1,
+                roughness: 0.18
+            }),
+            tailLight: new THREE.MeshStandardMaterial({
+                color: 0xff2c42,
+                emissive: 0xff1530,
+                emissiveIntensity: 0.65,
+                metalness: 0.1,
+                roughness: 0.2
+            })
+        };
+    }
 
-        // Car body
-        const carBody = new THREE.Mesh(
-            new THREE.BoxGeometry(2, 0.75, 4),
-            new THREE.MeshPhongMaterial({ color: color })
-        );
-        carBody.position.y = 0.375;
-        carBody.castShadow = true;
-        carBody.receiveShadow = true;
-        car.add(carBody);
+    getVehicleSpec(type) {
+        const specs = {
+            rally: {
+                width: 2.18,
+                length: 4.35,
+                bodyHeight: 0.76,
+                cabinWidth: 1.42,
+                cabinLength: 1.72,
+                cabinHeight: 0.66,
+                cabinZ: -0.12,
+                wheelRadius: 0.43,
+                wheelWidth: 0.34,
+                stance: 1.2,
+                spoiler: true,
+                roofScoop: true,
+                splitter: true,
+                stripe: 'center',
+                speedBase: 0.82
+            },
+            muscle: {
+                width: 2.34,
+                length: 4.95,
+                bodyHeight: 0.72,
+                cabinWidth: 1.48,
+                cabinLength: 1.55,
+                cabinHeight: 0.58,
+                cabinZ: 0.2,
+                wheelRadius: 0.47,
+                wheelWidth: 0.38,
+                stance: 1.28,
+                spoiler: true,
+                hoodScoop: true,
+                stripe: 'dual',
+                speedBase: 0.72
+            },
+            suv: {
+                width: 2.38,
+                length: 4.65,
+                bodyHeight: 1.05,
+                cabinWidth: 1.78,
+                cabinLength: 2.15,
+                cabinHeight: 0.76,
+                cabinZ: -0.02,
+                wheelRadius: 0.52,
+                wheelWidth: 0.42,
+                stance: 1.32,
+                roofRails: true,
+                bullbar: true,
+                stripe: 'side',
+                speedBase: 0.56
+            },
+            hatchback: {
+                width: 2.04,
+                length: 3.72,
+                bodyHeight: 0.88,
+                cabinWidth: 1.48,
+                cabinLength: 1.65,
+                cabinHeight: 0.72,
+                cabinZ: 0.06,
+                wheelRadius: 0.39,
+                wheelWidth: 0.31,
+                stance: 1.12,
+                spoiler: true,
+                roofScoop: true,
+                stripe: 'side',
+                speedBase: 0.78
+            },
+            pickup: {
+                width: 2.3,
+                length: 5.18,
+                bodyHeight: 0.96,
+                cabinWidth: 1.58,
+                cabinLength: 1.36,
+                cabinHeight: 0.72,
+                cabinZ: -0.72,
+                wheelRadius: 0.5,
+                wheelWidth: 0.42,
+                stance: 1.3,
+                openBed: true,
+                rollBar: true,
+                bullbar: true,
+                stripe: 'side',
+                speedBase: 0.52
+            },
+            supercar: {
+                width: 2.42,
+                length: 4.62,
+                bodyHeight: 0.58,
+                cabinWidth: 1.28,
+                cabinLength: 1.36,
+                cabinHeight: 0.46,
+                cabinZ: 0.05,
+                wheelRadius: 0.44,
+                wheelWidth: 0.42,
+                stance: 1.36,
+                spoiler: true,
+                splitter: true,
+                diffuser: true,
+                stripe: 'center',
+                speedBase: 0.9
+            }
+        };
 
-        // Car roof
-        const roof = new THREE.Mesh(
-            new THREE.BoxGeometry(1.5, 0.5, 2),
-            new THREE.MeshPhongMaterial({ color: 0xffffff })
-        );
-        roof.position.set(0, 1, 0.5);
-        roof.castShadow = true;
-        roof.receiveShadow = true;
-        car.add(roof);
+        return specs[type] || specs.rally;
+    }
 
-        // Wheels
-        const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
-        const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-        const wheelPositions = [
-            [-1, 0, -1.5], [1, 0, -1.5],
-            [-1, 0, 1.5], [1, 0, 1.5]
-        ];
+    addVehicleBox(parent, material, size, position, name) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.name = name || 'vehicle-part';
+        parent.add(mesh);
+        return mesh;
+    }
 
-        wheelPositions.forEach(position => {
-            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            wheel.position.set(...position);
-            wheel.rotation.z = Math.PI / 2;
-            wheel.castShadow = true;
-            wheel.receiveShadow = true;
-            car.add(wheel);
+    addVehicleMesh(parent, geometry, material, position, name) {
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.name = name || 'vehicle-part';
+        parent.add(mesh);
+        return mesh;
+    }
+
+    createLongitudinalPrismGeometry(bands) {
+        const vertices = [];
+        const indices = [];
+
+        bands.forEach(band => {
+            vertices.push(
+                -band.halfWidth, band.bottomY, band.z,
+                band.halfWidth, band.bottomY, band.z,
+                -band.topHalfWidth, band.topY, band.z,
+                band.topHalfWidth, band.topY, band.z
+            );
         });
 
+        for (let i = 0; i < bands.length - 1; i++) {
+            const a = i * 4;
+            const b = (i + 1) * 4;
+
+            indices.push(
+                a, b, b + 1, a, b + 1, a + 1,
+                a + 2, a + 3, b + 3, a + 2, b + 3, b + 2,
+                a, a + 2, b + 2, a, b + 2, b,
+                a + 1, b + 1, b + 3, a + 1, b + 3, a + 3
+            );
+        }
+
+        indices.push(0, 1, 3, 0, 3, 2);
+
+        const rear = (bands.length - 1) * 4;
+        indices.push(rear, rear + 2, rear + 3, rear, rear + 3, rear + 1);
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    createVehicleBodyGeometry(spec, type) {
+        const halfWidth = spec.width * 0.5;
+        const halfLength = spec.length * 0.5;
+        const topY = spec.bodyHeight + 0.12;
+        const isTruckLike = type === 'suv' || type === 'pickup';
+        const isSupercar = type === 'supercar';
+
+        const noseTop = topY * (isSupercar ? 0.58 : isTruckLike ? 0.82 : 0.7);
+        const tailTop = topY * (type === 'pickup' ? 0.96 : isTruckLike ? 0.9 : isSupercar ? 0.62 : 0.76);
+        const shoulderInset = isTruckLike ? 0.04 : isSupercar ? 0.14 : 0.09;
+
+        return this.createLongitudinalPrismGeometry([
+            {
+                z: -halfLength,
+                bottomY: 0.22,
+                topY: noseTop,
+                halfWidth: halfWidth * (isSupercar ? 0.78 : 0.84),
+                topHalfWidth: halfWidth * (isSupercar ? 0.68 : 0.74)
+            },
+            {
+                z: -halfLength * 0.62,
+                bottomY: 0.12,
+                topY,
+                halfWidth,
+                topHalfWidth: halfWidth * (1 - shoulderInset)
+            },
+            {
+                z: halfLength * 0.48,
+                bottomY: 0.12,
+                topY: topY * (type === 'pickup' ? 0.96 : 0.98),
+                halfWidth,
+                topHalfWidth: halfWidth * (1 - shoulderInset)
+            },
+            {
+                z: halfLength,
+                bottomY: 0.2,
+                topY: tailTop,
+                halfWidth: halfWidth * (isSupercar ? 0.82 : 0.88),
+                topHalfWidth: halfWidth * (isSupercar ? 0.72 : 0.78)
+            }
+        ]);
+    }
+
+    createTaperedBoxGeometry(bottomWidth, bottomLength, height, topWidth, topLength, topZOffset = 0) {
+        const bottomHalfWidth = bottomWidth * 0.5;
+        const topHalfWidth = topWidth * 0.5;
+        const bottomHalfLength = bottomLength * 0.5;
+        const topHalfLength = topLength * 0.5;
+
+        const vertices = [
+            -bottomHalfWidth, 0, -bottomHalfLength,
+            bottomHalfWidth, 0, -bottomHalfLength,
+            bottomHalfWidth, 0, bottomHalfLength,
+            -bottomHalfWidth, 0, bottomHalfLength,
+            -topHalfWidth, height, -topHalfLength + topZOffset,
+            topHalfWidth, height, -topHalfLength + topZOffset,
+            topHalfWidth, height, topHalfLength + topZOffset,
+            -topHalfWidth, height, topHalfLength + topZOffset
+        ];
+        const indices = [
+            0, 1, 2, 0, 2, 3,
+            4, 7, 6, 4, 6, 5,
+            0, 4, 5, 0, 5, 1,
+            1, 5, 6, 1, 6, 2,
+            2, 6, 7, 2, 7, 3,
+            3, 7, 4, 3, 4, 0
+        ];
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    createDoorDecalMaterial(type, palette) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = 'rgba(250, 253, 255, 0.95)';
+        context.fillRect(24, 24, 208, 80);
+        context.strokeStyle = '#10141b';
+        context.lineWidth = 8;
+        context.strokeRect(24, 24, 208, 80);
+        context.fillStyle = `#${(palette.stripe || palette.body).toString(16).padStart(6, '0')}`;
+        context.fillRect(24, 24, 56, 80);
+        context.fillStyle = '#10141b';
+        context.font = '700 44px Arial, sans-serif';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        const labels = {
+            rally: 'R2',
+            muscle: 'V8',
+            suv: '4X',
+            hatchback: 'GT',
+            pickup: 'PK',
+            supercar: 'SC'
+        };
+        context.fillText(labels[type] || 'RR', 146, 66);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        texture.needsUpdate = true;
+        return new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+    }
+
+    createWheel(spec, materials, x, z, isFront) {
+        const wheel = new THREE.Group();
+        wheel.position.set(x, spec.wheelRadius - 0.18, z);
+        wheel.userData.isFront = isFront;
+
+        const tire = new THREE.Mesh(
+            new THREE.CylinderGeometry(spec.wheelRadius, spec.wheelRadius, spec.wheelWidth, 28),
+            materials.tire
+        );
+        tire.rotation.z = Math.PI / 2;
+        tire.castShadow = true;
+        tire.receiveShadow = true;
+        wheel.add(tire);
+        wheel.userData.tire = tire;
+
+        const rim = new THREE.Mesh(
+            new THREE.CylinderGeometry(spec.wheelRadius * 0.56, spec.wheelRadius * 0.56, spec.wheelWidth + 0.035, 18),
+            materials.rim
+        );
+        rim.rotation.z = Math.PI / 2;
+        rim.castShadow = true;
+        wheel.add(rim);
+
+        const brake = new THREE.Mesh(
+            new THREE.CylinderGeometry(spec.wheelRadius * 0.32, spec.wheelRadius * 0.32, spec.wheelWidth + 0.05, 14),
+            materials.brake
+        );
+        brake.rotation.z = Math.PI / 2;
+        brake.castShadow = true;
+        wheel.add(brake);
+
+        for (let i = 0; i < 6; i++) {
+            const spoke = new THREE.Mesh(
+                new THREE.BoxGeometry(spec.wheelWidth + 0.06, 0.035, spec.wheelRadius * 0.78),
+                materials.rim
+            );
+            spoke.rotation.x = (Math.PI / 6) * i;
+            spoke.castShadow = true;
+            wheel.add(spoke);
+        }
+
+        return wheel;
+    }
+
+    addVehicleWheels(car, spec, materials) {
+        const wheelX = spec.width * 0.5 + 0.06;
+        const frontZ = -spec.length * 0.34;
+        const rearZ = spec.length * 0.34;
+        const positions = [
+            [-wheelX, frontZ, true],
+            [wheelX, frontZ, true],
+            [-wheelX, rearZ, false],
+            [wheelX, rearZ, false]
+        ];
+
+        positions.forEach(([x, z, isFront]) => {
+            const wheel = this.createWheel(spec, materials, x, z, isFront);
+            car.userData.wheels.push(wheel);
+            car.add(wheel);
+        });
+    }
+
+    addVehicleLights(car, spec, materials) {
+        const frontZ = -spec.length * 0.5 - 0.015;
+        const rearZ = spec.length * 0.5 + 0.015;
+        const lightY = spec.bodyHeight * 0.55;
+        const lightX = spec.width * 0.34;
+
+        this.addVehicleBox(car, materials.headlight, [0.34, 0.13, 0.05], [-lightX, lightY, frontZ], 'left-headlight');
+        this.addVehicleBox(car, materials.headlight, [0.34, 0.13, 0.05], [lightX, lightY, frontZ], 'right-headlight');
+        this.addVehicleBox(car, materials.tailLight, [0.32, 0.14, 0.05], [-lightX, lightY, rearZ], 'left-taillight');
+        this.addVehicleBox(car, materials.tailLight, [0.32, 0.14, 0.05], [lightX, lightY, rearZ], 'right-taillight');
+        this.addVehicleBox(car, materials.dark, [spec.width * 0.54, 0.16, 0.05], [0, lightY - 0.02, frontZ - 0.01], 'front-grille');
+    }
+
+    addVehicleTrim(car, spec, materials, type) {
+        const halfLength = spec.length * 0.5;
+        const bodyTop = spec.bodyHeight + 0.12;
+
+        this.addVehicleFenders(car, spec, materials);
+        this.addVehicleMirrors(car, spec, materials);
+        this.addVehicleExhausts(car, spec, materials, type);
+        this.addVehicleDecals(car, spec, materials, type);
+
+        this.addVehicleBox(car, materials.dark, [spec.width * 0.92, 0.18, 0.16], [0, 0.18, -halfLength - 0.05], 'front-splitter');
+        this.addVehicleBox(car, materials.dark, [spec.width * 0.86, 0.2, 0.16], [0, 0.2, halfLength + 0.04], 'rear-diffuser');
+        this.addVehicleBox(car, materials.dark, [0.08, 0.16, spec.length * 0.62], [-spec.width * 0.52, 0.4, 0.05], 'left-side-skirt');
+        this.addVehicleBox(car, materials.dark, [0.08, 0.16, spec.length * 0.62], [spec.width * 0.52, 0.4, 0.05], 'right-side-skirt');
+
+        if (spec.stripe === 'center') {
+            this.addVehicleBox(car, materials.stripe, [0.18, 0.035, spec.length * 0.72], [0, bodyTop, -0.05], 'center-stripe');
+        } else if (spec.stripe === 'dual') {
+            this.addVehicleBox(car, materials.stripe, [0.14, 0.035, spec.length * 0.68], [-0.19, bodyTop, -0.05], 'left-racing-stripe');
+            this.addVehicleBox(car, materials.stripe, [0.14, 0.035, spec.length * 0.68], [0.19, bodyTop, -0.05], 'right-racing-stripe');
+        } else if (spec.stripe === 'side') {
+            this.addVehicleBox(car, materials.stripe, [0.04, 0.12, spec.length * 0.62], [-spec.width * 0.53, spec.bodyHeight * 0.62, 0.02], 'left-side-livery');
+            this.addVehicleBox(car, materials.stripe, [0.04, 0.12, spec.length * 0.62], [spec.width * 0.53, spec.bodyHeight * 0.62, 0.02], 'right-side-livery');
+        }
+
+        if (spec.spoiler) {
+            this.addVehicleBox(car, materials.dark, [spec.width * 0.84, 0.08, 0.18], [0, spec.bodyHeight + 0.42, halfLength - 0.18], 'spoiler-wing');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.36, 0.08], [-spec.width * 0.32, spec.bodyHeight + 0.22, halfLength - 0.18], 'spoiler-left-mount');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.36, 0.08], [spec.width * 0.32, spec.bodyHeight + 0.22, halfLength - 0.18], 'spoiler-right-mount');
+        }
+
+        if (spec.roofScoop || spec.hoodScoop) {
+            const z = spec.roofScoop ? spec.cabinZ - 0.35 : -halfLength * 0.34;
+            const y = spec.roofScoop ? spec.bodyHeight + spec.cabinHeight + 0.22 : bodyTop + 0.12;
+            this.addVehicleBox(car, materials.dark, [0.38, 0.16, 0.5], [0, y, z], 'air-scoop');
+        }
+
+        if (spec.roofRails) {
+            this.addVehicleBox(car, materials.dark, [0.08, 0.08, spec.cabinLength * 0.95], [-spec.cabinWidth * 0.48, spec.bodyHeight + spec.cabinHeight + 0.16, spec.cabinZ], 'left-roof-rail');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.08, spec.cabinLength * 0.95], [spec.cabinWidth * 0.48, spec.bodyHeight + spec.cabinHeight + 0.16, spec.cabinZ], 'right-roof-rail');
+        }
+
+        if (spec.bullbar) {
+            this.addVehicleBox(car, materials.dark, [spec.width * 0.78, 0.08, 0.08], [0, 0.56, -halfLength - 0.22], 'bullbar-top');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.5, 0.08], [-spec.width * 0.36, 0.42, -halfLength - 0.22], 'bullbar-left');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.5, 0.08], [spec.width * 0.36, 0.42, -halfLength - 0.22], 'bullbar-right');
+        }
+
+        if (spec.openBed) {
+            this.addVehicleBox(car, materials.dark, [spec.width * 0.78, 0.12, 1.34], [0, spec.bodyHeight + 0.08, halfLength * 0.46], 'truck-bed-liner');
+        }
+
+        if (spec.rollBar) {
+            this.addVehicleBox(car, materials.dark, [spec.width * 0.65, 0.1, 0.08], [0, spec.bodyHeight + 0.78, 0.58], 'rollbar-top');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.78, 0.08], [-spec.width * 0.32, spec.bodyHeight + 0.42, 0.58], 'rollbar-left');
+            this.addVehicleBox(car, materials.dark, [0.08, 0.78, 0.08], [spec.width * 0.32, spec.bodyHeight + 0.42, 0.58], 'rollbar-right');
+        }
+
+        if (type === 'supercar') {
+            this.addVehicleBox(car, materials.dark, [spec.width * 0.62, 0.06, 0.5], [0, bodyTop + 0.03, -halfLength * 0.28], 'hood-vent');
+            this.addVehicleBox(car, materials.dark, [0.18, 0.18, 0.44], [-spec.width * 0.62, 0.62, -0.35], 'left-intake');
+            this.addVehicleBox(car, materials.dark, [0.18, 0.18, 0.44], [spec.width * 0.62, 0.62, -0.35], 'right-intake');
+        }
+    }
+
+    addVehicleFenders(car, spec, materials) {
+        const wheelX = spec.width * 0.5 + 0.025;
+        const frontZ = -spec.length * 0.34;
+        const rearZ = spec.length * 0.34;
+
+        [-1, 1].forEach(side => {
+            [frontZ, rearZ].forEach(z => {
+                this.addVehicleBox(
+                    car,
+                    materials.body,
+                    [0.18, spec.wheelRadius * 0.72, spec.wheelRadius * 1.85],
+                    [side * wheelX, spec.wheelRadius + 0.04, z],
+                    side < 0 ? 'left-fender-flare' : 'right-fender-flare'
+                );
+                this.addVehicleBox(
+                    car,
+                    materials.dark,
+                    [0.09, spec.wheelRadius * 0.58, spec.wheelRadius * 1.38],
+                    [side * (wheelX + 0.02), spec.wheelRadius + 0.02, z],
+                    side < 0 ? 'left-wheel-arch-shadow' : 'right-wheel-arch-shadow'
+                );
+            });
+        });
+    }
+
+    addVehicleMirrors(car, spec, materials) {
+        const mirrorY = spec.bodyHeight + spec.cabinHeight * 0.58;
+        const mirrorZ = spec.cabinZ - spec.cabinLength * 0.36;
+        const mirrorX = spec.cabinWidth * 0.5 + 0.18;
+
+        [-1, 1].forEach(side => {
+            this.addVehicleBox(car, materials.dark, [0.24, 0.045, 0.045], [side * mirrorX, mirrorY, mirrorZ], 'mirror-arm');
+            this.addVehicleBox(car, materials.glass, [0.24, 0.16, 0.1], [side * (mirrorX + 0.12), mirrorY + 0.02, mirrorZ], 'side-mirror');
+        });
+    }
+
+    addVehicleExhausts(car, spec, materials, type) {
+        const count = type === 'supercar' || type === 'muscle' ? 2 : 1;
+        const spacing = 0.32;
+
+        for (let i = 0; i < count; i++) {
+            const exhaust = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.07, 0.07, 0.42, 16),
+                materials.rim
+            );
+            exhaust.rotation.x = Math.PI / 2;
+            exhaust.position.set((i - (count - 1) / 2) * spacing, 0.28, spec.length * 0.5 + 0.15);
+            exhaust.castShadow = true;
+            exhaust.receiveShadow = true;
+            exhaust.name = 'exhaust-pipe';
+            car.add(exhaust);
+        }
+    }
+
+    addVehicleDecals(car, spec, materials, type) {
+        const decalMaterial = this.createDoorDecalMaterial(type, {
+            body: materials.body.color.getHex(),
+            stripe: materials.stripe.color.getHex()
+        });
+        const geometry = new THREE.PlaneGeometry(0.88, 0.42);
+        const decalY = spec.bodyHeight * 0.72;
+        const decalZ = spec.cabinZ + spec.cabinLength * 0.12;
+
+        [-1, 1].forEach(side => {
+            const decal = new THREE.Mesh(geometry, decalMaterial);
+            decal.position.set(side * (spec.width * 0.5 + 0.095), decalY, decalZ);
+            decal.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+            decal.name = side < 0 ? 'left-door-decal' : 'right-door-decal';
+            car.add(decal);
+        });
+    }
+
+    createCar(color, type = 'rally', options = {}) {
+        const spec = this.getVehicleSpec(type);
+        const palette = {
+            body: color,
+            accent: 0xffffff,
+            stripe: 0x5fe2ff,
+            ...(options.palette || {})
+        };
+        const materials = this.createVehicleMaterials(palette);
+        const car = new THREE.Group();
+        car.userData.vehicleType = type;
+        car.userData.wheels = [];
+
+        this.addVehicleBox(car, materials.dark, [spec.width * 0.96, 0.24, spec.length * 0.94], [0, 0.24, 0.05], 'underbody');
+        this.addVehicleMesh(car, this.createVehicleBodyGeometry(spec, type), materials.body, [0, 0, 0], 'sculpted-body');
+        this.addVehicleBox(car, materials.accent, [spec.width * 0.72, 0.045, spec.length * 0.34], [0, spec.bodyHeight + 0.16, -spec.length * 0.28], 'hood-panel');
+        this.addVehicleBox(car, materials.accent, [spec.width * 0.68, 0.04, spec.length * 0.26], [0, spec.bodyHeight + 0.12, spec.length * 0.34], 'rear-deck-panel');
+
+        const cabinTopScale = type === 'suv' || type === 'pickup' ? 0.82 : type === 'supercar' ? 0.58 : 0.68;
+        const cabinLengthScale = type === 'suv' || type === 'pickup' ? 0.9 : type === 'supercar' ? 0.64 : 0.72;
+        const cabinZOffset = type === 'muscle' ? 0.06 : type === 'supercar' ? -0.08 : 0;
+        this.addVehicleMesh(
+            car,
+            this.createTaperedBoxGeometry(
+                spec.cabinWidth,
+                spec.cabinLength,
+                spec.cabinHeight,
+                spec.cabinWidth * cabinTopScale,
+                spec.cabinLength * cabinLengthScale,
+                cabinZOffset
+            ),
+            materials.glass,
+            [0, spec.bodyHeight + 0.12, spec.cabinZ],
+            'tapered-glass-cabin'
+        );
+        this.addVehicleBox(car, materials.dark, [0.08, spec.cabinHeight * 0.88, spec.cabinLength * 0.94], [-spec.cabinWidth * 0.52, spec.bodyHeight + spec.cabinHeight * 0.5 + 0.14, spec.cabinZ], 'left-window-frame');
+        this.addVehicleBox(car, materials.dark, [0.08, spec.cabinHeight * 0.88, spec.cabinLength * 0.94], [spec.cabinWidth * 0.52, spec.bodyHeight + spec.cabinHeight * 0.5 + 0.14, spec.cabinZ], 'right-window-frame');
+        this.addVehicleBox(car, materials.dark, [spec.cabinWidth * 0.78, 0.08, 0.08], [0, spec.bodyHeight + spec.cabinHeight + 0.17, spec.cabinZ - spec.cabinLength * 0.46], 'windshield-header');
+        this.addVehicleBox(car, materials.dark, [spec.cabinWidth * 0.78, 0.08, 0.08], [0, spec.bodyHeight + spec.cabinHeight + 0.17, spec.cabinZ + spec.cabinLength * 0.46], 'rear-window-header');
+
+        this.addVehicleLights(car, spec, materials);
+        this.addVehicleWheels(car, spec, materials);
+        this.addVehicleTrim(car, spec, materials, type);
+
         return car;
+    }
+
+    animateVehicleWheels(car, amount, steeringAngle = 0) {
+        if (!car || !car.userData.wheels) {
+            return;
+        }
+
+        car.userData.wheels.forEach(wheel => {
+            if (wheel.userData.tire) {
+                wheel.userData.tire.rotation.x += amount;
+            }
+            if (wheel.userData.isFront) {
+                wheel.rotation.y = steeringAngle;
+            }
+        });
+    }
+
+    getRandomTrafficType() {
+        return this.trafficVehicleTypes[Math.floor(Math.random() * this.trafficVehicleTypes.length)];
+    }
+
+    getRandomTrafficPaint() {
+        return this.trafficPaints[Math.floor(Math.random() * this.trafficPaints.length)];
     }
 
 
@@ -231,7 +828,10 @@ class GameManager {
     }
 
     createTrafficCar() {
-        const trafficCar = this.createCar(0x0000ff);
+        const vehicleType = this.getRandomTrafficType();
+        const paint = this.getRandomTrafficPaint();
+        const trafficCar = this.createCar(paint.body, vehicleType, { palette: paint });
+        const spec = this.getVehicleSpec(vehicleType);
         const randomSegmentIndex = Math.floor(Math.random() * this.game.road.segments.length);
         const segment = this.game.road.segments[randomSegmentIndex];
         const xOffset = (Math.random() - 0.5) * (this.game.road.width * 0.8);
@@ -240,13 +840,14 @@ class GameManager {
         this.scene.add(trafficCar);
         this.trafficCars.push({
             mesh: trafficCar,
-            speed: 0.5 + Math.random() * 0.5,
-            xOffset: xOffset
+            speed: spec.speedBase + Math.random() * 0.28,
+            xOffset: xOffset,
+            vehicleType
         });
     }
     resetCarPosition() {
         const startSegment = this.game.road.segments[0];
-        this.game.car.position.set(startSegment.curve, startSegment.y + 0.95, this.game.startLine);
+        this.game.car.position.set(startSegment.curve, startSegment.y + 0.25, this.game.startLine);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
         this.game.car.angle = 0;
@@ -496,6 +1097,7 @@ class GameManager {
         const maxRoll = Math.PI / 16;
         const roll = -this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle);
         this.playerCar.rotateZ(roll);
+        this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85);
     }
 
     triggerTrafficCollision(trafficCar, forcedType) {
@@ -647,6 +1249,8 @@ class GameManager {
             THREE.MathUtils.lerp(collision.trafficRotStart.y, collision.trafficRotEnd.y, eased),
             THREE.MathUtils.lerp(collision.trafficRotStart.z, collision.trafficRotEnd.z, eased)
         );
+        this.animateVehicleWheels(this.playerCar, 0.18 * (1 - t), 0);
+        this.animateVehicleWheels(collision.trafficCar.mesh, 0.2 * (1 - t), 0);
 
         this.carPosition.copy(this.playerCar.position);
 
@@ -819,6 +1423,7 @@ class GameManager {
             const nextTrafficRoadData = getRoadDataAtZ(trafficCar.mesh.position.z + 1, this.game);
             trafficCar.mesh.rotation.set(0, Math.PI, 0);
             trafficCar.mesh.rotateX(Math.atan2(nextTrafficRoadData.y - trafficRoadData.y, 1));
+            this.animateVehicleWheels(trafficCar.mesh, trafficCar.speed * 0.72, 0);
 
             const trafficBox = new THREE.Box3().setFromObject(trafficCar.mesh);
 
