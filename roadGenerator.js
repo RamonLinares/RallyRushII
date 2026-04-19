@@ -153,10 +153,6 @@ function createRoadTexture(environment, segmentCount) {
             context.fillRect(width / 2 - 5, y, 10, dashHeight);
         }
 
-        context.globalAlpha = 0.12;
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, width, 18);
-        context.globalAlpha = 1;
     });
 }
 
