@@ -529,7 +529,16 @@ class GameManager {
     }
 
     getVehicleGroundClearance(type = 'rally') {
-        return this.vehicleAssetSpecs[type] ? 0.14 : 0.22;
+        const assetSpec = this.vehicleAssetSpecs[type];
+        if (assetSpec) {
+            return Math.max(0.23, -(assetSpec.groundOffset || 0) + 0.03);
+        }
+
+        return 0.22;
+    }
+
+    getVehicleGroundY(frame, type = 'rally') {
+        return ((frame.frontRoadData.y + frame.rearRoadData.y) * 0.5) + this.getVehicleGroundClearance(type);
     }
 
     addVehicleBox(parent, material, size, position, name) {
@@ -1159,6 +1168,10 @@ class GameManager {
         model.rotation.y = assetSpec.yaw || 0;
 
         model.traverse(child => {
+            if (/^WheelFront[LR]$/i.test(child.name || '')) {
+                child.rotation.y = 0;
+            }
+
             if (!child.isMesh) {
                 return;
             }
@@ -1445,7 +1458,7 @@ class GameManager {
         trafficCar.xOffset = xOffset;
         trafficCar.mesh.position.set(
             roadData.curve + xOffset,
-            roadData.y + this.getVehicleGroundClearance(trafficCar.vehicleType),
+            this.getVehicleGroundY(frame, trafficCar.vehicleType),
             z
         );
         this.applyVehicleRoadPose(trafficCar.mesh, frame);
@@ -1473,7 +1486,7 @@ class GameManager {
     resetCarPosition() {
         const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1, 'rally');
         const roadData = roadFrame.roadData;
-        this.game.car.position.set(roadData.curve, roadData.y + this.getVehicleGroundClearance('rally'), this.game.startLine);
+        this.game.car.position.set(roadData.curve, this.getVehicleGroundY(roadFrame, 'rally'), this.game.startLine);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
         this.game.car.lateralVelocity = 0;
@@ -1721,11 +1734,13 @@ class GameManager {
         const dz = frontZ - rearZ;
         const dy = frontRoadData.y - rearRoadData.y;
         const horizontalDistance = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
+        const forward = new THREE.Vector3(dx, dy, dz).normalize();
 
         return {
             roadData,
             frontRoadData,
             rearRoadData,
+            forward,
             yaw: Math.atan2(-dx, -dz),
             pitch: Math.atan2(dy, horizontalDistance) * 0.96
         };
@@ -1740,7 +1755,21 @@ class GameManager {
     }
 
     applyVehicleRoadPose(vehicle, frame, yawOffset = 0, roll = 0) {
-        vehicle.rotation.set(frame.pitch, frame.yaw + yawOffset, roll);
+        const forward = frame.forward || new THREE.Vector3(
+            -Math.sin(frame.yaw),
+            Math.sin(frame.pitch),
+            -Math.cos(frame.yaw)
+        );
+        const target = vehicle.position.clone().sub(forward);
+
+        vehicle.up.set(0, 1, 0);
+        vehicle.lookAt(target);
+        if (yawOffset) {
+            vehicle.rotateY(yawOffset);
+        }
+        if (roll) {
+            vehicle.rotateZ(roll);
+        }
     }
 
     animate() {
@@ -1844,7 +1873,7 @@ class GameManager {
         // Update car's position and rotation
         this.carPosition.set(
             this.game.car.xOffset + updatedRoadData.curve,
-            updatedRoadData.y + this.getVehicleGroundClearance('rally'),
+            this.getVehicleGroundY(updatedRoadFrame, 'rally'),
             this.game.car.position.z
         );
         this.game.car.position.copy(this.carPosition);
@@ -1858,7 +1887,12 @@ class GameManager {
         const maxRoll = Math.PI / 44;
         const targetRoll = -this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio;
         this.game.car.bodyRoll += (targetRoll - this.game.car.bodyRoll) * 0.16;
-        this.playerCar.rotation.set(updatedRoadFrame.pitch, this.game.car.visualYaw, this.game.car.bodyRoll);
+        this.applyVehicleRoadPose(
+            this.playerCar,
+            updatedRoadFrame,
+            this.getAngleDelta(updatedRoadFrame.yaw, this.game.car.visualYaw),
+            this.game.car.bodyRoll
+        );
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85);
     }
 
@@ -1931,28 +1965,30 @@ class GameManager {
 
         const playerPeakZ = playerStart.z + playerZKick;
         const playerPeakRoad = getRoadDataAtZ(playerPeakZ, this.game);
+        const playerPeakFrame = this.getVehicleRoadFrame(playerPeakZ, -1, 'rally');
         const playerPeakOffset = THREE.MathUtils.clamp(this.game.car.xOffset + side * playerSlide, -borderThreshold, borderThreshold);
         const playerPeak = new THREE.Vector3(
             playerPeakRoad.curve + playerPeakOffset,
-            playerPeakRoad.y + this.getVehicleGroundClearance('rally'),
+            this.getVehicleGroundY(playerPeakFrame, 'rally'),
             playerPeakZ
         );
         const playerEndZ = playerPeakZ + 4;
         const playerEndRoad = getRoadDataAtZ(playerEndZ, this.game);
+        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1, 'rally');
         const playerEnd = new THREE.Vector3(
             playerEndRoad.curve,
-            playerEndRoad.y + this.getVehicleGroundClearance('rally'),
+            this.getVehicleGroundY(playerEndFrame, 'rally'),
             playerEndZ
         );
-        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1, 'rally');
         const playerRotEnd = new THREE.Euler(playerEndFrame.pitch, playerEndFrame.yaw, 0);
 
         const trafficEndZ = trafficStart.z + trafficZKick;
         const trafficEndRoad = getRoadDataAtZ(trafficEndZ, this.game);
+        const trafficEndFrame = this.getVehicleRoadFrame(trafficEndZ, 1, trafficCar.vehicleType);
         const trafficEndOffset = THREE.MathUtils.clamp(trafficCar.xOffset - side * trafficSlide, -borderThreshold, borderThreshold);
         const trafficEnd = new THREE.Vector3(
             trafficEndRoad.curve + trafficEndOffset,
-            trafficEndRoad.y + this.getVehicleGroundClearance(trafficCar.vehicleType),
+            this.getVehicleGroundY(trafficEndFrame, trafficCar.vehicleType),
             trafficEndZ
         );
 
@@ -2030,7 +2066,6 @@ class GameManager {
         this.carPosition.copy(this.playerCar.position);
 
         if (t >= 1) {
-            const trafficRoadData = getRoadDataAtZ(collision.trafficEnd.z, this.game);
             this.game.car.position.z = collision.playerEnd.z;
             this.game.car.xOffset = 0;
             this.game.car.lateralVelocity = 0;
@@ -2040,11 +2075,20 @@ class GameManager {
             this.game.car.driveYaw = collision.playerRotEnd.y;
             this.game.car.visualYaw = collision.playerRotEnd.y;
             this.game.car.bodyRoll = 0;
-            collision.trafficCar.xOffset = collision.trafficEnd.x - trafficRoadData.curve;
-            collision.trafficCar.mesh.position.copy(collision.trafficEnd);
             this.playerCar.position.copy(collision.playerEnd);
-            this.playerCar.rotation.copy(collision.playerRotEnd);
+            this.applyVehicleRoadPose(this.playerCar, this.getVehicleRoadFrame(collision.playerEnd.z, -1, 'rally'));
             this.carPosition.copy(collision.playerEnd);
+
+            const trafficSpec = this.getVehicleSpec(collision.trafficCar.vehicleType);
+            const spawnPose = this.getTrafficSpawnPose(
+                this.game.car.position.z - 1450,
+                this.game.car.position.z - 850,
+                collision.trafficCar.vehicleType,
+                collision.trafficCar
+            );
+            collision.trafficCar.speed = trafficSpec.speedBase + Math.random() * 0.28;
+            collision.trafficCar.baseSpeed = trafficSpec.speedBase;
+            this.placeTrafficCar(collision.trafficCar, spawnPose.z, spawnPose.xOffset);
             this.activeCollision = null;
         }
     }
@@ -2255,7 +2299,12 @@ class GameManager {
         const playerBounds = this.getVehicleCollisionBounds('rally');
         const trafficBounds = this.getVehicleCollisionBounds(trafficCar.vehicleType);
         const xGap = Math.abs(this.game.car.xOffset - trafficCar.xOffset);
-        const zGap = Math.abs(this.game.car.position.z - trafficCar.mesh.position.z);
+        const relativeZ = trafficCar.mesh.position.z - this.game.car.position.z;
+        if (relativeZ > 1.5) {
+            return false;
+        }
+
+        const zGap = Math.abs(relativeZ);
         const lateralLimit = (playerBounds.width + trafficBounds.width) * 0.55;
         const longitudinalLimit = (playerBounds.length + trafficBounds.length) * 0.52;
         const closingAllowance = Math.min(0.55, this.game.car.speed * 0.08 + trafficCar.speed * 0.06);

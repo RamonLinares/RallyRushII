@@ -85,7 +85,9 @@
             trafficPreview: game ? gameManager.trafficCars.slice(0, 6).map(traffic => ({
                 type: traffic.vehicleType,
                 x: Number(traffic.xOffset.toFixed(2)),
-                z: Number(traffic.mesh.position.z.toFixed(2))
+                y: Number(traffic.mesh.position.y.toFixed(2)),
+                z: Number(traffic.mesh.position.z.toFixed(2)),
+                pitch: Number(traffic.mesh.rotation.x.toFixed(3))
             })) : [],
             collision: gameManager.activeCollision ? {
                 type: gameManager.activeCollision.type,
