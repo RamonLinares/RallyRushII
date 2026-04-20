@@ -53,6 +53,9 @@ class GameManager {
         this.game = null;
         this.playerCar = null;
         this.animationId = null;
+        this.isPaused = false;
+        this.pauseStartedAt = 0;
+        this.pausedDuration = 0;
         this.bestTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
         this.controls = { left: false, right: false, accelerate: false, brake: false };
         this.cameraOffset = new THREE.Vector3(0, 4.6, 12);
@@ -145,6 +148,9 @@ class GameManager {
         this.alpineMusic = document.getElementById('alpineMusic');
         this.scotlandMusic = document.getElementById('scotlandMusic');
         this.gameMusic = document.getElementById('gameMusic');
+        this.currentMusicElement = null;
+        this.musicEnabled = localStorage.getItem('musicEnabled') !== 'false';
+        this.applyMusicPreference();
         // Initialize the game music when the page loads
     }
 
@@ -1395,11 +1401,7 @@ class GameManager {
 
                 // Play game music for the start screen
                 this.stopAllMusic();
-                if (this.gameMusic) {
-                    this.gameMusic.play();
-                } else {
-                    console.error('Game music element not found.');
-                }
+                this.playMusicElement(this.gameMusic);
     }
 
     startGame() {
@@ -1410,16 +1412,19 @@ class GameManager {
 
         const selectedCircuit = document.getElementById('circuitSelect').value;
         const environment = environments[selectedCircuit]; // Use the selected environment
+        this.isPaused = false;
+        this.pauseStartedAt = 0;
+        this.pausedDuration = 0;
         // Stop all music
         this.stopAllMusic();
 
         // Play the corresponding music
         if (selectedCircuit === 'desert') {
-            this.desertMusic.play();
+            this.playMusicElement(this.desertMusic);
         } else if (selectedCircuit === 'alpine') {
-            this.alpineMusic.play();
+            this.playMusicElement(this.alpineMusic);
         } else if (selectedCircuit === 'scotland') {
-            this.scotlandMusic.play();
+            this.playMusicElement(this.scotlandMusic);
         }
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('ui').style.display = 'block';
@@ -1428,6 +1433,51 @@ class GameManager {
         this.game.startTime = null;
         this.game.finishTime = null;
         this.animate();
+    }
+
+    getAudioElements() {
+        return [this.desertMusic, this.alpineMusic, this.scotlandMusic, this.gameMusic].filter(Boolean);
+    }
+
+    applyMusicPreference() {
+        this.getAudioElements().forEach(audio => {
+            audio.muted = !this.musicEnabled;
+            if (!this.musicEnabled) {
+                audio.pause();
+            }
+        });
+    }
+
+    playMusicElement(audio) {
+        this.currentMusicElement = audio || null;
+        if (!audio) {
+            console.warn('Music element not found.');
+            return;
+        }
+
+        if (!this.musicEnabled) {
+            audio.pause();
+            return;
+        }
+
+        audio.muted = false;
+        audio.play().catch(error => {
+            console.warn('Music playback was blocked by the browser.', error);
+        });
+    }
+
+    setMusicEnabled(enabled) {
+        this.musicEnabled = Boolean(enabled);
+        localStorage.setItem('musicEnabled', this.musicEnabled ? 'true' : 'false');
+        this.applyMusicPreference();
+        if (this.musicEnabled && this.currentMusicElement) {
+            this.playMusicElement(this.currentMusicElement);
+        }
+    }
+
+    toggleMusic() {
+        this.setMusicEnabled(!this.musicEnabled);
+        return this.musicEnabled;
     }
 
     stopAllMusic() {
@@ -1458,12 +1508,37 @@ class GameManager {
         } else {
             console.warn('Game music element not found.');
         }
+        this.currentMusicElement = null;
+    }
+
+    pauseGame() {
+        if (!this.game || this.isPaused) {
+            return;
+        }
+
+        this.isPaused = true;
+        this.pauseStartedAt = Date.now();
+        this.setControls({ left: false, right: false, accelerate: false, brake: false });
+    }
+
+    resumeGame() {
+        if (!this.isPaused) {
+            return;
+        }
+
+        if (this.game && this.game.startTime && this.pauseStartedAt) {
+            this.pausedDuration += Date.now() - this.pauseStartedAt;
+        }
+        this.pauseStartedAt = 0;
+        this.isPaused = false;
     }
     
 
     endGame(time) {
         cancelAnimationFrame(this.animationId);
         this.animationId = null;
+        this.isPaused = false;
+        this.pauseStartedAt = 0;
         this.updateBestTimes(time);
         this.displayEndScreen(time);
     }
@@ -1471,7 +1546,7 @@ class GameManager {
     displayEndScreen(time) {
         // Stop circuit music and play game music for the end screen
         this.stopAllMusic();
-        this.gameMusic.play();
+        this.playMusicElement(this.gameMusic);
 
         document.getElementById('ui').style.display = 'none';
         const endScreen = document.getElementById('endScreen');
@@ -1515,7 +1590,8 @@ class GameManager {
         }
 
         if (this.game.startTime && !this.game.finishTime) {
-            const elapsedTime = (Date.now() - this.game.startTime) / 1000;
+            const activePauseDuration = this.isPaused && this.pauseStartedAt ? Date.now() - this.pauseStartedAt : 0;
+            const elapsedTime = (Date.now() - this.game.startTime - this.pausedDuration - activePauseDuration) / 1000;
             if (timerValue) {
                 timerValue.textContent = elapsedTime.toFixed(2);
             }
@@ -1570,6 +1646,12 @@ class GameManager {
     animate() {
         this.animationId = requestAnimationFrame(this.animate.bind(this));
 
+        if (this.isPaused) {
+            this.updateUI();
+            this.renderer.render(this.scene, this.camera);
+            return;
+        }
+
         if (!this.game.startTime && this.game.car.position.z <= this.game.startLine) {
             this.game.startTime = Date.now();
         }
@@ -1591,7 +1673,7 @@ class GameManager {
 
         if (!this.game.finishTime && this.game.car.position.z <= this.game.finishLine) {
             this.game.finishTime = Date.now();
-            const totalTime = (this.game.finishTime - this.game.startTime) / 1000;
+            const totalTime = (this.game.finishTime - this.game.startTime - this.pausedDuration) / 1000;
             this.endGame(totalTime);
         }
 

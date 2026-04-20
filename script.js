@@ -33,6 +33,16 @@
     const loadingProgressBar = document.getElementById('loadingProgressBar');
     const loadingPercent = document.getElementById('loadingPercent');
     const loadingAssetName = document.getElementById('loadingAssetName');
+    const settingsHud = document.getElementById('settingsHud');
+    const settingsButton = document.getElementById('settingsButton');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const closeSettingsButton = document.getElementById('closeSettingsButton');
+    const pauseToggleButton = document.getElementById('pauseToggleButton');
+    const pauseToggleIcon = document.getElementById('pauseToggleIcon');
+    const pauseToggleLabel = document.getElementById('pauseToggleLabel');
+    const musicToggleButton = document.getElementById('musicToggleButton');
+    const musicToggleIcon = document.getElementById('musicToggleIcon');
+    const musicToggleLabel = document.getElementById('musicToggleLabel');
     let isStartingRace = false;
     let startRequestId = 0;
 
@@ -50,11 +60,16 @@
             ? 'start'
             : endScreen.style.display !== 'none'
                 ? 'end'
-                : 'driving';
+                : gameManager.isPaused
+                    ? 'paused'
+                    : 'driving';
         const game = gameManager.game;
         return JSON.stringify({
             mode,
             stage: circuitSelect.value,
+            paused: Boolean(gameManager.isPaused),
+            musicEnabled: Boolean(gameManager.musicEnabled),
+            settingsOpen: settingsPanel.style.display !== 'none',
             car: game ? {
                 x: Number(game.car.xOffset.toFixed(2)),
                 z: Number(game.car.position.z.toFixed(2)),
@@ -94,7 +109,12 @@
 
     // Show mobile controls during gameplay
     function showMobileControls() {
-        mobileControls.style.display = shouldShowMobileControls() && loadingScreen.style.display === 'none' ? 'block' : 'none';
+        const canShow = shouldShowMobileControls()
+            && loadingScreen.style.display === 'none'
+            && startScreen.style.display === 'none'
+            && endScreen.style.display === 'none'
+            && !gameManager.isPaused;
+        mobileControls.style.display = canShow ? 'block' : 'none';
     }
 
     function resetControls() {
@@ -103,6 +123,64 @@
         controls.accelerate = false;
         controls.brake = false;
         gameManager.setControls(controls);
+    }
+
+    function isGameplayActive() {
+        return Boolean(gameManager.game)
+            && startScreen.style.display === 'none'
+            && endScreen.style.display === 'none'
+            && loadingScreen.style.display === 'none';
+    }
+
+    function canDrive() {
+        return isGameplayActive() && !gameManager.isPaused;
+    }
+
+    function setSettingsPanelOpen(isOpen) {
+        settingsPanel.style.display = isOpen ? 'block' : 'none';
+        settingsButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    function hideGameplayChrome() {
+        settingsHud.style.display = 'none';
+        setSettingsPanelOpen(false);
+        hideMobileControls();
+    }
+
+    function showGameplayChrome() {
+        settingsHud.style.display = 'grid';
+        updateSettingsUi();
+        showMobileControls();
+    }
+
+    function updateSettingsUi() {
+        const isPaused = Boolean(gameManager.isPaused);
+        pauseToggleIcon.textContent = isPaused ? '>' : 'II';
+        pauseToggleLabel.textContent = isPaused ? 'Resume' : 'Pause';
+        pauseToggleButton.dataset.active = isPaused ? 'true' : 'false';
+        closeSettingsButton.disabled = isPaused;
+
+        musicToggleIcon.textContent = gameManager.musicEnabled ? 'M' : 'X';
+        musicToggleLabel.textContent = gameManager.musicEnabled ? 'Music on' : 'Music off';
+        musicToggleButton.dataset.active = gameManager.musicEnabled ? 'true' : 'false';
+        musicToggleButton.dataset.warning = gameManager.musicEnabled ? 'false' : 'true';
+    }
+
+    function setPaused(isPaused) {
+        if (!isGameplayActive()) {
+            return;
+        }
+
+        resetControls();
+        if (isPaused) {
+            gameManager.pauseGame();
+            setSettingsPanelOpen(true);
+        } else {
+            gameManager.resumeGame();
+            setSettingsPanelOpen(false);
+        }
+        updateSettingsUi();
+        showMobileControls();
     }
 
     function getSelectedStageName() {
@@ -176,8 +254,8 @@
             }
 
             hideLoadingScreen();
-            showMobileControls();
             gameManager.startGame();
+            showGameplayChrome();
         } catch (error) {
             console.warn('Vehicle preload failed; starting with fallback vehicle rendering.', error);
             if (requestId !== startRequestId) {
@@ -190,8 +268,8 @@
             });
             await waitForNextFrame();
             hideLoadingScreen();
-            showMobileControls();
             gameManager.startGame();
+            showGameplayChrome();
         } finally {
             if (requestId === startRequestId) {
                 isStartingRace = false;
@@ -211,7 +289,8 @@
         cancelAnimationFrame(gameManager.animationId);
         gameManager.animationId = null;
         resetControls();
-        hideMobileControls();
+        gameManager.resumeGame();
+        hideGameplayChrome();
         hideLoadingScreen();
         gameManager.stopAllMusic();
         gameManager.resetCollisionVisuals();
@@ -227,6 +306,16 @@
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             returnToMainMenu();
+            return;
+        }
+
+        if (e.key.toLowerCase() === 'p' && isGameplayActive()) {
+            setPaused(!gameManager.isPaused);
+            return;
+        }
+
+        if (gameManager.isPaused && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            e.preventDefault();
             return;
         }
 
@@ -248,6 +337,11 @@
     });
 
     document.addEventListener('keyup', e => {
+        if (gameManager.isPaused && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            e.preventDefault();
+            return;
+        }
+
         let controlChanged = false;
         if (e.key === 'ArrowLeft') { controls.left = false; controlChanged = true; }
         if (e.key === 'ArrowRight') { controls.right = false; controlChanged = true; }
@@ -260,21 +354,25 @@
 
     // Touch controls
     accelerateButton.addEventListener('touchstart', () => {
+        if (!canDrive()) { return; }
         controls.accelerate = true;
         gameManager.setControls(controls);
     });
 
     brakeButton.addEventListener('touchstart', () => {
+        if (!canDrive()) { return; }
         controls.brake = true;
         gameManager.setControls(controls);
     });
 
     leftButton.addEventListener('touchstart', () => {
+        if (!canDrive()) { return; }
         controls.left = true;
         gameManager.setControls(controls);
     });
 
     rightButton.addEventListener('touchstart', () => {
+        if (!canDrive()) { return; }
         controls.right = true;
         gameManager.setControls(controls);
     });
@@ -308,10 +406,39 @@
         startRequestId += 1;
         isStartingRace = false;
         setStartButtonsLoading(false);
+        gameManager.resumeGame();
+        hideGameplayChrome();
         hideLoadingScreen();
         endScreen.style.display = 'none';
         startScreen.style.display = 'grid';
         hideMobileControls();
+    });
+
+    settingsButton.addEventListener('click', () => {
+        if (!isGameplayActive()) {
+            return;
+        }
+
+        setSettingsPanelOpen(settingsPanel.style.display === 'none');
+        updateSettingsUi();
+    });
+
+    closeSettingsButton.addEventListener('click', () => {
+        if (gameManager.isPaused) {
+            return;
+        }
+
+        setSettingsPanelOpen(false);
+        updateSettingsUi();
+    });
+
+    pauseToggleButton.addEventListener('click', () => {
+        setPaused(!gameManager.isPaused);
+    });
+
+    musicToggleButton.addEventListener('click', () => {
+        gameManager.toggleMusic();
+        updateSettingsUi();
     });
 
     // Ensure mobile controls are hidden initially and on end screen
@@ -321,9 +448,11 @@
     gameManager.endGame = function (time) {
         cancelAnimationFrame(this.animationId);
         this.animationId = null;
+        this.isPaused = false;
+        this.pauseStartedAt = 0;
         this.updateBestTimes(time);
         this.displayEndScreen(time);
-        hideMobileControls(); // Hide mobile controls when the game ends
+        hideGameplayChrome();
     };
 
     // Initial setup

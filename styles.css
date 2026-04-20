@@ -145,6 +145,139 @@ button {
     background: linear-gradient(180deg, transparent, var(--ui-border-strong), transparent);
 }
 
+.settingsHud {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 12;
+    display: grid;
+    justify-items: end;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.iconButton {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    pointer-events: all;
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 44%),
+        var(--ui-bg);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(16px) saturate(1.25);
+    transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.iconButton:hover,
+.settingsAction:hover {
+    transform: translateY(-1px);
+    border-color: var(--ui-accent);
+}
+
+.iconButton svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+.iconButtonSmall {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+.iconButtonSmall svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 2.4;
+}
+
+.iconButton:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+
+.settingsPanel {
+    position: relative;
+    width: min(280px, calc(100vw - 32px));
+    padding: 12px;
+    pointer-events: all;
+    border: 1px solid var(--ui-border);
+    border-left: 4px solid var(--ui-accent);
+    border-radius: 8px;
+    background:
+        linear-gradient(145deg, rgba(95, 226, 255, 0.12), transparent 42%),
+        var(--ui-bg-strong);
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
+    backdrop-filter: blur(22px) saturate(1.35);
+}
+
+.settingsPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.settingsAction {
+    position: relative;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 50px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    color: var(--ui-text);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 15px;
+    font-weight: 900;
+    text-align: left;
+    text-transform: uppercase;
+    transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.settingsIcon {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: #061016;
+    border-radius: 6px;
+    background: var(--ui-accent-2);
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.settingsAction[data-active="true"] .settingsIcon {
+    background: var(--ui-green);
+}
+
+.settingsAction[data-warning="true"] .settingsIcon {
+    background: var(--ui-danger);
+    color: var(--ui-text);
+}
+
 .screenOverlay {
     inset: 0;
     display: grid;
@@ -673,6 +806,21 @@ button:focus-visible {
     .hud {
         top: 10px;
         left: 10px;
+    }
+
+    .settingsHud {
+        top: 10px;
+        right: 10px;
+    }
+
+    .iconButton {
+        width: 44px;
+        height: 44px;
+    }
+
+    .settingsPanel {
+        width: min(280px, calc(100vw - 20px));
+        padding: 10px;
     }
 
     .hudTelemetry {
