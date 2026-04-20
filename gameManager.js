@@ -57,6 +57,7 @@ class GameManager {
         this.minCameraDistance = 5;
         // Add a reference to the directional light
         this.directionalLight = null;
+        this.fillLight = null;
         // Enable shadow rendering with improved settings
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -72,50 +73,50 @@ class GameManager {
         this.vehicleAssetSpecs = {
             rally: {
                 asset: 'carConcept',
-                width: 2.26,
-                length: 4.48,
-                height: 1.28,
-                yaw: 0,
+                width: 3.05,
+                length: 6.02,
+                height: 1.66,
+                yaw: Math.PI,
                 groundOffset: -0.2
             },
             supercar: {
                 asset: 'carConcept',
-                width: 2.34,
-                length: 4.62,
-                height: 1.22,
-                yaw: 0,
+                width: 3.12,
+                length: 6.12,
+                height: 1.58,
+                yaw: Math.PI,
                 groundOffset: -0.2
             },
             muscle: {
                 asset: 'carConcept',
-                width: 2.34,
-                length: 4.62,
-                height: 1.32,
-                yaw: 0,
+                width: 3.12,
+                length: 6.12,
+                height: 1.7,
+                yaw: Math.PI,
                 groundOffset: -0.2
             },
             hatchback: {
                 asset: 'carConcept',
-                width: 2.08,
-                length: 4.12,
-                height: 1.34,
-                yaw: 0,
+                width: 2.82,
+                length: 5.52,
+                height: 1.7,
+                yaw: Math.PI,
                 groundOffset: -0.2
             },
             suv: {
                 asset: 'milkTruck',
-                width: 2.45,
-                length: 5.1,
-                height: 1.88,
-                yaw: Math.PI / 2,
+                width: 3.18,
+                length: 6.58,
+                height: 2.36,
+                yaw: Math.PI,
                 groundOffset: -0.2
             },
             pickup: {
                 asset: 'milkTruck',
-                width: 2.36,
-                length: 5.2,
-                height: 1.78,
-                yaw: Math.PI / 2,
+                width: 3.08,
+                length: 6.62,
+                height: 2.28,
+                yaw: Math.PI,
                 groundOffset: -0.2
             }
         };
@@ -155,10 +156,10 @@ class GameManager {
         this.trafficCars = [];
 
         // Set up lighting with shadows (if needed)
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.05);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.14);
         this.scene.add(ambientLight);
 
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.65);
         this.directionalLight.position.set(50, 100, 150);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 2048;
@@ -172,7 +173,11 @@ class GameManager {
 
         this.scene.add(this.directionalLight);
 
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.9);
+        this.fillLight = new THREE.DirectionalLight(0xddeeff, 0.55);
+        this.fillLight.position.set(-40, 55, 70);
+        this.scene.add(this.fillLight);
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.98);
         hemiLight.color.setHSL(0.6, 1, 0.6);
         hemiLight.groundColor.setHSL(0.095, 1, 0.75);
         this.scene.add(hemiLight);
@@ -823,7 +828,7 @@ class GameManager {
         }
 
         const spec = this.getVehicleSpec(type);
-        const assetSpec = this.vehicleAssetSpecs[type];
+        const assetSpec = { ...this.vehicleAssetSpecs[type] };
         const palette = {
             body: color,
             accent: 0xffffff,
@@ -928,19 +933,28 @@ class GameManager {
         const isGlass = /glass|window|windshield/.test(name);
         const isTire = /tire|rubber|wheel/.test(name);
         const isLight = /headlight|brakelight|signallight|taillight/.test(name);
-        const isPaint = /paint|body|toycar|truck/.test(name) && !isGlass && !isTire && !isLight;
+        const isPaint = /paint|body|panel|toycar|truck/.test(name) && !isGlass && !isTire && !isLight;
 
         if (isPaint && cloned.color) {
+            cloned.map = null;
+            if (cloned.aoMap) {
+                cloned.aoMapIntensity = 0.25;
+            }
             cloned.color.setHex(palette.body);
+            cloned.color.offsetHSL(0, 0.12, 0.24);
             if ('metalness' in cloned) {
-                cloned.metalness = Math.max(cloned.metalness || 0, 0.34);
+                cloned.metalness = Math.max(cloned.metalness || 0, 0.18);
             }
             if ('roughness' in cloned) {
-                cloned.roughness = Math.min(cloned.roughness || 0.38, 0.34);
+                cloned.roughness = Math.min(cloned.roughness || 0.48, 0.48);
             }
             if ('clearcoat' in cloned) {
-                cloned.clearcoat = Math.max(cloned.clearcoat || 0, 0.55);
-                cloned.clearcoatRoughness = Math.min(cloned.clearcoatRoughness || 0.22, 0.18);
+                cloned.clearcoat = Math.max(cloned.clearcoat || 0, 0.3);
+                cloned.clearcoatRoughness = Math.min(cloned.clearcoatRoughness || 0.34, 0.34);
+            }
+            if (cloned.emissive) {
+                cloned.emissive.setHex(palette.body);
+                cloned.emissiveIntensity = Math.max(cloned.emissiveIntensity || 0, 0.12);
             }
         } else if (isGlass && cloned.color) {
             cloned.color.setHex(0x121c28);
@@ -954,7 +968,7 @@ class GameManager {
         }
 
         if (type === 'supercar' && isPaint && cloned.color) {
-            cloned.color.offsetHSL(0.02, 0.08, -0.03);
+            cloned.color.offsetHSL(0.02, 0.06, 0.03);
         }
 
         return cloned;
@@ -1070,7 +1084,8 @@ class GameManager {
         const paint = this.getRandomTrafficPaint();
         const trafficCar = this.createCar(paint.body, vehicleType, { palette: paint });
         const spec = this.getVehicleSpec(vehicleType);
-        const randomSegmentIndex = Math.floor(Math.random() * this.game.road.segments.length);
+        const safeStartIndex = 24;
+        const randomSegmentIndex = safeStartIndex + Math.floor(Math.random() * Math.max(1, this.game.road.segments.length - safeStartIndex));
         const segment = this.game.road.segments[randomSegmentIndex];
         const xOffset = (Math.random() - 0.5) * (this.game.road.width * 0.8);
         trafficCar.position.set(segment.curve + xOffset, segment.y + 0.25, segment.z);
@@ -1234,6 +1249,11 @@ class GameManager {
             this.directionalLight.position.copy(this.playerCar.position).add(offset);
             this.directionalLight.target.position.copy(this.playerCar.position);
             this.directionalLight.target.updateMatrixWorld();
+        }
+
+        if (this.fillLight && this.playerCar) {
+            const fillOffset = new THREE.Vector3(-35, 55, 75);
+            this.fillLight.position.copy(this.playerCar.position).add(fillOffset);
         }
     }
 
