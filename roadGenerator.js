@@ -495,7 +495,7 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
     
     scene.background = new THREE.Color(environment.fogColor);
-    scene.fog = new THREE.FogExp2(environment.fogColor, 0.002);
+    scene.fog = new THREE.FogExp2(environment.fogColor, environment.fogDensity || 0.00115);
 
     function createBannerTexture(label) {
         const canvas = document.createElement('canvas');

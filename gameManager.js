@@ -11,7 +11,8 @@ const environments = {
         treeColor: 0x2f7d3b,
         trunkColor: 0x6d4b2d,
         maxMountainHeight: 15,
-        fogColor: 0x87CEEB
+        fogColor: 0x73b6cf,
+        fogDensity: 0.00115
     },
     desert: {
         id: 'desert',
@@ -22,7 +23,8 @@ const environments = {
         terrainTint: 0xc69a58,
         treeDensity: 0,
         maxMountainHeight: 40,
-        fogColor: 0xeec36a
+        fogColor: 0xd99d4f,
+        fogDensity: 0.00105
     },
     alpine: {
         id: 'alpine',
@@ -35,7 +37,8 @@ const environments = {
         treeColor: 0x175234,
         trunkColor: 0x4b3524,
         maxMountainHeight: 180,
-        fogColor: 0x8edff2
+        fogColor: 0x7fc4d8,
+        fogDensity: 0.0012
     }
 };
 
@@ -208,10 +211,10 @@ class GameManager {
         // Set up lighting with shadows (if needed)
         this.configureSceneEnvironment(environment);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.06);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.035);
         this.scene.add(ambientLight);
 
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.25);
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.15);
         this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 2048;
@@ -225,17 +228,17 @@ class GameManager {
 
         this.scene.add(this.directionalLight);
 
-        this.fillLight = new THREE.DirectionalLight(0xddeeff, 0.28);
+        this.fillLight = new THREE.DirectionalLight(0xddeeff, 0.14);
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
-        this.rimLight = new THREE.DirectionalLight(0xbdeaff, 0.82);
+        this.rimLight = new THREE.DirectionalLight(0xbdeaff, 0.58);
         this.rimLight.position.set(-24, 28, -42);
         this.scene.add(this.rimLight);
 
-        const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x4d5b38, 0.46);
-        hemiLight.color.setHSL(0.58, 0.72, 0.7);
-        hemiLight.groundColor.setHSL(0.12, 0.42, 0.34);
+        const hemiLight = new THREE.HemisphereLight(0xcde7f2, 0x334029, 0.3);
+        hemiLight.color.setHSL(0.58, 0.58, 0.62);
+        hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
         this.scene.add(hemiLight);
 
         // Initialize the game object
@@ -919,7 +922,6 @@ class GameManager {
                 const model = source.clone(true);
                 this.prepareAssetVehicleModel(model, type, palette, assetSpec);
                 car.add(model);
-                this.addAssetVehicleSurfaceDetails(car, assetSpec, palette, type);
                 car.userData.assetReady = true;
             })
             .catch(error => {
@@ -1179,12 +1181,12 @@ class GameManager {
                 cloned.emissive.setHex(0x000000);
                 cloned.emissiveIntensity = 0;
             }
-            cloned.envMapIntensity = 1.45;
+            cloned.envMapIntensity = 1.15;
         } else if (isGlass && cloned.color) {
             cloned.color.setHex(0x172b3d);
             cloned.transparent = true;
             cloned.opacity = Math.min(cloned.opacity || 0.8, 0.68);
-            cloned.envMapIntensity = 2.15;
+            cloned.envMapIntensity = 1.7;
             if ('roughness' in cloned) {
                 cloned.roughness = 0.05;
             }
@@ -1241,61 +1243,6 @@ class GameManager {
 
         color.offsetHSL(0, saturationOffset, lightnessOffset);
         return color;
-    }
-
-    createAssetDetailMaterial(color, options = {}) {
-        const material = new THREE.MeshStandardMaterial({
-            color,
-            metalness: options.metalness ?? 0.28,
-            roughness: options.roughness ?? 0.34,
-            transparent: options.opacity !== undefined,
-            opacity: options.opacity ?? 1
-        });
-        material.envMapIntensity = options.envMapIntensity ?? 1.2;
-        if (material.emissive && options.emissive) {
-            material.emissive.setHex(options.emissive);
-            material.emissiveIntensity = options.emissiveIntensity ?? 0.5;
-        }
-        return material;
-    }
-
-    addAssetDetailBox(car, material, size, position, name) {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
-        mesh.position.set(position[0], position[1], position[2]);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.name = name;
-        car.add(mesh);
-        return mesh;
-    }
-
-    addAssetVehicleSurfaceDetails(car, assetSpec, palette, type) {
-        const halfWidth = assetSpec.width * 0.5;
-        const halfLength = assetSpec.length * 0.5;
-        const height = assetSpec.height || 1.7;
-        const rearZ = halfLength + 0.055;
-        const sideZ = type === 'pickup' || type === 'suv' ? 0.12 : -0.08;
-        const darkMaterial = this.createAssetDetailMaterial(0x080b10, {
-            metalness: 0.32,
-            roughness: 0.4,
-            envMapIntensity: 0.8
-        });
-        const plateMaterial = this.createAssetDetailMaterial(0xd8e2ea, {
-            metalness: 0.12,
-            roughness: 0.52,
-            envMapIntensity: 0.85
-        });
-
-        this.addAssetDetailBox(car, darkMaterial, [assetSpec.width * 0.56, 0.045, 0.07], [0, height * 0.58, rearZ + 0.012], `${type}-rear-trunk-seam`);
-        this.addAssetDetailBox(car, darkMaterial, [assetSpec.width * 0.68, 0.035, 0.07], [0, height * 0.42, rearZ + 0.014], `${type}-rear-bumper-crease`);
-        this.addAssetDetailBox(car, darkMaterial, [0.055, height * 0.24, 0.07], [-assetSpec.width * 0.34, height * 0.5, rearZ + 0.015], `${type}-rear-left-seam`);
-        this.addAssetDetailBox(car, darkMaterial, [0.055, height * 0.24, 0.07], [assetSpec.width * 0.34, height * 0.5, rearZ + 0.015], `${type}-rear-right-seam`);
-        this.addAssetDetailBox(car, darkMaterial, [assetSpec.width * 0.36, height * 0.075, 0.08], [0, height * 0.2, rearZ + 0.02], `${type}-rear-diffuser-shadow`);
-        this.addAssetDetailBox(car, plateMaterial, [assetSpec.width * 0.2, height * 0.08, 0.08], [0, height * 0.32, rearZ + 0.035], `${type}-rear-license-plate`);
-
-        [-1, 1].forEach(side => {
-            this.addAssetDetailBox(car, darkMaterial, [0.055, height * 0.08, assetSpec.length * 0.62], [side * (halfWidth + 0.035), height * 0.28, sideZ], `${type}-${side < 0 ? 'left' : 'right'}-lower-side-shadow`);
-        });
     }
 
     normalizeAssetVehicle(model, assetSpec) {

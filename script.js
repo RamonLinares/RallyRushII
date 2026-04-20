@@ -8,13 +8,13 @@
     }
     if (THREE.ACESFilmicToneMapping) {
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 0.98;
+        renderer.toneMappingExposure = 0.9;
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    scene.background = new THREE.Color(0x87CEEB);
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002);
+    scene.background = new THREE.Color(0x73b6cf);
+    scene.fog = new THREE.FogExp2(0x73b6cf, 0.00115);
 
     const gameManager = new GameManager(scene, camera, renderer);
     window.rallyRushGame = gameManager;
