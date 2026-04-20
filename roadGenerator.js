@@ -43,6 +43,9 @@ function createCanvasTexture(width, height, repeatX, repeatY, draw) {
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(repeatX, repeatY);
     texture.anisotropy = 4;
+    if (THREE.sRGBEncoding) {
+        texture.encoding = THREE.sRGBEncoding;
+    }
     return texture;
 }
 
@@ -542,6 +545,9 @@ function generateRoadAndTerrain(scene, game, environment) {
         texture.anisotropy = 4;
         texture.wrapS = THREE.RepeatWrapping;
         texture.repeat.x = -1;
+        if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
         return texture;
     }
 

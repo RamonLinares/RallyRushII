@@ -58,6 +58,8 @@ class GameManager {
         // Add a reference to the directional light
         this.directionalLight = null;
         this.fillLight = null;
+        this.rimLight = null;
+        this.vehicleEnvironmentMap = null;
         // Enable shadow rendering with improved settings
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -143,6 +145,53 @@ class GameManager {
         // Initialize the game music when the page loads
     }
 
+    configureSceneEnvironment(environment = {}) {
+        if (!this.vehicleEnvironmentMap) {
+            this.vehicleEnvironmentMap = this.createVehicleEnvironmentMap(environment);
+        }
+
+        this.scene.environment = this.vehicleEnvironmentMap;
+    }
+
+    createVehicleEnvironmentMap() {
+        const size = 96;
+        const makeFace = (top, middle, bottom) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext('2d');
+            const gradient = context.createLinearGradient(0, 0, 0, size);
+            gradient.addColorStop(0, top);
+            gradient.addColorStop(0.48, middle);
+            gradient.addColorStop(1, bottom);
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, size, size);
+
+            context.fillStyle = 'rgba(255, 255, 255, 0.18)';
+            context.fillRect(0, size * 0.46, size, 2);
+            context.fillStyle = 'rgba(95, 226, 255, 0.2)';
+            context.fillRect(size * 0.12, size * 0.18, size * 0.76, 3);
+            context.fillStyle = 'rgba(255, 212, 71, 0.18)';
+            context.fillRect(size * 0.08, size * 0.74, size * 0.84, 4);
+            return canvas;
+        };
+
+        const faces = [
+            makeFace('#d8f3ff', '#83d3f2', '#3f5361'),
+            makeFace('#d8f3ff', '#9fd9eb', '#2f443e'),
+            makeFace('#ffffff', '#c8efff', '#89c7dd'),
+            makeFace('#49674b', '#59685b', '#283031'),
+            makeFace('#e6f7ff', '#8ccfe8', '#36495b'),
+            makeFace('#f8fbff', '#a8dded', '#4e5a45')
+        ];
+        const cubeTexture = new THREE.CubeTexture(faces);
+        if (THREE.sRGBEncoding) {
+            cubeTexture.encoding = THREE.sRGBEncoding;
+        }
+        cubeTexture.needsUpdate = true;
+        return cubeTexture;
+    }
+
     initGame(environment) {
         this.resetCollisionVisuals();
 
@@ -157,11 +206,13 @@ class GameManager {
         this.trafficCars = [];
 
         // Set up lighting with shadows (if needed)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.14);
+        this.configureSceneEnvironment(environment);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.06);
         this.scene.add(ambientLight);
 
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.65);
-        this.directionalLight.position.set(50, 100, 150);
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.25);
+        this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 2048;
         this.directionalLight.shadow.mapSize.height = 2048;
@@ -174,13 +225,17 @@ class GameManager {
 
         this.scene.add(this.directionalLight);
 
-        this.fillLight = new THREE.DirectionalLight(0xddeeff, 0.55);
-        this.fillLight.position.set(-40, 55, 70);
+        this.fillLight = new THREE.DirectionalLight(0xddeeff, 0.28);
+        this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.98);
-        hemiLight.color.setHSL(0.6, 1, 0.6);
-        hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+        this.rimLight = new THREE.DirectionalLight(0xbdeaff, 0.82);
+        this.rimLight.position.set(-24, 28, -42);
+        this.scene.add(this.rimLight);
+
+        const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x4d5b38, 0.46);
+        hemiLight.color.setHSL(0.58, 0.72, 0.7);
+        hemiLight.groundColor.setHSL(0.12, 0.42, 0.34);
         this.scene.add(hemiLight);
 
         // Initialize the game object
@@ -600,6 +655,9 @@ class GameManager {
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.anisotropy = 4;
+        if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
         texture.needsUpdate = true;
         return new THREE.MeshBasicMaterial({
             map: texture,
@@ -861,6 +919,7 @@ class GameManager {
                 const model = source.clone(true);
                 this.prepareAssetVehicleModel(model, type, palette, assetSpec);
                 car.add(model);
+                this.addAssetVehicleSurfaceDetails(car, assetSpec, palette, type);
                 car.userData.assetReady = true;
             })
             .catch(error => {
@@ -1089,39 +1148,62 @@ class GameManager {
         const cloned = material.clone();
         const name = (cloned.name || '').toLowerCase();
         cloned.userData.keepTextureMaps = true;
+        cloned.envMapIntensity = Math.max(cloned.envMapIntensity || 0, 0.9);
 
         const isGlass = /glass|window|windshield/.test(name);
         const isTire = /tire|rubber|wheel/.test(name);
+        const isRim = /rim|disc|brake/.test(name);
         const isLight = /headlight|brakelight|signallight|taillight/.test(name);
         const isPaint = /paint|body|panel|toycar|truck/.test(name) && !isGlass && !isTire && !isLight;
 
         if (isPaint && cloned.color) {
             cloned.map = null;
             if (cloned.aoMap) {
-                cloned.aoMapIntensity = 0.25;
+                cloned.aoMapIntensity = 1.05;
             }
-            cloned.color.setHex(palette.body);
-            cloned.color.offsetHSL(0, 0.12, 0.24);
+            if (cloned.normalMap && cloned.normalScale) {
+                cloned.normalScale.set(1.35, 1.35);
+            }
+            cloned.color.copy(this.getAssetPaintColor(palette.body, name, type));
             if ('metalness' in cloned) {
-                cloned.metalness = Math.max(cloned.metalness || 0, 0.18);
+                cloned.metalness = Math.max(cloned.metalness || 0, 0.28);
             }
             if ('roughness' in cloned) {
-                cloned.roughness = Math.min(cloned.roughness || 0.48, 0.48);
+                cloned.roughness = Math.min(cloned.roughness || 0.36, 0.36);
             }
             if ('clearcoat' in cloned) {
-                cloned.clearcoat = Math.max(cloned.clearcoat || 0, 0.3);
-                cloned.clearcoatRoughness = Math.min(cloned.clearcoatRoughness || 0.34, 0.34);
+                cloned.clearcoat = Math.max(cloned.clearcoat || 0, 0.5);
+                cloned.clearcoatRoughness = Math.min(cloned.clearcoatRoughness || 0.24, 0.24);
             }
             if (cloned.emissive) {
-                cloned.emissive.setHex(palette.body);
-                cloned.emissiveIntensity = Math.max(cloned.emissiveIntensity || 0, 0.12);
+                cloned.emissive.setHex(0x000000);
+                cloned.emissiveIntensity = 0;
             }
+            cloned.envMapIntensity = 1.45;
         } else if (isGlass && cloned.color) {
-            cloned.color.setHex(0x121c28);
+            cloned.color.setHex(0x172b3d);
             cloned.transparent = true;
-            cloned.opacity = Math.min(cloned.opacity || 0.8, 0.76);
+            cloned.opacity = Math.min(cloned.opacity || 0.8, 0.68);
+            cloned.envMapIntensity = 2.15;
             if ('roughness' in cloned) {
                 cloned.roughness = 0.05;
+            }
+            if ('metalness' in cloned) {
+                cloned.metalness = Math.max(cloned.metalness || 0, 0.08);
+            }
+        } else if (isTire && cloned.color) {
+            cloned.color.offsetHSL(0, -0.04, -0.05);
+            cloned.envMapIntensity = 0.45;
+            if (cloned.normalMap && cloned.normalScale) {
+                cloned.normalScale.set(1.18, 1.18);
+            }
+        } else if (isRim && cloned.color) {
+            cloned.envMapIntensity = 1.65;
+            if ('metalness' in cloned) {
+                cloned.metalness = Math.max(cloned.metalness || 0, 0.72);
+            }
+            if ('roughness' in cloned) {
+                cloned.roughness = Math.min(cloned.roughness || 0.24, 0.24);
             }
         } else if (isLight && cloned.emissive) {
             cloned.emissiveIntensity = Math.max(cloned.emissiveIntensity || 0.4, 0.65);
@@ -1131,7 +1213,89 @@ class GameManager {
             cloned.color.offsetHSL(0.02, 0.06, 0.03);
         }
 
+        cloned.needsUpdate = true;
         return cloned;
+    }
+
+    getAssetPaintColor(baseHex, materialName, type) {
+        const color = new THREE.Color(baseHex);
+        let lightnessOffset = -0.15;
+        let saturationOffset = -0.02;
+
+        if (/paint 2|panel sides|underside|bodyunderside/.test(materialName)) {
+            lightnessOffset = -0.24;
+            saturationOffset = -0.05;
+        } else if (/pearl/.test(materialName)) {
+            lightnessOffset = -0.08;
+            saturationOffset = -0.06;
+        } else if (/graphite/.test(materialName)) {
+            lightnessOffset = -0.28;
+            saturationOffset = -0.08;
+        }
+
+        if (type === 'hatchback') {
+            lightnessOffset -= 0.03;
+        } else if (type === 'muscle') {
+            saturationOffset += 0.04;
+        }
+
+        color.offsetHSL(0, saturationOffset, lightnessOffset);
+        return color;
+    }
+
+    createAssetDetailMaterial(color, options = {}) {
+        const material = new THREE.MeshStandardMaterial({
+            color,
+            metalness: options.metalness ?? 0.28,
+            roughness: options.roughness ?? 0.34,
+            transparent: options.opacity !== undefined,
+            opacity: options.opacity ?? 1
+        });
+        material.envMapIntensity = options.envMapIntensity ?? 1.2;
+        if (material.emissive && options.emissive) {
+            material.emissive.setHex(options.emissive);
+            material.emissiveIntensity = options.emissiveIntensity ?? 0.5;
+        }
+        return material;
+    }
+
+    addAssetDetailBox(car, material, size, position, name) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.name = name;
+        car.add(mesh);
+        return mesh;
+    }
+
+    addAssetVehicleSurfaceDetails(car, assetSpec, palette, type) {
+        const halfWidth = assetSpec.width * 0.5;
+        const halfLength = assetSpec.length * 0.5;
+        const height = assetSpec.height || 1.7;
+        const rearZ = halfLength + 0.055;
+        const sideZ = type === 'pickup' || type === 'suv' ? 0.12 : -0.08;
+        const darkMaterial = this.createAssetDetailMaterial(0x080b10, {
+            metalness: 0.32,
+            roughness: 0.4,
+            envMapIntensity: 0.8
+        });
+        const plateMaterial = this.createAssetDetailMaterial(0xd8e2ea, {
+            metalness: 0.12,
+            roughness: 0.52,
+            envMapIntensity: 0.85
+        });
+
+        this.addAssetDetailBox(car, darkMaterial, [assetSpec.width * 0.56, 0.045, 0.07], [0, height * 0.58, rearZ + 0.012], `${type}-rear-trunk-seam`);
+        this.addAssetDetailBox(car, darkMaterial, [assetSpec.width * 0.68, 0.035, 0.07], [0, height * 0.42, rearZ + 0.014], `${type}-rear-bumper-crease`);
+        this.addAssetDetailBox(car, darkMaterial, [0.055, height * 0.24, 0.07], [-assetSpec.width * 0.34, height * 0.5, rearZ + 0.015], `${type}-rear-left-seam`);
+        this.addAssetDetailBox(car, darkMaterial, [0.055, height * 0.24, 0.07], [assetSpec.width * 0.34, height * 0.5, rearZ + 0.015], `${type}-rear-right-seam`);
+        this.addAssetDetailBox(car, darkMaterial, [assetSpec.width * 0.36, height * 0.075, 0.08], [0, height * 0.2, rearZ + 0.02], `${type}-rear-diffuser-shadow`);
+        this.addAssetDetailBox(car, plateMaterial, [assetSpec.width * 0.2, height * 0.08, 0.08], [0, height * 0.32, rearZ + 0.035], `${type}-rear-license-plate`);
+
+        [-1, 1].forEach(side => {
+            this.addAssetDetailBox(car, darkMaterial, [0.055, height * 0.08, assetSpec.length * 0.62], [side * (halfWidth + 0.035), height * 0.28, sideZ], `${type}-${side < 0 ? 'left' : 'right'}-lower-side-shadow`);
+        });
     }
 
     normalizeAssetVehicle(model, assetSpec) {
@@ -1414,6 +1578,11 @@ class GameManager {
         if (this.fillLight && this.playerCar) {
             const fillOffset = new THREE.Vector3(-35, 55, 75);
             this.fillLight.position.copy(this.playerCar.position).add(fillOffset);
+        }
+
+        if (this.rimLight && this.playerCar) {
+            const rimOffset = new THREE.Vector3(-24, 34, -46);
+            this.rimLight.position.copy(this.playerCar.position).add(rimOffset);
         }
     }
 
