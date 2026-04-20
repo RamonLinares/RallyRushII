@@ -596,7 +596,6 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
     }
     
-    createRallyStructure(scene, game, game.startLine, false); // Place at the start line
     createRallyStructure(scene, game, game.finishLine, true); // Place at the finish line
 }
 
