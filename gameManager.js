@@ -56,6 +56,7 @@ class GameManager {
         this.isPaused = false;
         this.pauseStartedAt = 0;
         this.pausedDuration = 0;
+        this.startCountdown = null;
         this.bestTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
         this.controls = { left: false, right: false, accelerate: false, brake: false };
         this.cameraOffset = new THREE.Vector3(0, 4.6, 12);
@@ -307,6 +308,15 @@ class GameManager {
         this.cameraShakeDuration = 0;
         this.cameraShakeStrength = 0;
         this.lastCollisionType = null;
+    }
+
+    clearStartCountdown() {
+        if (this.startCountdown?.group) {
+            this.scene.remove(this.startCountdown.group);
+            this.disposeObject(this.startCountdown.group);
+        }
+
+        this.startCountdown = null;
     }
 
     disposeObject(object) {
@@ -1502,6 +1512,369 @@ class GameManager {
         this.applyVehicleRoadPose(this.playerCar, roadFrame);
     }
 
+    createCountdownTexture(label) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        const isStart = label === 'START!';
+        const stripeGradient = context.createLinearGradient(0, 0, canvas.width, 0);
+        stripeGradient.addColorStop(0, 'rgba(255, 212, 71, 0.18)');
+        stripeGradient.addColorStop(0.5, 'rgba(95, 226, 255, 0.14)');
+        stripeGradient.addColorStop(1, 'rgba(255, 79, 95, 0.18)');
+        context.fillStyle = stripeGradient;
+        context.fillRect(0, 64, canvas.width, 384);
+
+        context.save();
+        context.translate(140, 0);
+        context.transform(1, 0, -0.16, 1, 0, 0);
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.font = `italic 900 ${isStart ? 224 : 330}px Impact, Haettenschweiler, "Arial Black", sans-serif`;
+        context.lineJoin = 'round';
+        context.miterLimit = 2;
+        context.lineWidth = isStart ? 38 : 44;
+        context.strokeStyle = '#071017';
+        context.strokeText(label, 420, 258);
+        context.lineWidth = isStart ? 18 : 20;
+        context.strokeStyle = '#ff4f5f';
+        context.strokeText(label, 420, 258);
+
+        const textGradient = context.createLinearGradient(0, 96, 0, 400);
+        textGradient.addColorStop(0, '#ffffff');
+        textGradient.addColorStop(0.42, '#ffd447');
+        textGradient.addColorStop(1, '#f0544f');
+        context.fillStyle = textGradient;
+        context.fillText(label, 420, 258);
+        context.restore();
+
+        context.fillStyle = '#f8fbff';
+        for (let i = 0; i < 8; i++) {
+            const x = 54 + i * 38;
+            context.fillRect(x, 82, 22, 22);
+            context.fillRect(x + 19, 104, 22, 22);
+            context.fillRect(canvas.width - x - 42, 386, 22, 22);
+            context.fillRect(canvas.width - x - 23, 364, 22, 22);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 8;
+        if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    createCountdownMaterial(label, opacity = 1) {
+        return new THREE.MeshBasicMaterial({
+            map: this.createCountdownTexture(label),
+            transparent: true,
+            opacity,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+    }
+
+    createStartCountdownGroup() {
+        const group = new THREE.Group();
+        group.name = 'start-countdown-sequence';
+        const countdownZ = this.game.startLine - 18;
+        const signWidth = 16.4;
+        const signHeight = 4.8;
+        const pylonHeight = 8.8;
+
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0x091019,
+            metalness: 0.35,
+            roughness: 0.28,
+            emissive: 0x071017,
+            emissiveIntensity: 0.55,
+            transparent: true,
+            opacity: 0.9
+        });
+        const accentMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd447,
+            metalness: 0.55,
+            roughness: 0.22,
+            emissive: 0xffa000,
+            emissiveIntensity: 0.42,
+            transparent: true,
+            opacity: 0.96
+        });
+        const cyanMaterial = new THREE.MeshBasicMaterial({
+            color: 0x5fe2ff,
+            transparent: true,
+            opacity: 0.76,
+            side: THREE.DoubleSide
+        });
+        const pylonMaterial = new THREE.MeshStandardMaterial({
+            color: 0xf8fbff,
+            metalness: 0.48,
+            roughness: 0.32,
+            emissive: 0x1b2d3d,
+            emissiveIntensity: 0.18,
+            transparent: true,
+            opacity: 0.92
+        });
+
+        const backPlate = new THREE.Mesh(new THREE.BoxGeometry(signWidth, signHeight, 0.48), frameMaterial);
+        backPlate.castShadow = true;
+        group.add(backPlate);
+
+        [-1, 1].forEach(side => {
+            const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.52, pylonHeight, 0.52), pylonMaterial.clone());
+            pylon.position.set(side * 13.6, -1, -0.04);
+            pylon.castShadow = true;
+            group.add(pylon);
+
+            const lowerBrace = new THREE.Mesh(new THREE.BoxGeometry(4.35, 0.24, 0.34), accentMaterial.clone());
+            lowerBrace.position.set(side * 11.15, -0.35, 0.04);
+            lowerBrace.rotation.z = side * 0.58;
+            lowerBrace.castShadow = true;
+            group.add(lowerBrace);
+        });
+
+        const topTruss = new THREE.Mesh(new THREE.BoxGeometry(28.4, 0.36, 0.52), pylonMaterial.clone());
+        topTruss.position.set(0, 2.68, -0.08);
+        topTruss.castShadow = true;
+        group.add(topTruss);
+
+        ['#ff4f5f', '#ffd447', '#5df29a'].forEach((color, index) => {
+            const light = new THREE.Mesh(
+                new THREE.SphereGeometry(0.32, 18, 12),
+                new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: index === 0 ? 0.92 : 0.42
+                })
+            );
+            light.position.set(-1.06 + index * 1.06, 3.1, 0.34);
+            light.userData.countdownLightIndex = index;
+            group.add(light);
+        });
+
+        [-1, 1].forEach(side => {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.28, 4.4, 0.6), accentMaterial);
+            rail.position.set(side * 8.35, 0, 0.04);
+            rail.rotation.z = side * 0.18;
+            rail.castShadow = true;
+            group.add(rail);
+
+            for (let i = 0; i < 3; i++) {
+                const slash = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 1.8), cyanMaterial.clone());
+                slash.position.set(side * (6.9 - i * 0.62), -1.64, 0.3);
+                slash.rotation.z = side * 0.34;
+                group.add(slash);
+            }
+        });
+
+        const textGroup = new THREE.Group();
+        textGroup.name = 'countdown-text-stack';
+        const textLayers = [];
+        for (let i = 0; i < 7; i++) {
+            const layer = new THREE.Mesh(
+                new THREE.PlaneGeometry(15.2, 5.6),
+                this.createCountdownMaterial('3', i === 0 ? 1 : 0.28)
+            );
+            layer.position.z = 0.34 + i * 0.055;
+            if (i > 0) {
+                layer.material.color = new THREE.Color(i < 4 ? 0xff4f5f : 0x071017);
+            }
+            textGroup.add(layer);
+            textLayers.push(layer);
+        }
+        group.add(textGroup);
+
+        const roadFrame = this.getVehicleRoadFrame(countdownZ, -1, 'rally');
+        const roadData = roadFrame.roadData;
+        group.position.set(roadData.curve, roadData.y + 5.4, countdownZ);
+        group.rotation.y = roadFrame.yaw;
+
+        return { group, textGroup, textLayers };
+    }
+
+    beginStartCountdown() {
+        this.clearStartCountdown();
+        const visual = this.createStartCountdownGroup();
+        const sequence = ['3', '2', '1', 'START!'];
+        this.startCountdown = {
+            ...visual,
+            sequence,
+            active: true,
+            blocking: true,
+            startedAt: null,
+            releaseAt: 4300,
+            endAt: 6600,
+            stepDuration: 1050,
+            lastStep: 0,
+            basePosition: visual.group.position.clone(),
+            elapsedMs: 0,
+            confetti: [],
+            lastUpdateAt: null
+        };
+        this.scene.add(this.startCountdown.group);
+        this.setCountdownLabel('3');
+        this.spawnCountdownConfetti(28, 0.8);
+    }
+
+    getStartCountdownState(now = Date.now()) {
+        const countdown = this.startCountdown;
+        if (!countdown) {
+            return null;
+        }
+
+        const elapsed = Math.max(0, countdown.elapsedMs || 0);
+        const stepIndex = Math.min(countdown.sequence.length - 1, Math.floor(elapsed / countdown.stepDuration));
+        return {
+            elapsed,
+            stepIndex,
+            label: countdown.sequence[stepIndex],
+            blocking: Boolean(countdown.active && countdown.blocking),
+            confetti: countdown.confetti.length
+        };
+    }
+
+    setCountdownLabel(label) {
+        if (!this.startCountdown) {
+            return;
+        }
+
+        this.startCountdown.textLayers.forEach((layer, index) => {
+            if (layer.material.map) {
+                layer.material.map.dispose();
+            }
+            layer.material.map = this.createCountdownTexture(label);
+            layer.material.opacity = index === 0 ? 1 : 0.28;
+            layer.material.needsUpdate = true;
+        });
+    }
+
+    spawnCountdownConfetti(count, force = 1) {
+        if (!this.startCountdown) {
+            return;
+        }
+
+        const colors = [0xffd447, 0xff4f5f, 0x5fe2ff, 0xf8fbff, 0x5df29a];
+        for (let i = 0; i < count; i++) {
+            const material = new THREE.MeshBasicMaterial({
+                color: colors[i % colors.length],
+                transparent: true,
+                opacity: 0.95,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.2 + Math.random() * 0.16, 0.06 + Math.random() * 0.1), material);
+            mesh.position.set((Math.random() - 0.5) * 9.5, -0.45 + Math.random() * 1.2, 0.65 + Math.random() * 0.7);
+            mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            this.startCountdown.group.add(mesh);
+            this.startCountdown.confetti.push({
+                mesh,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.12 * force,
+                    (0.06 + Math.random() * 0.12) * force,
+                    (Math.random() - 0.5) * 0.08 * force
+                ),
+                spin: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.25,
+                    (Math.random() - 0.5) * 0.25,
+                    (Math.random() - 0.5) * 0.34
+                ),
+                age: 0,
+                life: 95 + Math.random() * 55
+            });
+        }
+    }
+
+    updateStartCountdown() {
+        const countdown = this.startCountdown;
+        if (!countdown?.active) {
+            return;
+        }
+
+        const now = Date.now();
+        if (!countdown.startedAt) {
+            countdown.startedAt = now;
+            countdown.lastUpdateAt = now;
+        } else {
+            const delta = Math.max(0, now - (countdown.lastUpdateAt || now));
+            countdown.elapsedMs = Math.min(countdown.endAt + 1000, countdown.elapsedMs + Math.min(delta, 50));
+            countdown.lastUpdateAt = now;
+        }
+
+        const state = this.getStartCountdownState(now);
+        const { elapsed, stepIndex, label } = state;
+        const stepElapsed = elapsed - stepIndex * countdown.stepDuration;
+        const stepProgress = THREE.MathUtils.clamp(stepElapsed / countdown.stepDuration, 0, 1);
+
+        if (stepIndex !== countdown.lastStep) {
+            countdown.lastStep = stepIndex;
+            this.setCountdownLabel(label);
+            this.spawnCountdownConfetti(label === 'START!' ? 105 : 36, label === 'START!' ? 1.8 : 1);
+        }
+
+        const pop = Math.sin((1 - stepProgress) * Math.PI * 0.5);
+        const startScale = label === 'START!' ? 1.14 : 1.0;
+        countdown.textGroup.scale.setScalar(startScale + pop * (label === 'START!' ? 0.34 : 0.48));
+        countdown.group.position.y = countdown.basePosition.y + Math.sin(elapsed * 0.007) * 0.14;
+
+        countdown.group.traverse(child => {
+            if (child.userData.countdownLightIndex === undefined || !child.material) {
+                return;
+            }
+
+            const lightIndex = child.userData.countdownLightIndex;
+            const targetOpacity = stepIndex === lightIndex ? 1 : label === 'START!' && lightIndex === 2 ? 1 : 0.32;
+            child.material.opacity += (targetOpacity - child.material.opacity) * 0.24;
+        });
+
+        if (elapsed >= countdown.releaseAt) {
+            countdown.blocking = false;
+        }
+
+        const fadeProgress = THREE.MathUtils.clamp((elapsed - countdown.releaseAt) / (countdown.endAt - countdown.releaseAt), 0, 1);
+        countdown.textLayers.forEach((layer, index) => {
+            layer.material.opacity = (index === 0 ? 1 : 0.28) * (1 - fadeProgress);
+        });
+        countdown.group.children.forEach(child => {
+            if (child.material && child !== countdown.textGroup) {
+                child.material.opacity = child.material.transparent ? Math.max(0, child.material.opacity * (1 - fadeProgress * 0.025)) : child.material.opacity;
+            }
+        });
+
+        countdown.confetti = countdown.confetti.filter(piece => {
+            piece.age++;
+            piece.velocity.y -= 0.004;
+            piece.mesh.position.add(piece.velocity);
+            piece.mesh.rotation.x += piece.spin.x;
+            piece.mesh.rotation.y += piece.spin.y;
+            piece.mesh.rotation.z += piece.spin.z;
+            piece.mesh.material.opacity = Math.max(0, 0.95 * (1 - piece.age / piece.life));
+
+            if (piece.age >= piece.life) {
+                countdown.group.remove(piece.mesh);
+                this.disposeObject(piece.mesh);
+                return false;
+            }
+            return true;
+        });
+
+        if (elapsed >= countdown.endAt && countdown.confetti.length === 0) {
+            this.clearStartCountdown();
+        }
+    }
+
+    isStartCountdownBlocking() {
+        if (this.startCountdown?.active && this.startCountdown.blocking) {
+            if ((this.startCountdown.elapsedMs || 0) >= this.startCountdown.releaseAt) {
+                this.startCountdown.blocking = false;
+            }
+        }
+
+        return Boolean(this.startCountdown?.active && this.startCountdown.blocking);
+    }
+
     initGameMusic() {
 
                 // Play game music for the start screen
@@ -1537,6 +1910,7 @@ class GameManager {
         this.resetCarPosition();
         this.game.startTime = null;
         this.game.finishTime = null;
+        this.beginStartCountdown();
         this.animate();
     }
 
@@ -1623,6 +1997,9 @@ class GameManager {
 
         this.isPaused = true;
         this.pauseStartedAt = Date.now();
+        if (this.startCountdown?.active) {
+            this.startCountdown.pausedAt = this.pauseStartedAt;
+        }
         this.setControls({ left: false, right: false, accelerate: false, brake: false });
     }
 
@@ -1634,6 +2011,13 @@ class GameManager {
         if (this.game && this.game.startTime && this.pauseStartedAt) {
             this.pausedDuration += Date.now() - this.pauseStartedAt;
         }
+        if (this.startCountdown?.active && this.startCountdown.pausedAt) {
+            if (this.startCountdown.startedAt) {
+                this.startCountdown.startedAt += Date.now() - this.startCountdown.pausedAt;
+                this.startCountdown.lastUpdateAt = Date.now();
+            }
+            this.startCountdown.pausedAt = 0;
+        }
         this.pauseStartedAt = 0;
         this.isPaused = false;
     }
@@ -1644,6 +2028,7 @@ class GameManager {
         this.animationId = null;
         this.isPaused = false;
         this.pauseStartedAt = 0;
+        this.clearStartCountdown();
         this.updateBestTimes(time);
         this.displayEndScreen(time);
     }
@@ -1779,6 +2164,20 @@ class GameManager {
             this.updateUI();
             this.renderer.render(this.scene, this.camera);
             return;
+        }
+
+        if (this.startCountdown?.active) {
+            this.updateStartCountdown();
+            if (this.isStartCountdownBlocking()) {
+                this.updateCameraPosition();
+                this.updateLightPosition();
+                if (this.roadUpdater) {
+                    this.roadUpdater(this.game.car.position.z);
+                }
+                this.updateUI();
+                this.renderer.render(this.scene, this.camera);
+                return;
+            }
         }
 
         if (!this.game.startTime && this.game.car.position.z <= this.game.startLine) {

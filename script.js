@@ -59,7 +59,10 @@
                 ? 'end'
                 : gameManager.isPaused
                     ? 'paused'
+                    : gameManager.isStartCountdownBlocking?.()
+                        ? 'countdown'
                     : 'driving';
+        const countdownState = gameManager.getStartCountdownState?.();
         const game = gameManager.game;
         return JSON.stringify({
             mode,
@@ -67,6 +70,7 @@
             paused: Boolean(gameManager.isPaused),
             musicEnabled: Boolean(gameManager.musicEnabled),
             settingsOpen: settingsPanel.style.display !== 'none',
+            countdown: countdownState,
             car: game ? {
                 x: Number(game.car.xOffset.toFixed(2)),
                 z: Number(game.car.position.z.toFixed(2)),
@@ -289,6 +293,7 @@
         gameManager.animationId = null;
         resetControls();
         gameManager.resumeGame();
+        gameManager.clearStartCountdown();
         hideGameplayChrome();
         hideLoadingScreen();
         gameManager.stopAllMusic();
@@ -453,6 +458,7 @@
         this.animationId = null;
         this.isPaused = false;
         this.pauseStartedAt = 0;
+        this.clearStartCountdown();
         this.updateBestTimes(time);
         this.displayEndScreen(time);
         hideGameplayChrome();
