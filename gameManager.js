@@ -63,6 +63,62 @@ class GameManager {
         this.trafficCars = [];
         this.maxTrafficCars = 10; // Maximum number of traffic cars
         this.trafficVehicleTypes = ['muscle', 'suv', 'hatchback', 'pickup', 'supercar'];
+        this.gltfLoader = THREE.GLTFLoader ? new THREE.GLTFLoader() : null;
+        this.vehicleModelCache = {};
+        this.vehicleModelAssets = {
+            carConcept: { url: 'assets/models/car_concept.glb' },
+            milkTruck: { url: 'assets/models/cesium_milk_truck.glb' }
+        };
+        this.vehicleAssetSpecs = {
+            rally: {
+                asset: 'carConcept',
+                width: 2.26,
+                length: 4.48,
+                height: 1.28,
+                yaw: 0,
+                groundOffset: -0.2
+            },
+            supercar: {
+                asset: 'carConcept',
+                width: 2.34,
+                length: 4.62,
+                height: 1.22,
+                yaw: 0,
+                groundOffset: -0.2
+            },
+            muscle: {
+                asset: 'carConcept',
+                width: 2.34,
+                length: 4.62,
+                height: 1.32,
+                yaw: 0,
+                groundOffset: -0.2
+            },
+            hatchback: {
+                asset: 'carConcept',
+                width: 2.08,
+                length: 4.12,
+                height: 1.34,
+                yaw: 0,
+                groundOffset: -0.2
+            },
+            suv: {
+                asset: 'milkTruck',
+                width: 2.45,
+                length: 5.1,
+                height: 1.88,
+                yaw: Math.PI / 2,
+                groundOffset: -0.2
+            },
+            pickup: {
+                asset: 'milkTruck',
+                width: 2.36,
+                length: 5.2,
+                height: 1.78,
+                yaw: Math.PI / 2,
+                groundOffset: -0.2
+            }
+        };
         this.trafficPaints = [
             { body: 0x1558ff, accent: 0xf7fbff, stripe: 0xffd447 },
             { body: 0xff7a1a, accent: 0x181c22, stripe: 0xffffff },
@@ -90,7 +146,9 @@ class GameManager {
 
         // Clear the scene
         while (this.scene.children.length > 0) {
-            this.scene.remove(this.scene.children[0]);
+            const child = this.scene.children[0];
+            this.scene.remove(child);
+            this.disposeObject(child);
         }
 
         // Clear the traffic cars array to remove references to old traffic cars
@@ -178,19 +236,24 @@ class GameManager {
     }
 
     disposeObject(object) {
+        object.userData.disposed = true;
         object.traverse(child => {
             if (child.geometry) {
-                child.geometry.dispose();
+                if (!child.userData.keepGeometry) {
+                    child.geometry.dispose();
+                }
             }
 
             if (child.material) {
                 const materials = Array.isArray(child.material) ? child.material : [child.material];
                 materials.forEach(material => {
-                    ['map', 'bumpMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'].forEach(key => {
-                        if (material[key]) {
-                            material[key].dispose();
-                        }
-                    });
+                    if (!material.userData.keepTextureMaps) {
+                        ['map', 'bumpMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach(key => {
+                            if (material[key]) {
+                                material[key].dispose();
+                            }
+                        });
+                    }
                     material.dispose();
                 });
             }
@@ -750,19 +813,173 @@ class GameManager {
         });
     }
 
-    createCar(color, type = 'rally', options = {}) {
+    canUseAssetVehicle(type) {
+        return this.gltfLoader && this.vehicleAssetSpecs[type] && this.vehicleModelAssets[this.vehicleAssetSpecs[type].asset];
+    }
+
+    createAssetVehicle(color, type, options = {}) {
+        if (!this.canUseAssetVehicle(type)) {
+            return null;
+        }
+
         const spec = this.getVehicleSpec(type);
+        const assetSpec = this.vehicleAssetSpecs[type];
         const palette = {
             body: color,
             accent: 0xffffff,
             stripe: 0x5fe2ff,
             ...(options.palette || {})
         };
-        const materials = this.createVehicleMaterials(palette);
         const car = new THREE.Group();
         car.userData.vehicleType = type;
         car.userData.wheels = [];
+        car.userData.assetVehicle = true;
+        car.userData.assetReady = false;
+        car.userData.assetName = assetSpec.asset;
 
+        const proxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
+        const proxy = new THREE.Mesh(
+            new THREE.BoxGeometry(assetSpec.width, assetSpec.height || spec.bodyHeight + spec.cabinHeight, assetSpec.length),
+            proxyMaterial
+        );
+        proxy.position.y = (assetSpec.height || 1.4) * 0.5 - 0.18;
+        proxy.name = 'vehicle-collision-proxy';
+        car.add(proxy);
+
+        this.loadVehicleModel(assetSpec.asset)
+            .then(source => {
+                if (car.userData.disposed) {
+                    return;
+                }
+
+                const model = source.clone(true);
+                this.prepareAssetVehicleModel(model, type, palette, assetSpec);
+                car.add(model);
+                car.userData.assetReady = true;
+            })
+            .catch(error => {
+                console.warn(`Falling back to procedural ${type} vehicle.`, error);
+                if (car.userData.disposed) {
+                    return;
+                }
+
+                const materials = this.createVehicleMaterials(palette);
+                this.populateProceduralCar(car, spec, materials, type);
+                car.userData.assetReady = false;
+                car.userData.assetFallback = true;
+            });
+
+        return car;
+    }
+
+    loadVehicleModel(assetName) {
+        const asset = this.vehicleModelAssets[assetName];
+        if (!asset) {
+            return Promise.reject(new Error(`Unknown vehicle model: ${assetName}`));
+        }
+
+        if (this.vehicleModelCache[assetName]) {
+            return this.vehicleModelCache[assetName];
+        }
+
+        this.vehicleModelCache[assetName] = new Promise((resolve, reject) => {
+            this.gltfLoader.load(
+                asset.url,
+                gltf => resolve(gltf.scene),
+                undefined,
+                reject
+            );
+        });
+
+        return this.vehicleModelCache[assetName];
+    }
+
+    prepareAssetVehicleModel(model, type, palette, assetSpec) {
+        model.name = `${type}-mesh-model`;
+        model.rotation.y = assetSpec.yaw || 0;
+
+        model.traverse(child => {
+            if (!child.isMesh) {
+                return;
+            }
+
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.userData.keepGeometry = true;
+
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            const clonedMaterials = materials.map(material => this.cloneAssetMaterial(material, palette, type));
+            child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
+
+            const name = `${child.name || ''} ${child.material.name || ''}`.toLowerCase();
+            if (/wheel(front|rear)|wheels|tire|rim/.test(name) && !/steering/.test(name)) {
+                child.userData.assetWheel = true;
+            }
+        });
+
+        this.normalizeAssetVehicle(model, assetSpec);
+    }
+
+    cloneAssetMaterial(material, palette, type) {
+        const cloned = material.clone();
+        const name = (cloned.name || '').toLowerCase();
+        cloned.userData.keepTextureMaps = true;
+
+        const isGlass = /glass|window|windshield/.test(name);
+        const isTire = /tire|rubber|wheel/.test(name);
+        const isLight = /headlight|brakelight|signallight|taillight/.test(name);
+        const isPaint = /paint|body|toycar|truck/.test(name) && !isGlass && !isTire && !isLight;
+
+        if (isPaint && cloned.color) {
+            cloned.color.setHex(palette.body);
+            if ('metalness' in cloned) {
+                cloned.metalness = Math.max(cloned.metalness || 0, 0.34);
+            }
+            if ('roughness' in cloned) {
+                cloned.roughness = Math.min(cloned.roughness || 0.38, 0.34);
+            }
+            if ('clearcoat' in cloned) {
+                cloned.clearcoat = Math.max(cloned.clearcoat || 0, 0.55);
+                cloned.clearcoatRoughness = Math.min(cloned.clearcoatRoughness || 0.22, 0.18);
+            }
+        } else if (isGlass && cloned.color) {
+            cloned.color.setHex(0x121c28);
+            cloned.transparent = true;
+            cloned.opacity = Math.min(cloned.opacity || 0.8, 0.76);
+            if ('roughness' in cloned) {
+                cloned.roughness = 0.05;
+            }
+        } else if (isLight && cloned.emissive) {
+            cloned.emissiveIntensity = Math.max(cloned.emissiveIntensity || 0.4, 0.65);
+        }
+
+        if (type === 'supercar' && isPaint && cloned.color) {
+            cloned.color.offsetHSL(0.02, 0.08, -0.03);
+        }
+
+        return cloned;
+    }
+
+    normalizeAssetVehicle(model, assetSpec) {
+        model.updateMatrixWorld(true);
+        const sourceBox = new THREE.Box3().setFromObject(model);
+        const sourceSize = sourceBox.getSize(new THREE.Vector3());
+        const widthScale = assetSpec.width / Math.max(sourceSize.x, 0.001);
+        const lengthScale = assetSpec.length / Math.max(sourceSize.z, 0.001);
+        const heightScale = (assetSpec.height || sourceSize.y) / Math.max(sourceSize.y, 0.001);
+        const scale = Math.min(widthScale, lengthScale, heightScale);
+
+        model.scale.multiplyScalar(scale);
+        model.updateMatrixWorld(true);
+
+        const fittedBox = new THREE.Box3().setFromObject(model);
+        const center = fittedBox.getCenter(new THREE.Vector3());
+        model.position.x -= center.x;
+        model.position.z -= center.z;
+        model.position.y += (assetSpec.groundOffset || 0) - fittedBox.min.y;
+    }
+
+    populateProceduralCar(car, spec, materials, type) {
         this.addVehicleBox(car, materials.dark, [spec.width * 0.96, 0.24, spec.length * 0.94], [0, 0.24, 0.05], 'underbody');
         this.addVehicleMesh(car, this.createVehicleBodyGeometry(spec, type), materials.body, [0, 0, 0], 'sculpted-body');
         this.addVehicleBox(car, materials.accent, [spec.width * 0.72, 0.045, spec.length * 0.34], [0, spec.bodyHeight + 0.16, -spec.length * 0.28], 'hood-panel');
@@ -793,6 +1010,27 @@ class GameManager {
         this.addVehicleLights(car, spec, materials);
         this.addVehicleWheels(car, spec, materials);
         this.addVehicleTrim(car, spec, materials, type);
+    }
+
+    createCar(color, type = 'rally', options = {}) {
+        const spec = this.getVehicleSpec(type);
+        const palette = {
+            body: color,
+            accent: 0xffffff,
+            stripe: 0x5fe2ff,
+            ...(options.palette || {})
+        };
+        const assetVehicle = this.createAssetVehicle(color, type, options);
+        if (assetVehicle) {
+            return assetVehicle;
+        }
+
+        const materials = this.createVehicleMaterials(palette);
+        const car = new THREE.Group();
+        car.userData.vehicleType = type;
+        car.userData.wheels = [];
+
+        this.populateProceduralCar(car, spec, materials, type);
 
         return car;
     }
