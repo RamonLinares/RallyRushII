@@ -254,6 +254,9 @@ class GameManager {
                 minSpeed: 0,
                 xOffset: 0,
                 angle: 0,
+                driveYaw: 0,
+                visualYaw: 0,
+                bodyRoll: 0,
                 steeringAngle: 0,
                 maxSteeringAngle: Math.PI / 12,
                 steeringSpeed: 0.15,
@@ -1358,9 +1361,10 @@ class GameManager {
         const safeStartIndex = 24;
         const randomSegmentIndex = safeStartIndex + Math.floor(Math.random() * Math.max(1, this.game.road.segments.length - safeStartIndex));
         const segment = this.game.road.segments[randomSegmentIndex];
+        const roadFrame = this.getVehicleRoadFrame(segment.z, 1);
         const xOffset = (Math.random() - 0.5) * (this.game.road.width * 0.8);
         trafficCar.position.set(segment.curve + xOffset, segment.y + 0.25, segment.z);
-        trafficCar.rotation.y = Math.PI;
+        this.applyVehicleRoadPose(trafficCar, roadFrame);
         this.scene.add(trafficCar);
         this.trafficCars.push({
             mesh: trafficCar,
@@ -1370,17 +1374,21 @@ class GameManager {
         });
     }
     resetCarPosition() {
-        const startSegment = this.game.road.segments[0];
-        this.game.car.position.set(startSegment.curve, startSegment.y + 0.25, this.game.startLine);
+        const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1);
+        const roadData = roadFrame.roadData;
+        this.game.car.position.set(roadData.curve, roadData.y + 0.25, this.game.startLine);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
         this.game.car.angle = 0;
         this.game.car.angularVelocity = 0;
+        this.game.car.driveYaw = roadFrame.yaw;
+        this.game.car.visualYaw = roadFrame.yaw;
+        this.game.car.bodyRoll = 0;
         this.game.car.steeringAngle = 0;
         this.carPosition.copy(this.game.car.position);
 
         this.playerCar.position.copy(this.game.car.position);
-        this.playerCar.rotation.set(0, 0, 0);
+        this.applyVehicleRoadPose(this.playerCar, roadFrame);
     }
 
     initGameMusic() {
@@ -1533,6 +1541,32 @@ class GameManager {
         }
     }
 
+    getVehicleRoadFrame(z, travelDirection = -1) {
+        const sampleDistance = 8;
+        const roadData = getRoadDataAtZ(z, this.game);
+        const aheadZ = z + travelDirection * sampleDistance;
+        const aheadRoadData = getRoadDataAtZ(aheadZ, this.game);
+        const dx = aheadRoadData.curve - roadData.curve;
+        const dz = aheadZ - z;
+        const dy = aheadRoadData.y - roadData.y;
+        const horizontalDistance = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
+
+        return {
+            roadData,
+            yaw: Math.atan2(-dx, -dz),
+            pitch: Math.atan2(dy, horizontalDistance) * 0.68
+        };
+    }
+
+    lerpAngle(current, target, amount) {
+        const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+        return current + delta * amount;
+    }
+
+    applyVehicleRoadPose(vehicle, frame, yawOffset = 0, roll = 0) {
+        vehicle.rotation.set(frame.pitch, frame.yaw + yawOffset, roll);
+    }
+
     animate() {
         this.animationId = requestAnimationFrame(this.animate.bind(this));
 
@@ -1576,6 +1610,7 @@ class GameManager {
             this.game.car.speed -= this.game.car.deceleration;
         }
         this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
+        const speedRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
 
         // Update steering
         const steeringInput = (this.controls.right ? -1 : 0) + (this.controls.left ? 1 : 0);
@@ -1584,17 +1619,12 @@ class GameManager {
 
         // Update car angle based on steering and speed
         this.game.car.angle += this.game.car.steeringAngle * this.game.car.speed * this.game.car.turnSpeed;
-
-        // Calculate incidence angle between car direction and road curve
-        const roadData = getRoadDataAtZ(this.game.car.position.z, this.game);
-        const incidenceAngle = this.game.car.angle - Math.atan2(roadData.curve - this.game.car.xOffset, this.game.car.position.z);
-
-        // Introduce lateral drift based on incidence angle and speed
-        const lateralDrift = Math.sin(incidenceAngle) * this.game.car.speed * 0.5;
-        this.game.car.xOffset -= lateralDrift;
+        const headingRecovery = steeringInput === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
+        this.game.car.angle += (0 - this.game.car.angle) * headingRecovery;
+        this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -Math.PI / 5, Math.PI / 5);
 
         // Calculate movement
-        const dx = Math.sin(this.game.car.angle) * this.game.car.speed;
+        const dx = Math.sin(this.game.car.angle) * this.game.car.speed * 0.72;
         const dz = Math.cos(this.game.car.angle) * this.game.car.speed;
 
         // Update position
@@ -1616,21 +1646,22 @@ class GameManager {
             this.game.car.borderCollisionCooldown--;
         }
 
+        const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1);
+        const updatedRoadData = updatedRoadFrame.roadData;
+
         // Update car's position and rotation
-        this.carPosition.set(this.game.car.xOffset + roadData.curve, roadData.y + 0.25, this.game.car.position.z);
+        this.carPosition.set(this.game.car.xOffset + updatedRoadData.curve, updatedRoadData.y + 0.25, this.game.car.position.z);
         this.playerCar.position.copy(this.carPosition);
 
-        // Apply rotations
-        this.playerCar.rotation.set(0, 0, 0);
-        const nextY = getRoadDataAtZ(this.game.car.position.z - 1, this.game).y;
-        const pitch = Math.atan2(nextY - roadData.y, 1) * 0.1; // Reduces the pitch effect by 50%
-        this.playerCar.rotateX(pitch);
-        this.playerCar.rotateY(this.game.car.angle);
+        const visualSteerYaw = this.game.car.steeringAngle * (0.42 + speedRatio * 0.62);
+        this.game.car.driveYaw = updatedRoadFrame.yaw + this.game.car.angle;
+        const targetVisualYaw = this.game.car.driveYaw + visualSteerYaw;
+        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.22);
 
-        // Apply a slight roll based on steering (for visual effect only)
-        const maxRoll = Math.PI / 16;
-        const roll = -this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle);
-        this.playerCar.rotateZ(roll);
+        const maxRoll = Math.PI / 44;
+        const targetRoll = -this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio;
+        this.game.car.bodyRoll += (targetRoll - this.game.car.bodyRoll) * 0.16;
+        this.playerCar.rotation.set(updatedRoadFrame.pitch, this.game.car.visualYaw, this.game.car.bodyRoll);
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85);
     }
 
@@ -1708,7 +1739,8 @@ class GameManager {
         const playerEndZ = playerPeakZ + 4;
         const playerEndRoad = getRoadDataAtZ(playerEndZ, this.game);
         const playerEnd = new THREE.Vector3(playerEndRoad.curve, playerEndRoad.y + 0.25, playerEndZ);
-        const playerRotEnd = new THREE.Euler(0, 0, 0);
+        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1);
+        const playerRotEnd = new THREE.Euler(playerEndFrame.pitch, playerEndFrame.yaw, 0);
 
         const trafficEndZ = trafficStart.z + trafficZKick;
         const trafficEndRoad = getRoadDataAtZ(trafficEndZ, this.game);
@@ -1794,10 +1826,14 @@ class GameManager {
             this.game.car.xOffset = 0;
             this.game.car.angle = 0;
             this.game.car.speed = 0;
+            this.game.car.steeringAngle = 0;
+            this.game.car.driveYaw = collision.playerRotEnd.y;
+            this.game.car.visualYaw = collision.playerRotEnd.y;
+            this.game.car.bodyRoll = 0;
             collision.trafficCar.xOffset = collision.trafficEnd.x - trafficRoadData.curve;
             collision.trafficCar.mesh.position.copy(collision.trafficEnd);
             this.playerCar.position.copy(collision.playerEnd);
-            this.playerCar.rotation.set(0, 0, 0);
+            this.playerCar.rotation.copy(collision.playerRotEnd);
             this.carPosition.copy(collision.playerEnd);
             this.activeCollision = null;
         }
@@ -1953,10 +1989,8 @@ class GameManager {
             trafficCar.mesh.position.y = trafficRoadData.y + 0.25;
             trafficCar.mesh.position.x = trafficCar.xOffset + trafficRoadData.curve;
 
-            // Correct pitch rotation for traffic cars
-            const nextTrafficRoadData = getRoadDataAtZ(trafficCar.mesh.position.z + 1, this.game);
-            trafficCar.mesh.rotation.set(0, Math.PI, 0);
-            trafficCar.mesh.rotateX(Math.atan2(nextTrafficRoadData.y - trafficRoadData.y, 1));
+            const trafficRoadFrame = this.getVehicleRoadFrame(trafficCar.mesh.position.z, 1);
+            this.applyVehicleRoadPose(trafficCar.mesh, trafficRoadFrame);
             this.animateVehicleWheels(trafficCar.mesh, trafficCar.speed * 0.72, 0);
 
             const trafficBox = new THREE.Box3().setFromObject(trafficCar.mesh);
@@ -1969,11 +2003,12 @@ class GameManager {
     }
 
     updateCameraPosition() {
+        const cameraYaw = this.game.car.driveYaw ?? this.game.car.visualYaw ?? this.game.car.angle;
         // Create a direction vector pointing in the same direction as the car
         const carDirection = new THREE.Vector3(
-            -Math.sin(this.game.car.angle),
+            -Math.sin(cameraYaw),
             0,
-            -Math.cos(this.game.car.angle)
+            -Math.cos(cameraYaw)
         );
 
         // Calculate ideal camera position

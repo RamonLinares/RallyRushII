@@ -58,7 +58,11 @@
             car: game ? {
                 x: Number(game.car.xOffset.toFixed(2)),
                 z: Number(game.car.position.z.toFixed(2)),
-                speed: Number(game.car.speed.toFixed(2))
+                speed: Number(game.car.speed.toFixed(2)),
+                steering: Number(game.car.steeringAngle.toFixed(3)),
+                roadYaw: Number((gameManager.getVehicleRoadFrame(game.car.position.z, -1).yaw).toFixed(3)),
+                driveYaw: Number((game.car.driveYaw || 0).toFixed(3)),
+                visualYaw: Number((game.car.visualYaw || 0).toFixed(3))
             } : null,
             road: game ? {
                 width: game.road.width,
