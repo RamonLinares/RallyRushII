@@ -37,9 +37,6 @@
     const settingsButton = document.getElementById('settingsButton');
     const settingsPanel = document.getElementById('settingsPanel');
     const closeSettingsButton = document.getElementById('closeSettingsButton');
-    const pauseToggleButton = document.getElementById('pauseToggleButton');
-    const pauseToggleIcon = document.getElementById('pauseToggleIcon');
-    const pauseToggleLabel = document.getElementById('pauseToggleLabel');
     const musicToggleButton = document.getElementById('musicToggleButton');
     const musicToggleIcon = document.getElementById('musicToggleIcon');
     const musicToggleLabel = document.getElementById('musicToggleLabel');
@@ -154,12 +151,6 @@
     }
 
     function updateSettingsUi() {
-        const isPaused = Boolean(gameManager.isPaused);
-        pauseToggleIcon.textContent = isPaused ? '>' : 'II';
-        pauseToggleLabel.textContent = isPaused ? 'Resume' : 'Pause';
-        pauseToggleButton.dataset.active = isPaused ? 'true' : 'false';
-        closeSettingsButton.disabled = isPaused;
-
         musicToggleIcon.textContent = gameManager.musicEnabled ? 'M' : 'X';
         musicToggleLabel.textContent = gameManager.musicEnabled ? 'Music on' : 'Music off';
         musicToggleButton.dataset.active = gameManager.musicEnabled ? 'true' : 'false';
@@ -419,26 +410,30 @@
             return;
         }
 
-        setSettingsPanelOpen(settingsPanel.style.display === 'none');
-        updateSettingsUi();
+        setPaused(settingsPanel.style.display === 'none' || !gameManager.isPaused);
     });
 
     closeSettingsButton.addEventListener('click', () => {
-        if (gameManager.isPaused) {
+        if (!isGameplayActive()) {
             return;
         }
 
-        setSettingsPanelOpen(false);
-        updateSettingsUi();
-    });
-
-    pauseToggleButton.addEventListener('click', () => {
-        setPaused(!gameManager.isPaused);
+        setPaused(false);
     });
 
     musicToggleButton.addEventListener('click', () => {
         gameManager.toggleMusic();
         updateSettingsUi();
+    });
+
+    document.addEventListener('pointerdown', event => {
+        if (!isGameplayActive() || settingsPanel.style.display === 'none') {
+            return;
+        }
+
+        if (!settingsHud.contains(event.target)) {
+            setPaused(false);
+        }
     });
 
     // Ensure mobile controls are hidden initially and on end screen
