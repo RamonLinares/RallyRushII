@@ -362,6 +362,13 @@ button:focus-visible {
     transform: translateY(-1px);
 }
 
+.primaryButton:disabled,
+.secondaryButton:disabled {
+    cursor: wait;
+    opacity: 0.74;
+    transform: none;
+}
+
 .primaryButton:hover::after,
 .secondaryButton:hover::after,
 .controlButton:hover::after {
@@ -422,6 +429,166 @@ button:focus-visible {
 
 .scoreboard strong {
     font-size: 14px;
+}
+
+.loadingOverlay {
+    z-index: 14;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 50% 62%, rgba(255, 212, 71, 0.16), transparent 18%),
+        linear-gradient(180deg, rgba(3, 7, 12, 0.54), rgba(3, 7, 12, 0.86));
+}
+
+.loadingOverlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.48;
+    background:
+        linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.08) 1px, transparent 2px),
+        linear-gradient(0deg, transparent 0, rgba(95, 226, 255, 0.06) 1px, transparent 2px);
+    background-size: 64px 64px, 100% 34px;
+    mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+}
+
+.loadingPanel {
+    position: relative;
+    width: min(560px, calc(100vw - 32px));
+    padding: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-left: 4px solid var(--ui-accent-2);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(95, 226, 255, 0.18), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 28%),
+        rgba(5, 8, 13, 0.88);
+    box-shadow:
+        0 28px 88px rgba(0, 0, 0, 0.72),
+        0 0 42px rgba(95, 226, 255, 0.16);
+    backdrop-filter: blur(24px) saturate(1.45);
+}
+
+.loadingPanel::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+
+.loadingScanner {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 0%, rgba(95, 226, 255, 0.18) 48%, transparent 58%);
+    transform: translateX(-130%);
+    animation: loading-scan 1.8s ease-in-out infinite;
+}
+
+.loadingTopline,
+.loadingMeta {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.loadingTopline {
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.loadingSignal {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ui-green);
+    box-shadow: 0 0 18px rgba(104, 255, 154, 0.84);
+    animation: loading-pulse 900ms ease-in-out infinite alternate;
+}
+
+.loadingTitle {
+    position: relative;
+    margin-bottom: 8px;
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 0.88;
+    text-transform: uppercase;
+    text-shadow: 0 4px 0 #000000, 0 16px 34px rgba(0, 0, 0, 0.72);
+}
+
+.loadingCopy {
+    position: relative;
+    margin-bottom: 18px;
+    color: var(--ui-text);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.loadingTrack {
+    position: relative;
+    height: 16px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.34);
+}
+
+#loadingProgressBar {
+    width: 0%;
+    height: 100%;
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, var(--ui-accent), var(--ui-green) 58%, var(--ui-accent-2)),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.24) 0 8px, transparent 8px 16px);
+    box-shadow: 0 0 24px rgba(95, 226, 255, 0.45);
+    transition: width 180ms ease;
+}
+
+.loadingMeta {
+    font-variant-numeric: tabular-nums;
+}
+
+#loadingPercent {
+    color: var(--ui-accent-2);
+}
+
+#loadingAssetName {
+    color: var(--ui-accent);
+    text-align: right;
+}
+
+@keyframes loading-scan {
+    0% {
+        transform: translateX(-130%);
+    }
+
+    52%,
+    100% {
+        transform: translateX(130%);
+    }
+}
+
+@keyframes loading-pulse {
+    from {
+        transform: scale(0.82);
+        opacity: 0.68;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 #mobileControls {
@@ -566,6 +733,21 @@ button:focus-visible {
 
     .menuActions {
         grid-template-columns: 1fr;
+    }
+
+    .loadingPanel {
+        width: min(390px, calc(100vw - 20px));
+        margin-top: 18px;
+        padding: 14px;
+    }
+
+    .loadingTopline,
+    .loadingMeta {
+        font-size: 11px;
+    }
+
+    .loadingTitle {
+        font-size: 40px;
     }
 
     #mobileControls {

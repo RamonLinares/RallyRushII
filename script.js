@@ -16,7 +16,17 @@
     const mobileControls = document.getElementById('mobileControls');
     const startScreen = document.getElementById('startScreen');
     const endScreen = document.getElementById('endScreen');
+    const loadingScreen = document.getElementById('loadingScreen');
     const circuitSelect = document.getElementById('circuitSelect');
+    const startButton = document.getElementById('startButton');
+    const restartButton = document.getElementById('restartButton');
+    const loadingStageName = document.getElementById('loadingStageName');
+    const loadingStatus = document.getElementById('loadingStatus');
+    const loadingProgressBar = document.getElementById('loadingProgressBar');
+    const loadingPercent = document.getElementById('loadingPercent');
+    const loadingAssetName = document.getElementById('loadingAssetName');
+    let isStartingRace = false;
+    let startRequestId = 0;
 
     // Mobile button controls setup
     const accelerateButton = document.getElementById('accelerateButton');
@@ -25,7 +35,10 @@
     const rightButton = document.getElementById('rightButton');
 
     window.render_game_to_text = function () {
-        const mode = startScreen.style.display !== 'none'
+        const isLoading = loadingScreen.style.display !== 'none';
+        const mode = isLoading
+            ? 'loading'
+            : startScreen.style.display !== 'none'
             ? 'start'
             : endScreen.style.display !== 'none'
                 ? 'end'
@@ -49,7 +62,12 @@
                 progress: Number((gameManager.activeCollision.frame / gameManager.activeCollision.duration).toFixed(2)),
                 effects: gameManager.collisionEffects.length
             } : null,
-            lastCollisionType: gameManager.lastCollisionType
+            lastCollisionType: gameManager.lastCollisionType,
+            loading: isLoading ? {
+                percent: loadingPercent.textContent,
+                status: loadingStatus.textContent,
+                asset: loadingAssetName.textContent
+            } : null
         }, null, 2);
     };
 
@@ -64,7 +82,7 @@
 
     // Show mobile controls during gameplay
     function showMobileControls() {
-        mobileControls.style.display = shouldShowMobileControls() ? 'block' : 'none';
+        mobileControls.style.display = shouldShowMobileControls() && loadingScreen.style.display === 'none' ? 'block' : 'none';
     }
 
     function resetControls() {
@@ -75,15 +93,114 @@
         gameManager.setControls(controls);
     }
 
-    function returnToMainMenu() {
-        if (startScreen.style.display !== 'none') {
+    function getSelectedStageName() {
+        const selectedOption = circuitSelect.options[circuitSelect.selectedIndex];
+        return selectedOption ? selectedOption.textContent : circuitSelect.value;
+    }
+
+    function setStartButtonsLoading(isLoading) {
+        startButton.disabled = isLoading;
+        restartButton.disabled = isLoading;
+        startButton.textContent = isLoading ? 'Loading grid' : 'Start race';
+        restartButton.textContent = isLoading ? 'Loading grid' : 'Restart';
+    }
+
+    function updateLoadingProgress(details = {}) {
+        const progress = Math.max(0, Math.min(1, details.progress || 0));
+        const percent = Math.round(progress * 100);
+        loadingProgressBar.style.width = `${percent}%`;
+        loadingPercent.textContent = `${percent}%`;
+        loadingStatus.textContent = progress >= 1 ? 'Final systems check' : 'Loading vehicle models';
+        loadingAssetName.textContent = details.assetName || 'Vehicle telemetry sync';
+    }
+
+    function showLoadingScreen() {
+        loadingStageName.textContent = getSelectedStageName();
+        updateLoadingProgress({
+            progress: 0,
+            assetName: 'Vehicle telemetry sync'
+        });
+        document.getElementById('ui').style.display = 'none';
+        startScreen.style.display = 'none';
+        endScreen.style.display = 'none';
+        hideMobileControls();
+        loadingScreen.style.display = 'grid';
+    }
+
+    function hideLoadingScreen() {
+        loadingScreen.style.display = 'none';
+    }
+
+    function waitForNextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function startRaceWithPreload() {
+        if (isStartingRace) {
             return;
         }
 
+        const requestId = ++startRequestId;
+        isStartingRace = true;
+        setStartButtonsLoading(true);
+        resetControls();
+        showLoadingScreen();
+
+        try {
+            await waitForNextFrame();
+            await gameManager.preloadVehicleModels(updateLoadingProgress);
+            if (requestId !== startRequestId) {
+                return;
+            }
+
+            updateLoadingProgress({
+                progress: 1,
+                assetName: 'Grid ready'
+            });
+            await waitForNextFrame();
+
+            if (requestId !== startRequestId) {
+                return;
+            }
+
+            hideLoadingScreen();
+            showMobileControls();
+            gameManager.startGame();
+        } catch (error) {
+            console.warn('Vehicle preload failed; starting with fallback vehicle rendering.', error);
+            if (requestId !== startRequestId) {
+                return;
+            }
+
+            updateLoadingProgress({
+                progress: 1,
+                assetName: 'Fallback fleet ready'
+            });
+            await waitForNextFrame();
+            hideLoadingScreen();
+            showMobileControls();
+            gameManager.startGame();
+        } finally {
+            if (requestId === startRequestId) {
+                isStartingRace = false;
+                setStartButtonsLoading(false);
+            }
+        }
+    }
+
+    function returnToMainMenu() {
+        if (startScreen.style.display !== 'none' && loadingScreen.style.display === 'none') {
+            return;
+        }
+
+        startRequestId += 1;
+        isStartingRace = false;
+        setStartButtonsLoading(false);
         cancelAnimationFrame(gameManager.animationId);
         gameManager.animationId = null;
         resetControls();
         hideMobileControls();
+        hideLoadingScreen();
         gameManager.stopAllMusic();
         gameManager.resetCollisionVisuals();
         gameManager.game = null;
@@ -111,10 +228,9 @@
         }
         if (e.key === 'Enter') {
             if (startScreen.style.display !== 'none') {
-                gameManager.startGame();
+                startRaceWithPreload();
             } else if (endScreen.style.display !== 'none') {
-                endScreen.style.display = 'none';
-                gameManager.startGame();
+                startRaceWithPreload();
             }
         }
     });
@@ -172,19 +288,15 @@
     });
 
     // Handle game start and restart
-    document.getElementById('startButton').addEventListener('click', () => {
-        startScreen.style.display = 'none';
-        showMobileControls();
-        gameManager.startGame();
-    });
+    startButton.addEventListener('click', startRaceWithPreload);
 
-    document.getElementById('restartButton').addEventListener('click', () => {
-        endScreen.style.display = 'none';
-        showMobileControls();
-        gameManager.startGame();
-    });
+    restartButton.addEventListener('click', startRaceWithPreload);
 
     document.getElementById('changeCircuitButton').addEventListener('click', () => {
+        startRequestId += 1;
+        isStartingRace = false;
+        setStartButtonsLoading(false);
+        hideLoadingScreen();
         endScreen.style.display = 'none';
         startScreen.style.display = 'grid';
         hideMobileControls();
@@ -210,7 +322,7 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        if (startScreen.style.display === 'none' && endScreen.style.display === 'none') {
+        if (startScreen.style.display === 'none' && endScreen.style.display === 'none' && loadingScreen.style.display === 'none') {
             showMobileControls();
         }
     });

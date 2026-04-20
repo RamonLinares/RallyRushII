@@ -66,6 +66,7 @@ class GameManager {
         this.trafficVehicleTypes = ['muscle', 'suv', 'hatchback', 'pickup', 'supercar'];
         this.gltfLoader = THREE.GLTFLoader ? new THREE.GLTFLoader() : null;
         this.vehicleModelCache = {};
+        this.vehicleModelLoadState = {};
         this.vehicleModelAssets = {
             carConcept: { url: 'assets/models/car_concept.glb' },
             milkTruck: { url: 'assets/models/cesium_milk_truck.glb' }
@@ -877,22 +878,181 @@ class GameManager {
         return car;
     }
 
-    loadVehicleModel(assetName) {
+    getRequiredVehicleAssetNames() {
+        return [...new Set(Object.values(this.vehicleAssetSpecs)
+            .map(spec => spec.asset)
+            .filter(Boolean))];
+    }
+
+    getVehicleAssetLabel(assetName) {
+        const labels = {
+            carConcept: 'Sports fleet model',
+            milkTruck: 'Utility fleet model'
+        };
+        return labels[assetName] || assetName;
+    }
+
+    getVehicleModelLoadState(assetName) {
+        if (!this.vehicleModelLoadState[assetName]) {
+            this.vehicleModelLoadState[assetName] = {
+                loaded: 0,
+                total: 0,
+                started: false,
+                ready: false,
+                failed: false
+            };
+        }
+        return this.vehicleModelLoadState[assetName];
+    }
+
+    getSingleVehicleLoadRatio(assetName) {
+        const state = this.getVehicleModelLoadState(assetName);
+        if (state.ready || state.failed) {
+            return 1;
+        }
+
+        if (state.total > 0) {
+            return Math.min(0.98, state.loaded / state.total);
+        }
+
+        return state.started ? 0.18 : 0;
+    }
+
+    getVehicleLoadProgress(assetNames = this.getRequiredVehicleAssetNames()) {
+        if (!assetNames.length || !this.gltfLoader) {
+            return {
+                progress: 1,
+                loaded: 0,
+                total: 0,
+                assetName: 'Grid ready'
+            };
+        }
+
+        const completed = assetNames.filter(assetName => {
+            const state = this.getVehicleModelLoadState(assetName);
+            return state.ready || state.failed;
+        }).length;
+        const combinedProgress = assetNames.reduce((sum, assetName) => {
+            return sum + this.getSingleVehicleLoadRatio(assetName);
+        }, 0) / assetNames.length;
+        const activeAsset = assetNames.find(assetName => {
+            const state = this.getVehicleModelLoadState(assetName);
+            return state.started && !state.ready && !state.failed;
+        }) || assetNames.find(assetName => {
+            const state = this.getVehicleModelLoadState(assetName);
+            return !state.ready && !state.failed;
+        });
+
+        return {
+            progress: Math.min(1, combinedProgress),
+            loaded: completed,
+            total: assetNames.length,
+            assetName: activeAsset ? this.getVehicleAssetLabel(activeAsset) : 'Grid ready'
+        };
+    }
+
+    preloadVehicleModels(onProgress = () => {}) {
+        const assetNames = this.getRequiredVehicleAssetNames();
+        const emitProgress = assetName => {
+            const progress = this.getVehicleLoadProgress(assetNames);
+            onProgress({
+                ...progress,
+                assetName: assetName ? this.getVehicleAssetLabel(assetName) : progress.assetName
+            });
+        };
+
+        emitProgress(null);
+
+        if (!this.gltfLoader || !assetNames.length) {
+            onProgress({
+                progress: 1,
+                loaded: assetNames.length,
+                total: assetNames.length,
+                assetName: 'Grid ready'
+            });
+            return Promise.resolve([]);
+        }
+
+        return Promise.allSettled(assetNames.map(assetName => {
+            return this.loadVehicleModel(assetName, () => emitProgress(assetName));
+        })).then(results => {
+            onProgress({
+                progress: 1,
+                loaded: assetNames.length,
+                total: assetNames.length,
+                assetName: 'Grid ready'
+            });
+            return results;
+        });
+    }
+
+    loadVehicleModel(assetName, onProgress = () => {}) {
         const asset = this.vehicleModelAssets[assetName];
         if (!asset) {
             return Promise.reject(new Error(`Unknown vehicle model: ${assetName}`));
         }
 
+        if (!this.gltfLoader) {
+            return Promise.reject(new Error('GLTFLoader is not available.'));
+        }
+
+        const state = this.getVehicleModelLoadState(assetName);
+
         if (this.vehicleModelCache[assetName]) {
+            onProgress({
+                assetName: this.getVehicleAssetLabel(assetName),
+                progress: this.getSingleVehicleLoadRatio(assetName),
+                loaded: state.loaded,
+                total: state.total
+            });
             return this.vehicleModelCache[assetName];
         }
 
         this.vehicleModelCache[assetName] = new Promise((resolve, reject) => {
+            state.started = true;
+            state.failed = false;
+            onProgress({
+                assetName: this.getVehicleAssetLabel(assetName),
+                progress: this.getSingleVehicleLoadRatio(assetName),
+                loaded: state.loaded,
+                total: state.total
+            });
+
             this.gltfLoader.load(
                 asset.url,
-                gltf => resolve(gltf.scene),
-                undefined,
-                reject
+                gltf => {
+                    state.ready = true;
+                    state.loaded = state.total || state.loaded || 1;
+                    state.total = state.total || state.loaded;
+                    onProgress({
+                        assetName: this.getVehicleAssetLabel(assetName),
+                        progress: 1,
+                        loaded: state.loaded,
+                        total: state.total
+                    });
+                    resolve(gltf.scene);
+                },
+                event => {
+                    state.started = true;
+                    state.loaded = event.loaded || state.loaded;
+                    state.total = event.total || state.total;
+                    onProgress({
+                        assetName: this.getVehicleAssetLabel(assetName),
+                        progress: this.getSingleVehicleLoadRatio(assetName),
+                        loaded: state.loaded,
+                        total: state.total
+                    });
+                },
+                error => {
+                    state.failed = true;
+                    onProgress({
+                        assetName: this.getVehicleAssetLabel(assetName),
+                        progress: 1,
+                        loaded: state.loaded,
+                        total: state.total
+                    });
+                    reject(error);
+                }
             );
         });
 

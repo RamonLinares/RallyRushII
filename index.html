@@ -73,6 +73,24 @@
             </div>
         </div>
     </div>
+    <div id="loadingScreen" class="screenOverlay loadingOverlay" style="display:none;" aria-live="polite" aria-label="Loading race assets">
+        <div class="loadingPanel">
+            <div class="loadingScanner" aria-hidden="true"></div>
+            <div class="loadingTopline">
+                <span class="loadingSignal"></span>
+                <span id="loadingStageName">Scotland</span>
+            </div>
+            <div class="loadingTitle">Preparing grid</div>
+            <div id="loadingStatus" class="loadingCopy">Loading vehicle models</div>
+            <div class="loadingTrack" aria-hidden="true">
+                <div id="loadingProgressBar"></div>
+            </div>
+            <div class="loadingMeta">
+                <span id="loadingPercent">0%</span>
+                <span id="loadingAssetName">Vehicle telemetry sync</span>
+            </div>
+        </div>
+    </div>
     <div id="mobileControls" aria-label="Driving controls">
         <div id="leftControls" class="pedalControls">
             <button id="accelerateButton" class="controlButton controlButtonPrimary">
