@@ -602,14 +602,33 @@ function generateRoadAndTerrain(scene, game, environment) {
 
 function getRoadDataAtZ(z, game) {
     const segmentLength = 10;
-    const index = Math.floor(Math.abs(z) / segmentLength) % game.road.segments.length;
-    const nextIndex = (index + 1) % game.road.segments.length;
-    const segment = game.road.segments[index];
-    const nextSegment = game.road.segments[nextIndex];
-    const t = (Math.abs(z) % segmentLength) / segmentLength;
+    const maxIndex = game.road.segments.length - 1;
+    const rawIndex = Math.max(0, Math.min(maxIndex, Math.abs(z) / segmentLength));
+    const index = Math.floor(rawIndex);
+    const t = rawIndex - index;
+    const getSegment = offset => game.road.segments[Math.max(0, Math.min(maxIndex, index + offset))];
+    const previousSegment = getSegment(-1);
+    const segment = getSegment(0);
+    const nextSegment = getSegment(1);
+    const followingSegment = getSegment(2);
+    const smoothValue = (p0, p1, p2, p3) => {
+        const t2 = t * t;
+        const t3 = t2 * t;
+
+        return 0.5 * (
+            (2 * p1) +
+            (-p0 + p2) * t +
+            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+            (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+        );
+    };
+    const curve = smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve);
+    const y = smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y);
+    const nextCurve = smoothValue(segment.curve, nextSegment.curve, followingSegment.curve, getSegment(3).curve);
+
     return {
-        y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t),
-        curve: THREE.MathUtils.lerp(segment.curve, nextSegment.curve, t),
-        curvatureAngle: THREE.MathUtils.lerp(segment.curvatureAngle, nextSegment.curvatureAngle, t)
+        y,
+        curve,
+        curvatureAngle: Math.atan2(nextCurve - curve, segmentLength)
     };
 }

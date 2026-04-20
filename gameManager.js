@@ -259,6 +259,7 @@ class GameManager {
                 maxSpeed: 2.5,
                 minSpeed: 0,
                 xOffset: 0,
+                lateralVelocity: 0,
                 angle: 0,
                 driveYaw: 0,
                 visualYaw: 0,
@@ -505,6 +506,30 @@ class GameManager {
         };
 
         return specs[type] || specs.rally;
+    }
+
+    getVehicleDimensions(type = 'rally') {
+        const spec = this.getVehicleSpec(type);
+        const assetSpec = this.vehicleAssetSpecs[type];
+
+        return {
+            width: assetSpec?.width || spec.width,
+            length: assetSpec?.length || spec.length,
+            height: assetSpec?.height || spec.bodyHeight + spec.cabinHeight
+        };
+    }
+
+    getVehicleCollisionBounds(type = 'rally') {
+        const dimensions = this.getVehicleDimensions(type);
+
+        return {
+            width: dimensions.width * 0.72,
+            length: dimensions.length * 0.7
+        };
+    }
+
+    getVehicleGroundClearance(type = 'rally') {
+        return this.vehicleAssetSpecs[type] ? 0.14 : 0.22;
     }
 
     addVehicleBox(parent, material, size, position, name) {
@@ -1359,32 +1384,99 @@ class GameManager {
         }
     }
 
+    getTrafficLaneOffset() {
+        const laneCenters = [-0.32, -0.12, 0.12, 0.32];
+        const laneIndex = Math.floor(Math.random() * laneCenters.length);
+        const jitter = (Math.random() - 0.5) * 0.8;
+        const borderLimit = this.game.road.width / 2 - 2.2;
+
+        return THREE.MathUtils.clamp(this.game.road.width * laneCenters[laneIndex] + jitter, -borderLimit, borderLimit);
+    }
+
+    isTrafficSpawnClear(z, xOffset, vehicleType, ignoredTrafficCar = null) {
+        const bounds = this.getVehicleCollisionBounds(vehicleType);
+
+        return this.trafficCars.every(other => {
+            if (other === ignoredTrafficCar) {
+                return true;
+            }
+
+            const otherBounds = this.getVehicleCollisionBounds(other.vehicleType);
+            const zGap = Math.abs(z - other.mesh.position.z);
+            const xGap = Math.abs(xOffset - other.xOffset);
+            const minLongitudinalGap = Math.max(34, (bounds.length + otherBounds.length) * 3.2);
+            const minLateralGap = (bounds.width + otherBounds.width) * 0.62;
+
+            return !(zGap < minLongitudinalGap && xGap < minLateralGap);
+        });
+    }
+
+    getTrafficSpawnPose(minZ, maxZ, vehicleType, ignoredTrafficCar = null) {
+        const lastSegment = this.game.road.segments[this.game.road.segments.length - 1];
+        const roadMinZ = lastSegment.z + 80;
+        const roadMaxZ = this.game.startLine - 220;
+        let lowerZ = Math.max(roadMinZ, Math.min(minZ, maxZ));
+        let upperZ = Math.min(roadMaxZ, Math.max(minZ, maxZ));
+
+        if (lowerZ > upperZ) {
+            lowerZ = Math.max(roadMinZ, this.game.car.position.z - 1200);
+            upperZ = Math.min(roadMaxZ, this.game.car.position.z - 720);
+        }
+
+        for (let attempt = 0; attempt < 80; attempt++) {
+            const z = THREE.MathUtils.lerp(lowerZ, upperZ, Math.random());
+            const xOffset = this.getTrafficLaneOffset();
+            if (this.isTrafficSpawnClear(z, xOffset, vehicleType, ignoredTrafficCar)) {
+                return { z, xOffset };
+            }
+        }
+
+        const fallbackIndex = Math.max(0, this.trafficCars.indexOf(ignoredTrafficCar));
+        return {
+            z: THREE.MathUtils.clamp(upperZ - 48 * (fallbackIndex + 1), roadMinZ, roadMaxZ),
+            xOffset: this.getTrafficLaneOffset()
+        };
+    }
+
+    placeTrafficCar(trafficCar, z, xOffset) {
+        const frame = this.getVehicleRoadFrame(z, 1, trafficCar.vehicleType);
+        const roadData = frame.roadData;
+
+        trafficCar.xOffset = xOffset;
+        trafficCar.mesh.position.set(
+            roadData.curve + xOffset,
+            roadData.y + this.getVehicleGroundClearance(trafficCar.vehicleType),
+            z
+        );
+        this.applyVehicleRoadPose(trafficCar.mesh, frame);
+    }
+
     createTrafficCar() {
         const vehicleType = this.getRandomTrafficType();
         const paint = this.getRandomTrafficPaint();
         const trafficCar = this.createCar(paint.body, vehicleType, { palette: paint });
         const spec = this.getVehicleSpec(vehicleType);
-        const safeStartIndex = 24;
-        const randomSegmentIndex = safeStartIndex + Math.floor(Math.random() * Math.max(1, this.game.road.segments.length - safeStartIndex));
-        const segment = this.game.road.segments[randomSegmentIndex];
-        const roadFrame = this.getVehicleRoadFrame(segment.z, 1);
-        const xOffset = (Math.random() - 0.5) * (this.game.road.width * 0.8);
-        trafficCar.position.set(segment.curve + xOffset, segment.y + 0.25, segment.z);
-        this.applyVehicleRoadPose(trafficCar, roadFrame);
-        this.scene.add(trafficCar);
-        this.trafficCars.push({
+        const lastSegment = this.game.road.segments[this.game.road.segments.length - 1];
+        const spawnPose = this.getTrafficSpawnPose(lastSegment.z + 120, this.game.startLine - 260, vehicleType);
+        const trafficState = {
             mesh: trafficCar,
             speed: spec.speedBase + Math.random() * 0.28,
-            xOffset: xOffset,
+            baseSpeed: spec.speedBase,
+            xOffset: spawnPose.xOffset,
             vehicleType
-        });
+        };
+
+        this.placeTrafficCar(trafficState, spawnPose.z, spawnPose.xOffset);
+        this.scene.add(trafficCar);
+        this.trafficCars.push(trafficState);
     }
     resetCarPosition() {
-        const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1);
+        const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1, 'rally');
         const roadData = roadFrame.roadData;
-        this.game.car.position.set(roadData.curve, roadData.y + 0.25, this.game.startLine);
+        this.game.car.position.set(roadData.curve, roadData.y + this.getVehicleGroundClearance('rally'), this.game.startLine);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
+        this.game.car.lateralVelocity = 0;
         this.game.car.angle = 0;
         this.game.car.angularVelocity = 0;
         this.game.car.driveYaw = roadFrame.yaw;
@@ -1617,26 +1709,34 @@ class GameManager {
         }
     }
 
-    getVehicleRoadFrame(z, travelDirection = -1) {
-        const sampleDistance = 8;
+    getVehicleRoadFrame(z, travelDirection = -1, vehicleType = 'rally') {
+        const dimensions = this.getVehicleDimensions(vehicleType);
+        const sampleDistance = Math.max(7, dimensions.length * 0.78);
         const roadData = getRoadDataAtZ(z, this.game);
-        const aheadZ = z + travelDirection * sampleDistance;
-        const aheadRoadData = getRoadDataAtZ(aheadZ, this.game);
-        const dx = aheadRoadData.curve - roadData.curve;
-        const dz = aheadZ - z;
-        const dy = aheadRoadData.y - roadData.y;
+        const frontZ = z + travelDirection * sampleDistance * 0.5;
+        const rearZ = z - travelDirection * sampleDistance * 0.5;
+        const frontRoadData = getRoadDataAtZ(frontZ, this.game);
+        const rearRoadData = getRoadDataAtZ(rearZ, this.game);
+        const dx = frontRoadData.curve - rearRoadData.curve;
+        const dz = frontZ - rearZ;
+        const dy = frontRoadData.y - rearRoadData.y;
         const horizontalDistance = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
 
         return {
             roadData,
+            frontRoadData,
+            rearRoadData,
             yaw: Math.atan2(-dx, -dz),
-            pitch: Math.atan2(dy, horizontalDistance) * 0.68
+            pitch: Math.atan2(dy, horizontalDistance) * 0.96
         };
     }
 
+    getAngleDelta(current, target) {
+        return Math.atan2(Math.sin(target - current), Math.cos(target - current));
+    }
+
     lerpAngle(current, target, amount) {
-        const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
-        return current + delta * amount;
+        return current + this.getAngleDelta(current, target) * amount;
     }
 
     applyVehicleRoadPose(vehicle, frame, yawOffset = 0, roll = 0) {
@@ -1693,6 +1793,7 @@ class GameManager {
         }
         this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
         const speedRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
+        const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
 
         // Update steering
         const steeringInput = (this.controls.right ? -1 : 0) + (this.controls.left ? 1 : 0);
@@ -1705,12 +1806,20 @@ class GameManager {
         this.game.car.angle += (0 - this.game.car.angle) * headingRecovery;
         this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -Math.PI / 5, Math.PI / 5);
 
+        const curveProbeDistance = THREE.MathUtils.lerp(18, 42, speedRatio);
+        const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, 'rally');
+        const roadBend = this.getAngleDelta(currentRoadFrame.yaw, futureRoadFrame.yaw);
+        const steeringIntoCurve = steeringInput !== 0 && Math.sign(steeringInput) === Math.sign(roadBend);
+        const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14);
+        this.game.car.lateralVelocity += curveSlip;
+        this.game.car.lateralVelocity *= 0.9 - speedRatio * 0.08;
+
         // Calculate movement
-        const dx = Math.sin(this.game.car.angle) * this.game.car.speed * 0.72;
+        const steeringLateralDelta = -Math.sin(this.game.car.angle) * this.game.car.speed * 0.72;
         const dz = Math.cos(this.game.car.angle) * this.game.car.speed;
 
         // Update position
-        this.game.car.xOffset -= dx;
+        this.game.car.xOffset += steeringLateralDelta + this.game.car.lateralVelocity;
         this.game.car.position.z -= dz;
 
         // Handle border collisions
@@ -1722,23 +1831,29 @@ class GameManager {
             }
             const pushBackForce = (Math.abs(this.game.car.xOffset) - borderThreshold) * 0.1;
             this.game.car.xOffset -= Math.sign(this.game.car.xOffset) * pushBackForce;
+            this.game.car.lateralVelocity *= 0.45;
         }
 
         if (this.game.car.borderCollisionCooldown > 0) {
             this.game.car.borderCollisionCooldown--;
         }
 
-        const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1);
+        const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
         const updatedRoadData = updatedRoadFrame.roadData;
 
         // Update car's position and rotation
-        this.carPosition.set(this.game.car.xOffset + updatedRoadData.curve, updatedRoadData.y + 0.25, this.game.car.position.z);
+        this.carPosition.set(
+            this.game.car.xOffset + updatedRoadData.curve,
+            updatedRoadData.y + this.getVehicleGroundClearance('rally'),
+            this.game.car.position.z
+        );
+        this.game.car.position.copy(this.carPosition);
         this.playerCar.position.copy(this.carPosition);
 
         const visualSteerYaw = this.game.car.steeringAngle * (0.42 + speedRatio * 0.62);
         this.game.car.driveYaw = updatedRoadFrame.yaw + this.game.car.angle;
         const targetVisualYaw = this.game.car.driveYaw + visualSteerYaw;
-        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.22);
+        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.18);
 
         const maxRoll = Math.PI / 44;
         const targetRoll = -this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio;
@@ -1817,17 +1932,29 @@ class GameManager {
         const playerPeakZ = playerStart.z + playerZKick;
         const playerPeakRoad = getRoadDataAtZ(playerPeakZ, this.game);
         const playerPeakOffset = THREE.MathUtils.clamp(this.game.car.xOffset + side * playerSlide, -borderThreshold, borderThreshold);
-        const playerPeak = new THREE.Vector3(playerPeakRoad.curve + playerPeakOffset, playerPeakRoad.y + 0.25, playerPeakZ);
+        const playerPeak = new THREE.Vector3(
+            playerPeakRoad.curve + playerPeakOffset,
+            playerPeakRoad.y + this.getVehicleGroundClearance('rally'),
+            playerPeakZ
+        );
         const playerEndZ = playerPeakZ + 4;
         const playerEndRoad = getRoadDataAtZ(playerEndZ, this.game);
-        const playerEnd = new THREE.Vector3(playerEndRoad.curve, playerEndRoad.y + 0.25, playerEndZ);
-        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1);
+        const playerEnd = new THREE.Vector3(
+            playerEndRoad.curve,
+            playerEndRoad.y + this.getVehicleGroundClearance('rally'),
+            playerEndZ
+        );
+        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1, 'rally');
         const playerRotEnd = new THREE.Euler(playerEndFrame.pitch, playerEndFrame.yaw, 0);
 
         const trafficEndZ = trafficStart.z + trafficZKick;
         const trafficEndRoad = getRoadDataAtZ(trafficEndZ, this.game);
         const trafficEndOffset = THREE.MathUtils.clamp(trafficCar.xOffset - side * trafficSlide, -borderThreshold, borderThreshold);
-        const trafficEnd = new THREE.Vector3(trafficEndRoad.curve + trafficEndOffset, trafficEndRoad.y + 0.35, trafficEndZ);
+        const trafficEnd = new THREE.Vector3(
+            trafficEndRoad.curve + trafficEndOffset,
+            trafficEndRoad.y + this.getVehicleGroundClearance(trafficCar.vehicleType),
+            trafficEndZ
+        );
 
         this.activeCollision = {
             type,
@@ -1906,6 +2033,7 @@ class GameManager {
             const trafficRoadData = getRoadDataAtZ(collision.trafficEnd.z, this.game);
             this.game.car.position.z = collision.playerEnd.z;
             this.game.car.xOffset = 0;
+            this.game.car.lateralVelocity = 0;
             this.game.car.angle = 0;
             this.game.car.speed = 0;
             this.game.car.steeringAngle = 0;
@@ -2051,8 +2179,6 @@ class GameManager {
             this.game.car.trafficCollisionCooldown--;
         }
 
-        const playerBox = new THREE.Box3().setFromObject(this.playerCar);
-
         this.trafficCars.forEach(trafficCar => {
             if (this.activeCollision && this.activeCollision.trafficCar === trafficCar) {
                 return;
@@ -2062,26 +2188,79 @@ class GameManager {
 
             // If car is behind the player, move it to the back of the visible road
             if (trafficCar.mesh.position.z > this.game.car.position.z + 100) {
-                const lastVisibleSegment = this.game.road.segments[this.game.road.segments.length - 1];
-                trafficCar.mesh.position.z = Math.min(lastVisibleSegment.z, this.game.car.position.z - 1000);
-                trafficCar.xOffset = (Math.random() - 0.5) * (this.game.road.width * 0.8);
+                const spec = this.getVehicleSpec(trafficCar.vehicleType);
+                const spawnPose = this.getTrafficSpawnPose(
+                    this.game.car.position.z - 1450,
+                    this.game.car.position.z - 850,
+                    trafficCar.vehicleType,
+                    trafficCar
+                );
+                trafficCar.speed = spec.speedBase + Math.random() * 0.28;
+                trafficCar.baseSpeed = spec.speedBase;
+                this.placeTrafficCar(trafficCar, spawnPose.z, spawnPose.xOffset);
             }
 
-            const trafficRoadData = getRoadDataAtZ(trafficCar.mesh.position.z, this.game);
-            trafficCar.mesh.position.y = trafficRoadData.y + 0.25;
-            trafficCar.mesh.position.x = trafficCar.xOffset + trafficRoadData.curve;
-
-            const trafficRoadFrame = this.getVehicleRoadFrame(trafficCar.mesh.position.z, 1);
-            this.applyVehicleRoadPose(trafficCar.mesh, trafficRoadFrame);
+            this.placeTrafficCar(trafficCar, trafficCar.mesh.position.z, trafficCar.xOffset);
             this.animateVehicleWheels(trafficCar.mesh, trafficCar.speed * 0.72, 0);
+        });
 
-            const trafficBox = new THREE.Box3().setFromObject(trafficCar.mesh);
+        this.resolveTrafficSpacing();
 
-            if (!this.activeCollision && playerBox.intersectsBox(trafficBox) && this.game.car.trafficCollisionCooldown === 0) {
+        this.trafficCars.forEach(trafficCar => {
+            if (this.activeCollision && this.activeCollision.trafficCar === trafficCar) {
+                return;
+            }
+
+            if (!this.activeCollision && this.isPlayerCollidingWithTraffic(trafficCar) && this.game.car.trafficCollisionCooldown === 0) {
                 this.triggerTrafficCollision(trafficCar);
-                playerBox.setFromObject(this.playerCar);
             }
         });
+    }
+
+    resolveTrafficSpacing() {
+        for (let iteration = 0; iteration < 2; iteration++) {
+            for (let i = 0; i < this.trafficCars.length; i++) {
+                const a = this.trafficCars[i];
+                if (this.activeCollision && this.activeCollision.trafficCar === a) {
+                    continue;
+                }
+
+                for (let j = i + 1; j < this.trafficCars.length; j++) {
+                    const b = this.trafficCars[j];
+                    if (this.activeCollision && this.activeCollision.trafficCar === b) {
+                        continue;
+                    }
+
+                    const aBounds = this.getVehicleCollisionBounds(a.vehicleType);
+                    const bBounds = this.getVehicleCollisionBounds(b.vehicleType);
+                    const xGap = Math.abs(a.xOffset - b.xOffset);
+                    const zGap = Math.abs(a.mesh.position.z - b.mesh.position.z);
+                    const lateralLimit = (aBounds.width + bBounds.width) * 0.62;
+                    const longitudinalLimit = Math.max(30, (aBounds.length + bBounds.length) * 2.9);
+
+                    if (xGap >= lateralLimit || zGap >= longitudinalLimit) {
+                        continue;
+                    }
+
+                    const rearCar = a.mesh.position.z < b.mesh.position.z ? a : b;
+                    const correction = (longitudinalLimit - zGap) * 0.62 + 1.2;
+                    rearCar.mesh.position.z -= correction;
+                    this.placeTrafficCar(rearCar, rearCar.mesh.position.z, rearCar.xOffset);
+                }
+            }
+        }
+    }
+
+    isPlayerCollidingWithTraffic(trafficCar) {
+        const playerBounds = this.getVehicleCollisionBounds('rally');
+        const trafficBounds = this.getVehicleCollisionBounds(trafficCar.vehicleType);
+        const xGap = Math.abs(this.game.car.xOffset - trafficCar.xOffset);
+        const zGap = Math.abs(this.game.car.position.z - trafficCar.mesh.position.z);
+        const lateralLimit = (playerBounds.width + trafficBounds.width) * 0.55;
+        const longitudinalLimit = (playerBounds.length + trafficBounds.length) * 0.52;
+        const closingAllowance = Math.min(0.55, this.game.car.speed * 0.08 + trafficCar.speed * 0.06);
+
+        return xGap < lateralLimit && zGap < longitudinalLimit + closingAllowance;
     }
 
     updateCameraPosition() {
@@ -2143,13 +2322,33 @@ class GameManager {
 // Make sure it's accessible to the GameManager class
 function getRoadDataAtZ(z, game) {
     const segmentLength = 10;
-    const index = Math.floor(Math.abs(z) / segmentLength) % game.road.segments.length;
-    const nextIndex = (index + 1) % game.road.segments.length;
-    const segment = game.road.segments[index];
-    const nextSegment = game.road.segments[nextIndex];
-    const t = (Math.abs(z) % segmentLength) / segmentLength;
+    const maxIndex = game.road.segments.length - 1;
+    const rawIndex = Math.max(0, Math.min(maxIndex, Math.abs(z) / segmentLength));
+    const index = Math.floor(rawIndex);
+    const t = rawIndex - index;
+    const getSegment = offset => game.road.segments[Math.max(0, Math.min(maxIndex, index + offset))];
+    const previousSegment = getSegment(-1);
+    const segment = getSegment(0);
+    const nextSegment = getSegment(1);
+    const followingSegment = getSegment(2);
+    const smoothValue = (p0, p1, p2, p3) => {
+        const t2 = t * t;
+        const t3 = t2 * t;
+
+        return 0.5 * (
+            (2 * p1) +
+            (-p0 + p2) * t +
+            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+            (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+        );
+    };
+    const curve = smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve);
+    const y = smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y);
+    const nextCurve = smoothValue(segment.curve, nextSegment.curve, followingSegment.curve, getSegment(3).curve);
+
     return {
-        y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t),
-        curve: THREE.MathUtils.lerp(segment.curve, nextSegment.curve, t)
+        y,
+        curve,
+        curvatureAngle: Math.atan2(nextCurve - curve, segmentLength)
     };
 }

@@ -71,6 +71,7 @@
                 x: Number(game.car.xOffset.toFixed(2)),
                 z: Number(game.car.position.z.toFixed(2)),
                 speed: Number(game.car.speed.toFixed(2)),
+                lateralVelocity: Number((game.car.lateralVelocity || 0).toFixed(4)),
                 steering: Number(game.car.steeringAngle.toFixed(3)),
                 roadYaw: Number((gameManager.getVehicleRoadFrame(game.car.position.z, -1).yaw).toFixed(3)),
                 driveYaw: Number((game.car.driveYaw || 0).toFixed(3)),
@@ -81,6 +82,11 @@
                 segments: game.road.segments.length
             } : null,
             trafficTypes: game ? gameManager.trafficCars.slice(0, 6).map(traffic => traffic.vehicleType) : [],
+            trafficPreview: game ? gameManager.trafficCars.slice(0, 6).map(traffic => ({
+                type: traffic.vehicleType,
+                x: Number(traffic.xOffset.toFixed(2)),
+                z: Number(traffic.mesh.position.z.toFixed(2))
+            })) : [],
             collision: gameManager.activeCollision ? {
                 type: gameManager.activeCollision.type,
                 progress: Number((gameManager.activeCollision.frame / gameManager.activeCollision.duration).toFixed(2)),
