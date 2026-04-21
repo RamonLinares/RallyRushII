@@ -61,7 +61,7 @@ class GameManager {
         this.pausedDuration = 0;
         this.startCountdown = null;
         this.bestTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
-        this.controls = { left: false, right: false, accelerate: false, brake: false };
+        this.controls = { left: false, right: false, accelerate: false, brake: false, handbrake: false };
         this.cameraOffset = new THREE.Vector3(0, 4.6, 12);
         this.carPosition = new THREE.Vector3(0, 0, 0);
         this.minCameraDistance = 5;
@@ -260,11 +260,14 @@ class GameManager {
                 acceleration: 0.010,
                 deceleration: 0.002,
                 brakePower: 0.01,
+                handbrakePower: 0.014,
                 maxSpeed: 2.5,
                 minSpeed: 0,
                 xOffset: 0,
                 lateralVelocity: 0,
                 angle: 0,
+                driftAmount: 0,
+                driftSmokeCooldown: 0,
                 driveYaw: 0,
                 visualYaw: 0,
                 bodyRoll: 0,
@@ -1504,6 +1507,8 @@ class GameManager {
         this.game.car.xOffset = 0;
         this.game.car.lateralVelocity = 0;
         this.game.car.angle = 0;
+        this.game.car.driftAmount = 0;
+        this.game.car.driftSmokeCooldown = 0;
         this.game.car.angularVelocity = 0;
         this.game.car.driveYaw = roadFrame.yaw;
         this.game.car.visualYaw = roadFrame.yaw;
@@ -2064,7 +2069,7 @@ class GameManager {
         if (this.startCountdown?.active) {
             this.startCountdown.pausedAt = this.pauseStartedAt;
         }
-        this.setControls({ left: false, right: false, accelerate: false, brake: false });
+        this.setControls({ left: false, right: false, accelerate: false, brake: false, handbrake: false });
     }
 
     resumeGame() {
@@ -2275,6 +2280,8 @@ class GameManager {
 
 
     updateCarPosition() {
+        const steeringInput = (this.controls.right ? -1 : 0) + (this.controls.left ? 1 : 0);
+
         // Update speed
         if (this.controls.accelerate) {
             this.game.car.speed += this.game.car.acceleration;
@@ -2283,20 +2290,40 @@ class GameManager {
         } else {
             this.game.car.speed -= this.game.car.deceleration;
         }
+
+        this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
+        const handbrakeActive = Boolean(this.controls.handbrake && this.game.car.speed > 0.18);
+        if (handbrakeActive) {
+            const dragRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
+            this.game.car.speed -= this.game.car.handbrakePower * THREE.MathUtils.lerp(0.55, 1.28, dragRatio);
+        }
+
         this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
         const speedRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
+        const steeringStrength = Math.abs(steeringInput);
+        const canHandbrakeDrift = handbrakeActive && steeringStrength > 0 && speedRatio > 0.36;
+        const targetDrift = canHandbrakeDrift
+            ? THREE.MathUtils.clamp((speedRatio - 0.36) / 0.5, 0, 1) * (0.25 + steeringStrength * 0.55)
+            : 0;
+        const currentDrift = this.game.car.driftAmount || 0;
+        const driftResponse = targetDrift > currentDrift ? 0.13 : 0.1;
+        this.game.car.driftAmount += (targetDrift - currentDrift) * driftResponse;
+        const driftAmount = THREE.MathUtils.clamp(this.game.car.driftAmount, 0, 1);
+        this.game.car.driftAmount = driftAmount;
         const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
 
         // Update steering
-        const steeringInput = (this.controls.right ? -1 : 0) + (this.controls.left ? 1 : 0);
         const targetSteeringAngle = steeringInput * this.game.car.maxSteeringAngle;
         this.game.car.steeringAngle += (targetSteeringAngle - this.game.car.steeringAngle) * this.game.car.steeringSpeed;
 
         // Update car angle based on steering and speed
-        this.game.car.angle += this.game.car.steeringAngle * this.game.car.speed * this.game.car.turnSpeed;
-        const headingRecovery = steeringInput === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
+        this.game.car.angle += this.game.car.steeringAngle * this.game.car.speed * (this.game.car.turnSpeed + driftAmount * 0.012);
+        this.game.car.angle += steeringInput * driftAmount * speedRatio * 0.01;
+        const headingRecoveryBase = steeringInput === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
+        const headingRecovery = headingRecoveryBase * (1 - driftAmount * 0.68);
         this.game.car.angle += (0 - this.game.car.angle) * headingRecovery;
-        this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -Math.PI / 5, Math.PI / 5);
+        const maxBodySlip = THREE.MathUtils.lerp(Math.PI / 5, Math.PI / 3.8, driftAmount);
+        this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -maxBodySlip, maxBodySlip);
 
         const curveProbeDistance = THREE.MathUtils.lerp(18, 42, speedRatio);
         const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, 'rally');
@@ -2304,10 +2331,14 @@ class GameManager {
         const steeringIntoCurve = steeringInput !== 0 && Math.sign(steeringInput) === Math.sign(roadBend);
         const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14);
         this.game.car.lateralVelocity += curveSlip;
-        this.game.car.lateralVelocity *= 0.9 - speedRatio * 0.08;
+        if (canHandbrakeDrift) {
+            this.game.car.lateralVelocity += -steeringInput * driftAmount * speedRatio * 0.024;
+        }
+        const lateralDamping = THREE.MathUtils.clamp(0.9 - speedRatio * 0.08 + driftAmount * 0.065, 0.76, 0.95);
+        this.game.car.lateralVelocity *= lateralDamping;
 
         // Calculate movement
-        const steeringLateralDelta = -Math.sin(this.game.car.angle) * this.game.car.speed * 0.72;
+        const steeringLateralDelta = -Math.sin(this.game.car.angle) * this.game.car.speed * (0.72 + driftAmount * 0.24);
         const dz = Math.cos(this.game.car.angle) * this.game.car.speed;
 
         // Update position
@@ -2345,12 +2376,14 @@ class GameManager {
         this.playerCar.position.copy(this.carPosition);
 
         const visualSteerYaw = this.game.car.steeringAngle * (0.42 + speedRatio * 0.62);
+        const driftVisualYaw = steeringInput * driftAmount * (0.08 + speedRatio * 0.18);
         this.game.car.driveYaw = updatedRoadFrame.yaw + this.game.car.angle;
-        const targetVisualYaw = this.game.car.driveYaw + visualSteerYaw;
-        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.18);
+        const targetVisualYaw = this.game.car.driveYaw + visualSteerYaw + driftVisualYaw;
+        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.18 + driftAmount * 0.06);
 
         const maxRoll = Math.PI / 44;
-        const targetRoll = -this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio;
+        const targetRoll = (-this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio)
+            + steeringInput * driftAmount * 0.045;
         this.game.car.bodyRoll += (targetRoll - this.game.car.bodyRoll) * 0.16;
         this.applyVehicleRoadPose(
             this.playerCar,
@@ -2358,12 +2391,72 @@ class GameManager {
             this.getAngleDelta(updatedRoadFrame.yaw, this.game.car.visualYaw),
             this.game.car.bodyRoll
         );
-        this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85);
+        const counterSteer = -steeringInput * driftAmount * speedRatio * 0.16;
+        this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85 + counterSteer);
+        this.updateDriftEffects(updatedRoadFrame, driftAmount, steeringInput, speedRatio);
     }
 
     getPlayerRoadLimit() {
         const dimensions = this.getVehicleDimensions('rally');
         return Math.max(2, this.game.road.width / 2 - dimensions.width / 2 - 0.45);
+    }
+
+    updateDriftEffects(roadFrame, driftAmount, steeringInput, speedRatio) {
+        if (!this.playerCar || !this.game?.car) {
+            return;
+        }
+
+        if (this.game.car.driftSmokeCooldown > 0) {
+            this.game.car.driftSmokeCooldown--;
+        }
+
+        if (driftAmount < 0.18 || speedRatio < 0.38 || this.game.car.driftSmokeCooldown > 0) {
+            return;
+        }
+
+        this.game.car.driftSmokeCooldown = Math.round(7 - driftAmount * 3);
+        const forward = (roadFrame.forward || new THREE.Vector3(
+            -Math.sin(roadFrame.yaw),
+            0,
+            -Math.cos(roadFrame.yaw)
+        )).clone();
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3(Math.cos(roadFrame.yaw), 0, -Math.sin(roadFrame.yaw)).normalize();
+        const rearAxle = this.playerCar.position.clone().sub(forward.clone().multiplyScalar(2.25));
+        const slipSide = steeringInput || Math.sign(this.game.car.lateralVelocity) || 1;
+        const smokeColor = 0xdfe8eb;
+        const intensity = THREE.MathUtils.clamp(driftAmount * speedRatio, 0.18, 1);
+
+        [-1, 1].forEach(side => {
+            const puff = new THREE.Mesh(
+                new THREE.SphereGeometry(0.22 + intensity * 0.28, 8, 6),
+                new THREE.MeshBasicMaterial({
+                    color: smokeColor,
+                    transparent: true,
+                    opacity: 0.16 + intensity * 0.22,
+                    depthWrite: false
+                })
+            );
+            puff.position.copy(rearAxle).add(right.clone().multiplyScalar(side * 0.9));
+            puff.position.y += 0.12 + Math.random() * 0.06;
+            puff.scale.set(1.45, 0.38, 0.9);
+            puff.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            this.scene.add(puff);
+            this.collisionEffects.push({
+                mesh: puff,
+                velocity: right.clone()
+                    .multiplyScalar(-slipSide * (0.018 + intensity * 0.025))
+                    .add(forward.clone().multiplyScalar(-0.018))
+                    .add(new THREE.Vector3(0, 0.026 + intensity * 0.018, 0)),
+                spin: new THREE.Vector3(Math.random() * 0.03, Math.random() * 0.04, Math.random() * 0.04),
+                age: 0,
+                life: 24 + Math.floor(intensity * 18),
+                startOpacity: 0.16 + intensity * 0.22,
+                grow: 2.2 + intensity * 1.6
+            });
+        });
     }
 
     triggerTrafficCollision(trafficCar, forcedType) {
@@ -2541,6 +2634,8 @@ class GameManager {
             this.game.car.lateralVelocity = 0;
             this.game.car.angle = 0;
             this.game.car.speed = 0;
+            this.game.car.driftAmount = 0;
+            this.game.car.driftSmokeCooldown = 0;
             this.game.car.steeringAngle = 0;
             this.game.car.driveYaw = collision.playerRotEnd.y;
             this.game.car.visualYaw = collision.playerRotEnd.y;

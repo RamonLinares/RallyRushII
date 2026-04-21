@@ -484,41 +484,6 @@ function generateRoadAndTerrain(scene, game, environment) {
         return mesh;
     }
 
-    function createRoadsideBuildupCluster(material, geometry, options) {
-        const cluster = new THREE.Group();
-        const count = options.count || 4;
-        const side = options.side || 1;
-        const widthRange = options.widthRange || [0.4, 0.8];
-        const heightRange = options.heightRange || [0.12, 0.28];
-        const lengthRange = options.lengthRange || [0.8, 1.8];
-        const lateralSpread = options.lateralSpread || 0.5;
-        const longitudinalSpread = options.longitudinalSpread || 4;
-        const outwardBias = options.outwardBias || 0.16;
-
-        for (let i = 0; i < count; i++) {
-            const lobe = new THREE.Mesh(geometry, material);
-            const width = widthRange[0] + Math.random() * (widthRange[1] - widthRange[0]);
-            const height = heightRange[0] + Math.random() * (heightRange[1] - heightRange[0]);
-            const length = lengthRange[0] + Math.random() * (lengthRange[1] - lengthRange[0]);
-            lobe.position.set(
-                side * (outwardBias + (Math.random() - 0.5) * lateralSpread),
-                height * 0.55,
-                (Math.random() - 0.5) * longitudinalSpread
-            );
-            lobe.scale.set(width, height, length);
-            lobe.rotation.set(
-                (Math.random() - 0.5) * 0.16,
-                Math.random() * Math.PI,
-                (Math.random() - 0.5) * 0.12
-            );
-            lobe.castShadow = true;
-            lobe.receiveShadow = true;
-            cluster.add(lobe);
-        }
-
-        return cluster;
-    }
-
     function addStageDecor() {
         const decor = new THREE.Group();
         decor.name = `stage-decor-${environment.id || 'default'}`;
@@ -540,14 +505,12 @@ function generateRoadAndTerrain(scene, game, environment) {
         const railMaterial = new THREE.MeshPhongMaterial({ color: 0xd6e0e4, shininess: 32 });
         const railShadowMaterial = new THREE.MeshPhongMaterial({ color: 0x6f7f85, shininess: 12 });
         const postMaterial = new THREE.MeshPhongMaterial({ color: 0x8fa1a6, shininess: 18 });
-        const snowMaterial = new THREE.MeshPhongMaterial({ color: 0xeaf5f7, shininess: 6 });
         const rockMaterial = new THREE.MeshPhongMaterial({ color: 0x59666c, shininess: 4 });
         const markerRedMaterial = new THREE.MeshPhongMaterial({ color: 0xd8213d, shininess: 18 });
         const markerWhiteMaterial = new THREE.MeshPhongMaterial({ color: 0xf6fbff, shininess: 14 });
         const railLength = 17;
         const railGeometry = new THREE.BoxGeometry(0.28, 0.28, railLength);
         const postGeometry = new THREE.BoxGeometry(0.28, 1.25, 0.28);
-        const snowBankGeometry = new THREE.DodecahedronGeometry(1, 1);
         const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
         const markerGeometry = new THREE.BoxGeometry(0.18, 0.86, 0.12);
         const startZ = game.startLine - 42;
@@ -585,25 +548,6 @@ function generateRoadAndTerrain(scene, game, environment) {
                 }
             });
             railIndex += 1;
-        }
-
-        for (let z = startZ - 10; z > endZ; z -= 64) {
-            [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 4.1);
-                const bank = createRoadsideBuildupCluster(snowMaterial, snowBankGeometry, {
-                    side,
-                    count: 3 + Math.floor(Math.random() * 3),
-                    widthRange: [0.34, 0.72],
-                    heightRange: [0.12, 0.24],
-                    lengthRange: [0.75, 1.8],
-                    lateralSpread: 0.5,
-                    longitudinalSpread: 4.7,
-                    outwardBias: 0.18
-                });
-                bank.position.set(pose.x, getPropGroundY(pose.x, z, 1.35), z);
-                bank.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.12;
-                addDecorMesh(decor, bank, 'snowBanks');
-            });
         }
 
         for (let z = startZ - 18; z > endZ; z -= 86) {
@@ -671,33 +615,12 @@ function generateRoadAndTerrain(scene, game, environment) {
 
     function addDesertRoadsideDecor(decor) {
         const cactusMaterial = new THREE.MeshPhongMaterial({ color: 0x2d7440, shininess: 4 });
-        const driftMaterial = new THREE.MeshPhongMaterial({ color: 0xd8bd78, shininess: 3 });
         const rockMaterial = new THREE.MeshPhongMaterial({ color: 0x8c6a43, shininess: 4 });
         const markerMaterial = new THREE.MeshPhongMaterial({ color: 0xf2d06a, shininess: 12 });
-        const driftGeometry = new THREE.DodecahedronGeometry(1, 1);
         const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
         const markerGeometry = new THREE.BoxGeometry(0.3, 1.55, 0.2);
         const startZ = game.startLine - 70;
         const endZ = game.finishLine + 100;
-
-        for (let z = startZ; z > endZ; z -= 76) {
-            [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 5.8 + Math.random() * 2.2);
-                const drift = createRoadsideBuildupCluster(driftMaterial, driftGeometry, {
-                    side,
-                    count: 3 + Math.floor(Math.random() * 3),
-                    widthRange: [0.44, 0.95],
-                    heightRange: [0.1, 0.2],
-                    lengthRange: [1.0, 2.3],
-                    lateralSpread: 0.7,
-                    longitudinalSpread: 5.8,
-                    outwardBias: 0.26
-                });
-                drift.position.set(pose.x, getPropGroundY(pose.x, z, 1.55), z);
-                drift.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.16;
-                addDecorMesh(decor, drift, 'sandDrifts');
-            });
-        }
 
         for (let z = startZ - 22; z > endZ; z -= 108) {
             [-1, 1].forEach(side => {
