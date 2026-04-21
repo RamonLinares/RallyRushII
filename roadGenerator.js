@@ -435,12 +435,26 @@ function generateRoadAndTerrain(scene, game, environment) {
     };
     game.stageDecor = stageDecorStats;
 
+    function getLinearRoadDataAtZ(z) {
+        const maxIndex = game.road.segments.length - 1;
+        const rawIndex = Math.max(0, Math.min(maxIndex, Math.abs(z) / segmentLength));
+        const index = Math.floor(rawIndex);
+        const nextIndex = Math.min(maxIndex, index + 1);
+        const t = rawIndex - index;
+        const segment = game.road.segments[index];
+        const nextSegment = game.road.segments[nextIndex];
+
+        return {
+            curve: THREE.MathUtils.lerp(segment.curve, nextSegment.curve, t),
+            y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t)
+        };
+    }
+
     function getTerrainHeightAt(x, z) {
-        const segmentIndex = Math.floor(Math.abs(z) / segmentLength) % game.road.segments.length;
-        const segment = game.road.segments[segmentIndex];
-        const distanceFromRoadCenter = Math.abs(x - segment.curve);
+        const roadData = getLinearRoadDataAtZ(z);
+        const distanceFromRoadCenter = Math.abs(x - roadData.curve);
         const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
-        const baseHeight = segment.y;
+        const baseHeight = roadData.y;
         const heightOffset = generateMountainHeight(x, z) * normalizedDistance;
 
         return baseHeight + heightOffset;
@@ -463,14 +477,15 @@ function generateRoadAndTerrain(scene, game, environment) {
 
     function getRoadsidePose(z, side, offsetFromRoadEdge) {
         const roadData = getRoadDataAtZ(z, game);
-        const x = roadData.curve + side * (halfRoadWidth + offsetFromRoadEdge);
+        const terrainRoadData = getLinearRoadDataAtZ(z);
+        const x = terrainRoadData.curve + side * (halfRoadWidth + offsetFromRoadEdge);
         return {
             x,
             y: getTerrainHeightAt(x, z),
             z,
             yaw: -roadData.curvatureAngle,
-            roadY: roadData.y,
-            curve: roadData.curve
+            roadY: terrainRoadData.y,
+            curve: terrainRoadData.curve
         };
     }
 
@@ -668,26 +683,79 @@ function generateRoadAndTerrain(scene, game, environment) {
         const stoneMaterial = new THREE.MeshPhongMaterial({ color: 0x8b9180, shininess: 3 });
         const darkStoneMaterial = new THREE.MeshPhongMaterial({ color: 0x5d6657, shininess: 2 });
         const wildflowerMaterial = new THREE.MeshPhongMaterial({ color: 0xd7ce63, shininess: 8 });
+        const fenceRailLength = 16;
+        const wallLength = 14;
         const postGeometry = new THREE.BoxGeometry(0.22, 1.15, 0.22);
-        const railGeometry = new THREE.BoxGeometry(0.24, 0.2, 25);
-        const wallGeometry = new THREE.BoxGeometry(0.9, 0.78, 20);
+        const railGeometry = new THREE.BoxGeometry(0.24, 0.2, fenceRailLength);
+        const wallGeometry = new THREE.BoxGeometry(0.9, 0.78, wallLength);
         const capStoneGeometry = new THREE.DodecahedronGeometry(0.38, 0);
         const flowerGeometry = new THREE.ConeGeometry(0.12, 0.38, 6);
         const startZ = game.startLine - 58;
         const endZ = game.finishLine + 100;
+        const localUp = new THREE.Vector3(0, 1, 0);
 
-        for (let z = startZ; z > endZ; z -= 54) {
+        function getTerrainNormalAt(x, z, radius = 1.5) {
+            const xTangent = new THREE.Vector3(
+                radius * 2,
+                getTerrainHeightAt(x + radius, z) - getTerrainHeightAt(x - radius, z),
+                0
+            );
+            const zTangent = new THREE.Vector3(
+                0,
+                getTerrainHeightAt(x, z + radius) - getTerrainHeightAt(x, z - radius),
+                radius * 2
+            );
+            return zTangent.cross(xTangent).normalize();
+        }
+
+        function getGroundedRoadsidePoint(z, side, offsetFromRoadEdge, footprint = 0) {
+            const pose = getRoadsidePose(z, side, offsetFromRoadEdge);
+            return {
+                ...pose,
+                y: getPropGroundY(pose.x, z, footprint)
+            };
+        }
+
+        function alignLongRoadsideMesh(mesh, z, side, offsetFromRoadEdge, length, heightOffset, footprint = 0) {
+            const front = getGroundedRoadsidePoint(z - length * 0.5, side, offsetFromRoadEdge, footprint);
+            const rear = getGroundedRoadsidePoint(z + length * 0.5, side, offsetFromRoadEdge, footprint);
+            const start = new THREE.Vector3(rear.x, rear.y + heightOffset, rear.z);
+            const end = new THREE.Vector3(front.x, front.y + heightOffset, front.z);
+            const center = start.clone().add(end).multiplyScalar(0.5);
+            const terrainNormal = getTerrainNormalAt(center.x, center.z);
+            const forward = end.clone().sub(start);
+
+            if (forward.lengthSq() < 0.0001) {
+                forward.set(0, 0, -1);
+            }
+
+            forward.normalize();
+            const right = terrainNormal.clone().cross(forward);
+            if (right.lengthSq() < 0.0001) {
+                right.set(1, 0, 0);
+            }
+            right.normalize();
+            const adjustedUp = forward.clone().cross(right).normalize();
+            const basis = new THREE.Matrix4().makeBasis(right, adjustedUp, forward);
+
+            mesh.position.copy(center);
+            mesh.quaternion.setFromRotationMatrix(basis);
+        }
+
+        for (let z = startZ; z > endZ; z -= 22) {
             [-1, 1].forEach(side => {
                 if (Math.random() < 0.86) {
-                    const pose = getRoadsidePose(z, side, 2.8);
+                    const pose = getGroundedRoadsidePoint(z, side, 2.8);
                     const rail = new THREE.Mesh(railGeometry, woodMaterial);
-                    rail.position.set(pose.x, pose.y + 0.92, z);
-                    rail.rotation.y = pose.yaw;
+                    rail.name = 'scotland-fence-rail';
+                    alignLongRoadsideMesh(rail, z, side, 2.8, fenceRailLength, 0.92);
                     addDecorMesh(decor, rail, 'fenceSegments');
 
                     const post = new THREE.Mesh(postGeometry, woodMaterial);
+                    post.name = 'scotland-fence-post';
                     post.position.set(pose.x, pose.y + 0.62, z);
                     post.rotation.y = pose.yaw;
+                    post.quaternion.premultiply(new THREE.Quaternion().setFromUnitVectors(localUp, getTerrainNormalAt(pose.x, z, 0.8)));
                     addDecorMesh(decor, post);
                 }
             });
@@ -697,12 +765,13 @@ function generateRoadAndTerrain(scene, game, environment) {
             const side = Math.random() > 0.5 ? 1 : -1;
             const pose = getRoadsidePose(z, side, 4.6);
             const wall = new THREE.Mesh(wallGeometry, stoneMaterial);
-            wall.position.set(pose.x, pose.y + 0.39, z);
-            wall.rotation.y = pose.yaw;
+            wall.name = 'scotland-stone-wall';
+            alignLongRoadsideMesh(wall, z, side, 4.6, wallLength, 0.39);
             addDecorMesh(decor, wall, 'stoneWalls');
 
             for (let i = -2; i <= 2; i++) {
                 const stone = new THREE.Mesh(capStoneGeometry, darkStoneMaterial);
+                stone.name = 'scotland-wall-stone';
                 stone.scale.set(1.2 + Math.random() * 0.5, 0.45 + Math.random() * 0.22, 0.8 + Math.random() * 0.5);
                 const stoneX = pose.x + side * (Math.random() - 0.5) * 0.4;
                 const stoneZ = z + i * 3.2;
@@ -717,11 +786,10 @@ function generateRoadAndTerrain(scene, game, environment) {
                 const pose = getRoadsidePose(z, side, 10 + Math.random() * 16);
                 for (let i = 0; i < 5; i++) {
                     const flower = new THREE.Mesh(flowerGeometry, wildflowerMaterial);
-                    flower.position.set(
-                        pose.x + (Math.random() - 0.5) * 5,
-                        pose.y + 0.18,
-                        z + (Math.random() - 0.5) * 8
-                    );
+                    flower.name = 'scotland-wildflower';
+                    const flowerX = pose.x + (Math.random() - 0.5) * 5;
+                    const flowerZ = z + (Math.random() - 0.5) * 8;
+                    flower.position.set(flowerX, getPropGroundY(flowerX, flowerZ, 0.18) + 0.18, flowerZ);
                     flower.rotation.y = Math.random() * Math.PI;
                     addDecorMesh(decor, flower);
                 }
