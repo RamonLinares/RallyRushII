@@ -80,6 +80,7 @@
                 handbrake: Boolean(gameManager.controls.handbrake),
                 drift: Number((game.car.driftAmount || 0).toFixed(3)),
                 handbrakeIntensity: Number((game.car.handbrakeIntensity || 0).toFixed(3)),
+                turnEntryDrift: Number((game.car.turnEntryDrift || 0).toFixed(3)),
                 tireEffects: gameManager.collisionEffects.length,
                 roadYaw: Number((gameManager.getVehicleRoadFrame(game.car.position.z, -1).yaw).toFixed(3)),
                 driveYaw: Number((game.car.driveYaw || 0).toFixed(3)),
