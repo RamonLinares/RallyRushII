@@ -272,6 +272,7 @@ function generateRoadAndTerrain(scene, game, environment) {
     const halfRoadWidth = game.road.width / 2;
     const terrainWidth = game.terrain.width;
     const terrainSteps = 10;
+    const shoulderWidth = environment.shoulderWidth || 4;
 
     function updateGeometries() {
         const roadPositions = [];
@@ -285,19 +286,21 @@ function generateRoadAndTerrain(scene, game, environment) {
         const rightTerrainUVs = [];
 
         game.road.segments.forEach((segment, i) => {
-            const leftX = segment.curve - halfRoadWidth;
-            const rightX = segment.curve + halfRoadWidth;
+            const leftRoadX = segment.curve - halfRoadWidth;
+            const rightRoadX = segment.curve + halfRoadWidth;
+            const leftTerrainStartX = leftRoadX - shoulderWidth;
+            const rightTerrainStartX = rightRoadX + shoulderWidth;
             const v = i / game.road.segments.length;
 
             // Road vertices
-            roadPositions.push(leftX, segment.y, segment.z);
-            roadPositions.push(rightX, segment.y, segment.z);
+            roadPositions.push(leftRoadX, segment.y, segment.z);
+            roadPositions.push(rightRoadX, segment.y, segment.z);
             roadUVs.push(0, v);
             roadUVs.push(1, v);
 
             // Left terrain vertices
             for (let j = 0; j <= terrainSteps; j++) {
-                const x = leftX - (j / terrainSteps) * terrainWidth;
+                const x = leftTerrainStartX - (j / terrainSteps) * terrainWidth;
                 const heightOffset = generateMountainHeight(x, segment.z) * (j / terrainSteps);
                 leftTerrainPositions.push(x, segment.y + heightOffset, segment.z);
                 leftTerrainUVs.push(j / terrainSteps, v);
@@ -305,7 +308,7 @@ function generateRoadAndTerrain(scene, game, environment) {
 
             // Right terrain vertices
             for (let j = 0; j <= terrainSteps; j++) {
-                const x = rightX + (j / terrainSteps) * terrainWidth;
+                const x = rightTerrainStartX + (j / terrainSteps) * terrainWidth;
                 const heightOffset = generateMountainHeight(x, segment.z) * (j / terrainSteps);
                 rightTerrainPositions.push(x, segment.y + heightOffset, segment.z);
                 rightTerrainUVs.push(j / terrainSteps, v);
@@ -352,7 +355,6 @@ function generateRoadAndTerrain(scene, game, environment) {
         const shoulderPositions = [];
         const shoulderIndices = [];
         const shoulderUVs = [];
-        const shoulderWidth = 4;
 
         game.road.segments.forEach((segment, i) => {
             const roadEdgeX = segment.curve + side * halfRoadWidth;
@@ -413,6 +415,9 @@ function generateRoadAndTerrain(scene, game, environment) {
     rightTerrain.receiveShadow = true;
     leftShoulder.receiveShadow = true;
     rightShoulder.receiveShadow = true;
+    leftTerrain.userData.cameraOccluder = true;
+    rightTerrain.userData.cameraOccluder = true;
+    game.cameraOccluders = [leftTerrain, rightTerrain];
 
     scene.add(road, leftShoulder, rightShoulder, leftTerrain, rightTerrain);
 
@@ -425,7 +430,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         sandDrifts: 0,
         rockClusters: 0,
         fenceSegments: 0,
-        stoneWalls: 0
+        stoneWalls: 0,
+        trees: 0
     };
     game.stageDecor = stageDecorStats;
 
@@ -433,11 +439,26 @@ function generateRoadAndTerrain(scene, game, environment) {
         const segmentIndex = Math.floor(Math.abs(z) / segmentLength) % game.road.segments.length;
         const segment = game.road.segments[segmentIndex];
         const distanceFromRoadCenter = Math.abs(x - segment.curve);
-        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth) / terrainWidth, 0), 1);
+        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
         const baseHeight = segment.y;
         const heightOffset = generateMountainHeight(x, z) * normalizedDistance;
 
         return baseHeight + heightOffset;
+    }
+
+    function getPropGroundY(x, z, footprint = 0) {
+        if (footprint <= 0) {
+            return getTerrainHeightAt(x, z);
+        }
+
+        const samples = [
+            getTerrainHeightAt(x, z),
+            getTerrainHeightAt(x + footprint, z),
+            getTerrainHeightAt(x - footprint, z),
+            getTerrainHeightAt(x, z + footprint),
+            getTerrainHeightAt(x, z - footprint)
+        ];
+        return Math.min(...samples);
     }
 
     function getRoadsidePose(z, side, offsetFromRoadEdge) {
@@ -563,12 +584,11 @@ function generateRoadAndTerrain(scene, game, environment) {
             const rocksInCluster = 2 + Math.floor(Math.random() * 3);
             for (let i = 0; i < rocksInCluster; i++) {
                 const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-                rock.position.set(
-                    pose.x + side * Math.random() * 3.4,
-                    pose.y + 0.35 + Math.random() * 0.4,
-                    z + (Math.random() - 0.5) * 7
-                );
                 rock.scale.set(1.2 + Math.random() * 1.5, 0.55 + Math.random() * 0.8, 0.9 + Math.random() * 1.6);
+                const rockX = pose.x + side * Math.random() * 3.4;
+                const rockZ = z + (Math.random() - 0.5) * 7;
+                const groundY = getPropGroundY(rockX, rockZ, 2.4);
+                rock.position.set(rockX, groundY + rock.scale.y * 0.32, rockZ);
                 rock.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.35);
                 addDecorMesh(decor, rock);
             }
@@ -647,12 +667,11 @@ function generateRoadAndTerrain(scene, game, environment) {
             const rocksInCluster = 2 + Math.floor(Math.random() * 4);
             for (let i = 0; i < rocksInCluster; i++) {
                 const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-                rock.position.set(
-                    pose.x + side * Math.random() * 4,
-                    pose.y + 0.35 + Math.random() * 0.6,
-                    z + (Math.random() - 0.5) * 9
-                );
                 rock.scale.set(0.9 + Math.random() * 2.4, 0.45 + Math.random() * 0.95, 0.8 + Math.random() * 2);
+                const rockX = pose.x + side * Math.random() * 4;
+                const rockZ = z + (Math.random() - 0.5) * 9;
+                const groundY = getPropGroundY(rockX, rockZ, 2.2);
+                rock.position.set(rockX, groundY + rock.scale.y * 0.34, rockZ);
                 rock.rotation.set(Math.random() * 0.45, Math.random() * Math.PI, Math.random() * 0.35);
                 addDecorMesh(decor, rock);
             }
@@ -710,8 +729,10 @@ function generateRoadAndTerrain(scene, game, environment) {
 
             for (let i = -2; i <= 2; i++) {
                 const stone = new THREE.Mesh(capStoneGeometry, darkStoneMaterial);
-                stone.position.set(pose.x + side * (Math.random() - 0.5) * 0.4, pose.y + 0.75, z + i * 3.2);
                 stone.scale.set(1.2 + Math.random() * 0.5, 0.45 + Math.random() * 0.22, 0.8 + Math.random() * 0.5);
+                const stoneX = pose.x + side * (Math.random() - 0.5) * 0.4;
+                const stoneZ = z + i * 3.2;
+                stone.position.set(stoneX, getPropGroundY(stoneX, stoneZ, 0.8) + 0.56, stoneZ);
                 stone.rotation.set(Math.random() * 0.25, pose.yaw + Math.random(), Math.random() * 0.2);
                 addDecorMesh(decor, stone);
             }
@@ -741,24 +762,70 @@ function generateRoadAndTerrain(scene, game, environment) {
         const treeDensity = environment.treeDensity;
         const minDistanceBetweenTrees = 10;
         const trees = [];
+        const trunkMaterial = new THREE.MeshPhongMaterial({ color: environment.trunkColor || 0x8B4513, shininess: 4 });
+        const leafMaterial = new THREE.MeshPhongMaterial({ color: environment.treeColor || 0x228B22, shininess: 7 });
+        const leafShadeMaterial = new THREE.MeshPhongMaterial({
+            color: environment.terrainStyle === 'snow-rock' ? 0x0d3f2c : 0x275f31,
+            shininess: 5
+        });
+
+        function addTreePart(tree, mesh) {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            tree.add(mesh);
+            return mesh;
+        }
 
         function createTree(x, y, z) {
             const tree = new THREE.Group();
-            const trunkHeight = 2;
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, trunkHeight, 8), new THREE.MeshPhongMaterial({ color: environment.trunkColor || 0x8B4513 }));
+            tree.name = 'roadside-tree';
+            const trunkHeight = environment.terrainStyle === 'snow-rock' ? 2.1 + Math.random() * 0.8 : 2.4 + Math.random() * 1.2;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.28, trunkHeight, 7), trunkMaterial);
             trunk.position.y = trunkHeight / 2;
-            trunk.castShadow = true;
-            trunk.receiveShadow = true;
-            tree.add(trunk);
-            
-            const leavesHeight = 4;
-            const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.5, leavesHeight, 8), new THREE.MeshPhongMaterial({ color: environment.treeColor || 0x228B22 }));
-            leaves.position.y = trunkHeight + leavesHeight / 2;
-            leaves.castShadow = true;
-            leaves.receiveShadow = true;
-            tree.add(leaves);
-            
+            addTreePart(tree, trunk);
+
+            if (environment.terrainStyle === 'snow-rock') {
+                const tiers = 3 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < tiers; i++) {
+                    const radius = 1.55 - i * 0.24 + Math.random() * 0.18;
+                    const height = 1.9 - i * 0.18 + Math.random() * 0.22;
+                    const leaves = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 9), i === 0 ? leafShadeMaterial : leafMaterial);
+                    leaves.position.set((Math.random() - 0.5) * 0.16, trunkHeight + i * 0.72 + height * 0.28, (Math.random() - 0.5) * 0.16);
+                    leaves.rotation.y = Math.random() * Math.PI;
+                    leaves.scale.x = 0.88 + Math.random() * 0.2;
+                    leaves.scale.z = 0.92 + Math.random() * 0.18;
+                    addTreePart(tree, leaves);
+                }
+            } else {
+                const crownGeometry = new THREE.DodecahedronGeometry(1, 1);
+                const blobs = [
+                    { x: 0, y: trunkHeight + 1.45, z: 0, s: [1.55, 1.15, 1.45], mat: leafMaterial },
+                    { x: -0.74, y: trunkHeight + 1.1, z: 0.1, s: [1.18, 0.95, 1.1], mat: leafShadeMaterial },
+                    { x: 0.7, y: trunkHeight + 1.2, z: -0.12, s: [1.12, 0.9, 1.16], mat: leafMaterial },
+                    { x: 0.12, y: trunkHeight + 2.12, z: -0.08, s: [1.05, 0.92, 1.0], mat: leafMaterial }
+                ];
+
+                blobs.forEach(blob => {
+                    const leaves = new THREE.Mesh(crownGeometry, blob.mat);
+                    leaves.position.set(blob.x, blob.y, blob.z);
+                    leaves.scale.set(blob.s[0], blob.s[1], blob.s[2]);
+                    leaves.rotation.set(Math.random() * 0.25, Math.random() * Math.PI, Math.random() * 0.2);
+                    addTreePart(tree, leaves);
+                });
+
+                const branchGeometry = new THREE.CylinderGeometry(0.06, 0.1, 1.3, 6);
+                [-1, 1].forEach(side => {
+                    const branch = new THREE.Mesh(branchGeometry, trunkMaterial);
+                    branch.position.set(side * 0.45, trunkHeight * 0.82, 0);
+                    branch.rotation.z = side * 1.04;
+                    branch.rotation.y = side * 0.34;
+                    addTreePart(tree, branch);
+                });
+            }
+
             tree.position.set(x, y, z);
+            tree.rotation.y = Math.random() * Math.PI * 2;
+            tree.scale.setScalar(0.86 + Math.random() * 0.28);
             return tree;
         }
 
@@ -771,12 +838,8 @@ function generateRoadAndTerrain(scene, game, environment) {
 
                 [-1, 1].forEach(side => {
                     if (Math.random() < treeDensity) {
-                        let x;
-                        if (side === -1) {
-                            x = segment.curve - halfRoadWidth - Math.random() * terrainWidth;
-                        } else {
-                            x = segment.curve + halfRoadWidth + Math.random() * terrainWidth;
-                        }
+                        const treeOffset = halfRoadWidth + shoulderWidth + 4 + Math.random() * (terrainWidth - 4);
+                        const x = segment.curve + side * treeOffset;
 
                         const y = getTerrainHeightAt(x, z);
                         
@@ -786,9 +849,10 @@ function generateRoadAndTerrain(scene, game, environment) {
                             return Math.sqrt(dx * dx + dz * dz) < minDistanceBetweenTrees;
                         });
 
-                        if (Math.abs(x - segment.curve) > halfRoadWidth + 5 && !tooClose) {
+                        if (Math.abs(x - segment.curve) > halfRoadWidth + shoulderWidth + 3 && !tooClose) {
                             const tree = createTree(x, y, z);
                             trees.push(tree);
+                            stageDecorStats.trees += 1;
                             scene.add(tree);
                         }
                     }
@@ -796,7 +860,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
         }
 
-        placeTrees(0, game.finishLine * 10);
+        placeTrees(game.startLine - 40, game.finishLine + 120);
     }
     
     scene.background = new THREE.Color(environment.fogColor);

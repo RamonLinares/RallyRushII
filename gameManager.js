@@ -2314,16 +2314,18 @@ class GameManager {
         this.game.car.xOffset += steeringLateralDelta + this.game.car.lateralVelocity;
         this.game.car.position.z -= dz;
 
-        // Handle border collisions
-        const borderThreshold = this.game.road.width / 2 - 1.5;
-        if (Math.abs(this.game.car.xOffset) > borderThreshold) {
+        // Handle road-edge containment. The limit is based on the actual car width so
+        // steep roadside terrain cannot visually swallow half the body.
+        const borderThreshold = this.getPlayerRoadLimit();
+        const edgeOverflow = Math.abs(this.game.car.xOffset) - borderThreshold;
+        if (edgeOverflow > 0) {
             if (this.game.car.borderCollisionCooldown === 0) {
                 this.game.car.speed *= 0.8;
                 this.game.car.borderCollisionCooldown = 30;
             }
-            const pushBackForce = (Math.abs(this.game.car.xOffset) - borderThreshold) * 0.1;
-            this.game.car.xOffset -= Math.sign(this.game.car.xOffset) * pushBackForce;
-            this.game.car.lateralVelocity *= 0.45;
+            this.game.car.xOffset = Math.sign(this.game.car.xOffset) * borderThreshold;
+            this.game.car.angle *= 0.45;
+            this.game.car.lateralVelocity = Math.min(Math.abs(this.game.car.lateralVelocity), 0.02) * -Math.sign(this.game.car.xOffset);
         }
 
         if (this.game.car.borderCollisionCooldown > 0) {
@@ -2357,6 +2359,11 @@ class GameManager {
             this.game.car.bodyRoll
         );
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85);
+    }
+
+    getPlayerRoadLimit() {
+        const dimensions = this.getVehicleDimensions('rally');
+        return Math.max(2, this.game.road.width / 2 - dimensions.width / 2 - 0.45);
     }
 
     triggerTrafficCollision(trafficCar, forcedType) {
@@ -2793,7 +2800,8 @@ class GameManager {
         const rayStart = this.carPosition.clone().add(new THREE.Vector3(0, this.cameraOffset.y, 0));
         const rayDirection = cameraPosition.clone().sub(rayStart).normalize();
         const ray = new THREE.Raycaster(rayStart, rayDirection);
-        const intersects = ray.intersectObjects(this.scene.children, true);
+        const cameraOccluders = this.game.cameraOccluders || [];
+        const intersects = cameraOccluders.length > 0 ? ray.intersectObjects(cameraOccluders, true) : [];
 
         if (intersects.length > 0 && intersects[0].distance < this.cameraOffset.z) {
             // Adjust camera position to avoid clipping

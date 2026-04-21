@@ -83,6 +83,7 @@
             } : null,
             road: game ? {
                 width: game.road.width,
+                playerLimit: Number(gameManager.getPlayerRoadLimit().toFixed(2)),
                 segments: game.road.segments.length
             } : null,
             stageDecor: game ? game.stageDecor : null,
