@@ -1520,10 +1520,13 @@ class GameManager {
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         const isStart = label === 'START!';
+        context.fillStyle = 'rgba(5, 8, 12, 0.64)';
+        context.fillRect(0, 64, canvas.width, 384);
+
         const stripeGradient = context.createLinearGradient(0, 0, canvas.width, 0);
-        stripeGradient.addColorStop(0, 'rgba(255, 212, 71, 0.18)');
-        stripeGradient.addColorStop(0.5, 'rgba(95, 226, 255, 0.14)');
-        stripeGradient.addColorStop(1, 'rgba(255, 79, 95, 0.18)');
+        stripeGradient.addColorStop(0, 'rgba(255, 212, 71, 0.34)');
+        stripeGradient.addColorStop(0.5, 'rgba(95, 226, 255, 0.24)');
+        stripeGradient.addColorStop(1, 'rgba(255, 79, 95, 0.34)');
         context.fillStyle = stripeGradient;
         context.fillRect(0, 64, canvas.width, 384);
 
@@ -1591,23 +1594,26 @@ class GameManager {
             metalness: 0.35,
             roughness: 0.28,
             emissive: 0x071017,
-            emissiveIntensity: 0.55,
-            transparent: true,
-            opacity: 0.9
+            emissiveIntensity: 0.72,
+            transparent: false,
+            opacity: 1,
+            depthWrite: true
         });
         const accentMaterial = new THREE.MeshStandardMaterial({
             color: 0xffd447,
             metalness: 0.55,
             roughness: 0.22,
             emissive: 0xffa000,
-            emissiveIntensity: 0.42,
-            transparent: true,
-            opacity: 0.96
+            emissiveIntensity: 0.54,
+            transparent: false,
+            opacity: 1,
+            depthWrite: true
         });
         const cyanMaterial = new THREE.MeshBasicMaterial({
             color: 0x5fe2ff,
             transparent: true,
-            opacity: 0.76,
+            opacity: 0.92,
+            depthWrite: true,
             side: THREE.DoubleSide
         });
         const pylonMaterial = new THREE.MeshStandardMaterial({
@@ -1615,9 +1621,20 @@ class GameManager {
             metalness: 0.48,
             roughness: 0.32,
             emissive: 0x1b2d3d,
-            emissiveIntensity: 0.18,
-            transparent: true,
-            opacity: 0.92
+            emissiveIntensity: 0.24,
+            transparent: false,
+            opacity: 1,
+            depthWrite: true
+        });
+        const lightHousingMaterial = new THREE.MeshStandardMaterial({
+            color: 0x05080c,
+            metalness: 0.46,
+            roughness: 0.3,
+            emissive: 0x0b1420,
+            emissiveIntensity: 0.42,
+            transparent: false,
+            opacity: 1,
+            depthWrite: true
         });
 
         const backPlate = new THREE.Mesh(new THREE.BoxGeometry(signWidth, signHeight, 0.48), frameMaterial);
@@ -1642,18 +1659,50 @@ class GameManager {
         topTruss.castShadow = true;
         group.add(topTruss);
 
-        ['#ff4f5f', '#ffd447', '#5df29a'].forEach((color, index) => {
-            const light = new THREE.Mesh(
-                new THREE.SphereGeometry(0.32, 18, 12),
+        const lightHousing = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.98, 0.5), lightHousingMaterial);
+        lightHousing.position.set(0, 3.18, 0.2);
+        lightHousing.castShadow = true;
+        group.add(lightHousing);
+
+        const launchLights = [];
+        const launchLightPositions = [-2.4, -0.8, 0.8, 2.4];
+        launchLightPositions.forEach((x, index) => {
+            const isGreen = index === launchLightPositions.length - 1;
+            const activeColor = isGreen ? 0x5df29a : 0xff2438;
+            const idleColor = isGreen ? 0x0c2b1a : 0x230407;
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.44, 28, 18),
                 new THREE.MeshBasicMaterial({
-                    color,
+                    color: index === 0 ? activeColor : idleColor,
                     transparent: true,
-                    opacity: index === 0 ? 0.92 : 0.42
+                    opacity: index === 0 ? 1 : 0.38,
+                    depthWrite: false
                 })
             );
-            light.position.set(-1.06 + index * 1.06, 3.1, 0.34);
-            light.userData.countdownLightIndex = index;
-            group.add(light);
+            bulb.position.set(x, 3.2, 0.56);
+            bulb.userData.launchLightIndex = index;
+            bulb.userData.launchLightRole = isGreen ? 'green' : 'red';
+            bulb.userData.activeColor = activeColor;
+            bulb.userData.idleColor = idleColor;
+            group.add(bulb);
+
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.72, 28, 18),
+                new THREE.MeshBasicMaterial({
+                    color: activeColor,
+                    transparent: true,
+                    opacity: index === 0 ? 0.28 : 0.04,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                })
+            );
+            glow.position.copy(bulb.position);
+            glow.userData.launchLightIndex = index;
+            glow.userData.launchLightRole = isGreen ? 'green' : 'red';
+            glow.userData.launchLightGlow = true;
+            glow.userData.activeColor = activeColor;
+            group.add(glow);
+            launchLights.push({ bulb, glow });
         });
 
         [-1, 1].forEach(side => {
@@ -1693,7 +1742,7 @@ class GameManager {
         group.position.set(roadData.curve, roadData.y + 5.4, countdownZ);
         group.rotation.y = roadFrame.yaw;
 
-        return { group, textGroup, textLayers };
+        return { group, textGroup, textLayers, launchLights };
     }
 
     beginStartCountdown() {
@@ -1728,12 +1777,16 @@ class GameManager {
 
         const elapsed = Math.max(0, countdown.elapsedMs || 0);
         const stepIndex = Math.min(countdown.sequence.length - 1, Math.floor(elapsed / countdown.stepDuration));
+        const label = countdown.sequence[stepIndex];
         return {
             elapsed,
             stepIndex,
-            label: countdown.sequence[stepIndex],
+            label,
             blocking: Boolean(countdown.active && countdown.blocking),
-            confetti: countdown.confetti.length
+            confetti: countdown.confetti.length,
+            launchLights: label === 'START!'
+                ? ['green']
+                : ['red1', 'red2', 'red3'].slice(0, stepIndex + 1)
         };
     }
 
@@ -1820,13 +1873,26 @@ class GameManager {
         countdown.group.position.y = countdown.basePosition.y + Math.sin(elapsed * 0.007) * 0.14;
 
         countdown.group.traverse(child => {
-            if (child.userData.countdownLightIndex === undefined || !child.material) {
+            if (child.userData.launchLightIndex === undefined || !child.material) {
                 return;
             }
 
-            const lightIndex = child.userData.countdownLightIndex;
-            const targetOpacity = stepIndex === lightIndex ? 1 : label === 'START!' && lightIndex === 2 ? 1 : 0.32;
-            child.material.opacity += (targetOpacity - child.material.opacity) * 0.24;
+            const isGreen = child.userData.launchLightRole === 'green';
+            const redTargetIndex = child.userData.launchLightIndex;
+            const isActive = label === 'START!' ? isGreen : !isGreen && redTargetIndex <= stepIndex;
+            const pulse = 0.5 + Math.sin(elapsed * 0.018) * 0.5;
+            const activeOpacity = child.userData.launchLightGlow ? 0.44 + pulse * 0.18 : 1;
+            const idleOpacity = child.userData.launchLightGlow ? 0.035 : 0.32;
+            const targetOpacity = isActive ? activeOpacity : idleOpacity;
+
+            if (!child.userData.launchLightGlow) {
+                child.material.color.setHex(isActive ? child.userData.activeColor : child.userData.idleColor);
+            }
+            child.material.opacity += (targetOpacity - child.material.opacity) * 0.28;
+            if (child.userData.launchLightGlow) {
+                const glowScale = isActive ? 1.24 + pulse * 0.12 : 0.9;
+                child.scale.setScalar(glowScale);
+            }
         });
 
         if (elapsed >= countdown.releaseAt) {
