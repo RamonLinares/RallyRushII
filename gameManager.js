@@ -1520,13 +1520,13 @@ class GameManager {
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         const isStart = label === 'START!';
-        context.fillStyle = 'rgba(5, 8, 12, 0.64)';
+        context.fillStyle = 'rgba(42, 59, 63, 0.92)';
         context.fillRect(0, 64, canvas.width, 384);
 
         const stripeGradient = context.createLinearGradient(0, 0, canvas.width, 0);
-        stripeGradient.addColorStop(0, 'rgba(255, 212, 71, 0.34)');
-        stripeGradient.addColorStop(0.5, 'rgba(95, 226, 255, 0.24)');
-        stripeGradient.addColorStop(1, 'rgba(255, 79, 95, 0.34)');
+        stripeGradient.addColorStop(0, 'rgba(255, 212, 71, 0.42)');
+        stripeGradient.addColorStop(0.5, 'rgba(95, 226, 255, 0.3)');
+        stripeGradient.addColorStop(1, 'rgba(255, 79, 95, 0.38)');
         context.fillStyle = stripeGradient;
         context.fillRect(0, 64, canvas.width, 384);
 
@@ -1637,10 +1637,6 @@ class GameManager {
             depthWrite: true
         });
 
-        const backPlate = new THREE.Mesh(new THREE.BoxGeometry(signWidth, signHeight, 0.48), frameMaterial);
-        backPlate.castShadow = true;
-        group.add(backPlate);
-
         [-1, 1].forEach(side => {
             const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.52, pylonHeight, 0.52), pylonMaterial.clone());
             pylon.position.set(side * 13.6, -1, -0.04);
@@ -1659,10 +1655,22 @@ class GameManager {
         topTruss.castShadow = true;
         group.add(topTruss);
 
+        const signGroup = new THREE.Group();
+        signGroup.name = 'countdown-moving-sign';
+        group.add(signGroup);
+
+        const signFace = new THREE.Mesh(
+            new THREE.PlaneGeometry(15.2, 5.6),
+            this.createCountdownMaterial('3', 1)
+        );
+        signFace.position.z = 0.34;
+        signFace.name = 'countdown-sign-face';
+        signGroup.add(signFace);
+
         const lightHousing = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.98, 0.5), lightHousingMaterial);
         lightHousing.position.set(0, 3.18, 0.2);
         lightHousing.castShadow = true;
-        group.add(lightHousing);
+        signGroup.add(lightHousing);
 
         const launchLights = [];
         const launchLightPositions = [-2.4, -0.8, 0.8, 2.4];
@@ -1684,7 +1692,7 @@ class GameManager {
             bulb.userData.launchLightRole = isGreen ? 'green' : 'red';
             bulb.userData.activeColor = activeColor;
             bulb.userData.idleColor = idleColor;
-            group.add(bulb);
+            signGroup.add(bulb);
 
             const glow = new THREE.Mesh(
                 new THREE.SphereGeometry(0.72, 28, 18),
@@ -1701,7 +1709,7 @@ class GameManager {
             glow.userData.launchLightRole = isGreen ? 'green' : 'red';
             glow.userData.launchLightGlow = true;
             glow.userData.activeColor = activeColor;
-            group.add(glow);
+            signGroup.add(glow);
             launchLights.push({ bulb, glow });
         });
 
@@ -1710,39 +1718,25 @@ class GameManager {
             rail.position.set(side * 8.35, 0, 0.04);
             rail.rotation.z = side * 0.18;
             rail.castShadow = true;
-            group.add(rail);
+            signGroup.add(rail);
 
             for (let i = 0; i < 3; i++) {
                 const slash = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 1.8), cyanMaterial.clone());
                 slash.position.set(side * (6.9 - i * 0.62), -1.64, 0.3);
                 slash.rotation.z = side * 0.34;
-                group.add(slash);
+                signGroup.add(slash);
             }
         });
 
-        const textGroup = new THREE.Group();
-        textGroup.name = 'countdown-text-stack';
-        const textLayers = [];
-        for (let i = 0; i < 7; i++) {
-            const layer = new THREE.Mesh(
-                new THREE.PlaneGeometry(15.2, 5.6),
-                this.createCountdownMaterial('3', i === 0 ? 1 : 0.28)
-            );
-            layer.position.z = 0.34 + i * 0.055;
-            if (i > 0) {
-                layer.material.color = new THREE.Color(i < 4 ? 0xff4f5f : 0x071017);
-            }
-            textGroup.add(layer);
-            textLayers.push(layer);
-        }
-        group.add(textGroup);
+        const textGroup = signGroup;
+        const textLayers = [signFace];
 
         const roadFrame = this.getVehicleRoadFrame(countdownZ, -1, 'rally');
         const roadData = roadFrame.roadData;
         group.position.set(roadData.curve, roadData.y + 5.4, countdownZ);
         group.rotation.y = roadFrame.yaw;
 
-        return { group, textGroup, textLayers, launchLights };
+        return { group, signGroup, textGroup, textLayers, launchLights };
     }
 
     beginStartCountdown() {
@@ -1800,7 +1794,7 @@ class GameManager {
                 layer.material.map.dispose();
             }
             layer.material.map = this.createCountdownTexture(label);
-            layer.material.opacity = index === 0 ? 1 : 0.28;
+            layer.material.opacity = 1;
             layer.material.needsUpdate = true;
         });
     }
@@ -1868,8 +1862,9 @@ class GameManager {
         }
 
         const pop = Math.sin((1 - stepProgress) * Math.PI * 0.5);
-        const startScale = label === 'START!' ? 1.14 : 1.0;
-        countdown.textGroup.scale.setScalar(startScale + pop * (label === 'START!' ? 0.34 : 0.48));
+        const startScale = label === 'START!' ? 1.05 : 1.0;
+        const animatedSign = countdown.signGroup || countdown.textGroup;
+        animatedSign.scale.setScalar(startScale + pop * (label === 'START!' ? 0.14 : 0.18));
         countdown.group.position.y = countdown.basePosition.y + Math.sin(elapsed * 0.007) * 0.14;
 
         countdown.group.traverse(child => {
@@ -1900,8 +1895,8 @@ class GameManager {
         }
 
         const fadeProgress = THREE.MathUtils.clamp((elapsed - countdown.releaseAt) / (countdown.endAt - countdown.releaseAt), 0, 1);
-        countdown.textLayers.forEach((layer, index) => {
-            layer.material.opacity = (index === 0 ? 1 : 0.28) * (1 - fadeProgress);
+        countdown.textLayers.forEach(layer => {
+            layer.material.opacity = 1 - fadeProgress;
         });
         countdown.group.children.forEach(child => {
             if (child.material && child !== countdown.textGroup) {
