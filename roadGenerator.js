@@ -554,11 +554,12 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         for (let z = startZ - 10; z > endZ; z -= 54) {
             [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 1.65);
+                const pose = getRoadsidePose(z, side, 3.35);
+                const heightScale = 0.18 + Math.random() * 0.06;
                 const bank = new THREE.Mesh(snowBankGeometry, snowMaterial);
-                bank.position.set(pose.x, pose.roadY + 0.16, z);
-                bank.scale.set(3.1 + Math.random() * 0.9, 0.28 + Math.random() * 0.08, 1.05 + Math.random() * 0.35);
-                bank.rotation.y = pose.yaw + Math.random() * 0.2;
+                bank.position.set(pose.x, getPropGroundY(pose.x, z, 1.15) + heightScale * 0.72, z);
+                bank.scale.set(0.55 + Math.random() * 0.18, heightScale, 3.4 + Math.random() * 1.25);
+                bank.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.12;
                 addDecorMesh(decor, bank, 'snowBanks');
             });
         }
@@ -639,11 +640,12 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         for (let z = startZ; z > endZ; z -= 58) {
             [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 2.7 + Math.random() * 1.6);
+                const pose = getRoadsidePose(z, side, 4.8 + Math.random() * 2.2);
+                const heightScale = 0.14 + Math.random() * 0.06;
                 const drift = new THREE.Mesh(driftGeometry, driftMaterial);
-                drift.position.set(pose.x, pose.roadY + 0.1, z);
-                drift.scale.set(4 + Math.random() * 2.6, 0.18 + Math.random() * 0.08, 1.2 + Math.random() * 0.8);
-                drift.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.4;
+                drift.position.set(pose.x, getPropGroundY(pose.x, z, 1.2) + heightScale * 0.68, z);
+                drift.scale.set(0.8 + Math.random() * 0.28, heightScale, 4.1 + Math.random() * 2.2);
+                drift.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.16;
                 addDecorMesh(decor, drift, 'sandDrifts');
             });
         }
