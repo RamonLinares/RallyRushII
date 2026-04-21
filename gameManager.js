@@ -260,13 +260,14 @@ class GameManager {
                 acceleration: 0.010,
                 deceleration: 0.002,
                 brakePower: 0.01,
-                handbrakePower: 0.014,
+                handbrakePower: 0.03,
                 maxSpeed: 2.5,
                 minSpeed: 0,
                 xOffset: 0,
                 lateralVelocity: 0,
                 angle: 0,
                 driftAmount: 0,
+                handbrakeIntensity: 0,
                 driftSmokeCooldown: 0,
                 driveYaw: 0,
                 visualYaw: 0,
@@ -1508,6 +1509,7 @@ class GameManager {
         this.game.car.lateralVelocity = 0;
         this.game.car.angle = 0;
         this.game.car.driftAmount = 0;
+        this.game.car.handbrakeIntensity = 0;
         this.game.car.driftSmokeCooldown = 0;
         this.game.car.angularVelocity = 0;
         this.game.car.driveYaw = roadFrame.yaw;
@@ -2292,53 +2294,65 @@ class GameManager {
         }
 
         this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
-        const handbrakeActive = Boolean(this.controls.handbrake && this.game.car.speed > 0.18);
+        const handbrakeActive = Boolean(this.controls.handbrake && this.game.car.speed > 0.1);
         if (handbrakeActive) {
             const dragRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
-            this.game.car.speed -= this.game.car.handbrakePower * THREE.MathUtils.lerp(0.55, 1.28, dragRatio);
+            this.game.car.speed -= this.game.car.handbrakePower * THREE.MathUtils.lerp(1.15, 2.05, dragRatio);
         }
 
         this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
         const speedRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
         const steeringStrength = Math.abs(steeringInput);
-        const canHandbrakeDrift = handbrakeActive && steeringStrength > 0 && speedRatio > 0.36;
+        const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
+        const curveProbeDistance = THREE.MathUtils.lerp(18, 42, speedRatio);
+        const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, 'rally');
+        const roadBend = this.getAngleDelta(currentRoadFrame.yaw, futureRoadFrame.yaw);
+        const roadDriftDemand = handbrakeActive
+            ? THREE.MathUtils.clamp((Math.abs(roadBend) - 0.015) / 0.1, 0, 0.9)
+            : 0;
+        const driftDemand = Math.max(steeringStrength, roadDriftDemand);
+        const driftDirection = steeringInput || (roadDriftDemand > 0 ? Math.sign(roadBend) : 0);
+        const targetHandbrakeIntensity = handbrakeActive
+            ? THREE.MathUtils.clamp((speedRatio - 0.08) / 0.45, 0, 1)
+            : 0;
+        const handbrakeResponse = targetHandbrakeIntensity > (this.game.car.handbrakeIntensity || 0) ? 0.34 : 0.16;
+        this.game.car.handbrakeIntensity += (targetHandbrakeIntensity - (this.game.car.handbrakeIntensity || 0)) * handbrakeResponse;
+        const handbrakeIntensity = THREE.MathUtils.clamp(this.game.car.handbrakeIntensity, 0, 1);
+        this.game.car.handbrakeIntensity = handbrakeIntensity;
+        const canHandbrakeDrift = handbrakeActive && driftDemand > 0 && speedRatio > 0.2;
         const targetDrift = canHandbrakeDrift
-            ? THREE.MathUtils.clamp((speedRatio - 0.36) / 0.5, 0, 1) * (0.25 + steeringStrength * 0.55)
+            ? THREE.MathUtils.clamp((speedRatio - 0.18) / 0.42, 0, 1) * (0.46 + driftDemand * 0.54)
             : 0;
         const currentDrift = this.game.car.driftAmount || 0;
-        const driftResponse = targetDrift > currentDrift ? 0.13 : 0.1;
+        const driftResponse = targetDrift > currentDrift ? 0.26 : 0.12;
         this.game.car.driftAmount += (targetDrift - currentDrift) * driftResponse;
         const driftAmount = THREE.MathUtils.clamp(this.game.car.driftAmount, 0, 1);
         this.game.car.driftAmount = driftAmount;
-        const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
 
         // Update steering
         const targetSteeringAngle = steeringInput * this.game.car.maxSteeringAngle;
         this.game.car.steeringAngle += (targetSteeringAngle - this.game.car.steeringAngle) * this.game.car.steeringSpeed;
 
         // Update car angle based on steering and speed
-        this.game.car.angle += this.game.car.steeringAngle * this.game.car.speed * (this.game.car.turnSpeed + driftAmount * 0.012);
-        this.game.car.angle += steeringInput * driftAmount * speedRatio * 0.01;
-        const headingRecoveryBase = steeringInput === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
+        this.game.car.angle += this.game.car.steeringAngle * this.game.car.speed * (this.game.car.turnSpeed + driftAmount * 0.026);
+        this.game.car.angle += driftDirection * driftAmount * speedRatio * 0.026;
+        const headingRecoveryBase = driftDemand === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
         const headingRecovery = headingRecoveryBase * (1 - driftAmount * 0.68);
         this.game.car.angle += (0 - this.game.car.angle) * headingRecovery;
         const maxBodySlip = THREE.MathUtils.lerp(Math.PI / 5, Math.PI / 3.8, driftAmount);
         this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -maxBodySlip, maxBodySlip);
 
-        const curveProbeDistance = THREE.MathUtils.lerp(18, 42, speedRatio);
-        const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, 'rally');
-        const roadBend = this.getAngleDelta(currentRoadFrame.yaw, futureRoadFrame.yaw);
         const steeringIntoCurve = steeringInput !== 0 && Math.sign(steeringInput) === Math.sign(roadBend);
         const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14);
         this.game.car.lateralVelocity += curveSlip;
         if (canHandbrakeDrift) {
-            this.game.car.lateralVelocity += -steeringInput * driftAmount * speedRatio * 0.024;
+            this.game.car.lateralVelocity += -driftDirection * driftAmount * speedRatio * 0.048;
         }
-        const lateralDamping = THREE.MathUtils.clamp(0.9 - speedRatio * 0.08 + driftAmount * 0.065, 0.76, 0.95);
+        const lateralDamping = THREE.MathUtils.clamp(0.9 - speedRatio * 0.08 + driftAmount * 0.095, 0.76, 0.97);
         this.game.car.lateralVelocity *= lateralDamping;
 
         // Calculate movement
-        const steeringLateralDelta = -Math.sin(this.game.car.angle) * this.game.car.speed * (0.72 + driftAmount * 0.24);
+        const steeringLateralDelta = -Math.sin(this.game.car.angle) * this.game.car.speed * (0.72 + driftAmount * 0.46);
         const dz = Math.cos(this.game.car.angle) * this.game.car.speed;
 
         // Update position
@@ -2376,14 +2390,14 @@ class GameManager {
         this.playerCar.position.copy(this.carPosition);
 
         const visualSteerYaw = this.game.car.steeringAngle * (0.42 + speedRatio * 0.62);
-        const driftVisualYaw = steeringInput * driftAmount * (0.08 + speedRatio * 0.18);
+        const driftVisualYaw = driftDirection * driftAmount * (0.08 + speedRatio * 0.18);
         this.game.car.driveYaw = updatedRoadFrame.yaw + this.game.car.angle;
         const targetVisualYaw = this.game.car.driveYaw + visualSteerYaw + driftVisualYaw;
         this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.18 + driftAmount * 0.06);
 
         const maxRoll = Math.PI / 44;
         const targetRoll = (-this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio)
-            + steeringInput * driftAmount * 0.045;
+            + driftDirection * driftAmount * 0.045;
         this.game.car.bodyRoll += (targetRoll - this.game.car.bodyRoll) * 0.16;
         this.applyVehicleRoadPose(
             this.playerCar,
@@ -2391,9 +2405,9 @@ class GameManager {
             this.getAngleDelta(updatedRoadFrame.yaw, this.game.car.visualYaw),
             this.game.car.bodyRoll
         );
-        const counterSteer = -steeringInput * driftAmount * speedRatio * 0.16;
+        const counterSteer = -driftDirection * driftAmount * speedRatio * 0.16;
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85 + counterSteer);
-        this.updateDriftEffects(updatedRoadFrame, driftAmount, steeringInput, speedRatio);
+        this.updateDriftEffects(updatedRoadFrame, driftAmount, handbrakeIntensity, driftDirection, speedRatio);
     }
 
     getPlayerRoadLimit() {
@@ -2401,7 +2415,7 @@ class GameManager {
         return Math.max(2, this.game.road.width / 2 - dimensions.width / 2 - 0.45);
     }
 
-    updateDriftEffects(roadFrame, driftAmount, steeringInput, speedRatio) {
+    updateDriftEffects(roadFrame, driftAmount, handbrakeIntensity, steeringInput, speedRatio) {
         if (!this.playerCar || !this.game?.car) {
             return;
         }
@@ -2410,11 +2424,12 @@ class GameManager {
             this.game.car.driftSmokeCooldown--;
         }
 
-        if (driftAmount < 0.18 || speedRatio < 0.38 || this.game.car.driftSmokeCooldown > 0) {
+        const skidIntensity = Math.max(driftAmount, handbrakeIntensity * 0.72);
+        if (skidIntensity < 0.12 || speedRatio < 0.12 || this.game.car.driftSmokeCooldown > 0) {
             return;
         }
 
-        this.game.car.driftSmokeCooldown = Math.round(7 - driftAmount * 3);
+        this.game.car.driftSmokeCooldown = Math.max(2, Math.round(5 - skidIntensity * 3));
         const forward = (roadFrame.forward || new THREE.Vector3(
             -Math.sin(roadFrame.yaw),
             0,
@@ -2427,35 +2442,41 @@ class GameManager {
         const rearAxle = this.playerCar.position.clone().sub(forward.clone().multiplyScalar(2.25));
         const slipSide = steeringInput || Math.sign(this.game.car.lateralVelocity) || 1;
         const smokeColor = 0xdfe8eb;
-        const intensity = THREE.MathUtils.clamp(driftAmount * speedRatio, 0.18, 1);
+        const intensity = THREE.MathUtils.clamp(skidIntensity * (0.35 + speedRatio * 0.95), 0.16, 1);
 
         [-1, 1].forEach(side => {
             const puff = new THREE.Mesh(
-                new THREE.SphereGeometry(0.22 + intensity * 0.28, 8, 6),
+                new THREE.SphereGeometry(0.38 + intensity * 0.18, 28, 16),
                 new THREE.MeshBasicMaterial({
                     color: smokeColor,
                     transparent: true,
-                    opacity: 0.16 + intensity * 0.22,
+                    opacity: 0.26 + intensity * 0.22,
                     depthWrite: false
                 })
             );
-            puff.position.copy(rearAxle).add(right.clone().multiplyScalar(side * 0.9));
-            puff.position.y += 0.12 + Math.random() * 0.06;
-            puff.scale.set(1.45, 0.38, 0.9);
+            puff.position.copy(rearAxle)
+                .add(right.clone().multiplyScalar(side * 0.9))
+                .sub(forward.clone().multiplyScalar(0.35 + intensity * 0.55));
+            puff.position.y += 0.18 + Math.random() * 0.1;
+            puff.scale.set(1.05 + intensity * 0.9, 0.36 + intensity * 0.38, 0.7 + intensity * 0.68);
             puff.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
             this.scene.add(puff);
             this.collisionEffects.push({
                 mesh: puff,
                 velocity: right.clone()
-                    .multiplyScalar(-slipSide * (0.018 + intensity * 0.025))
-                    .add(forward.clone().multiplyScalar(-0.018))
-                    .add(new THREE.Vector3(0, 0.026 + intensity * 0.018, 0)),
-                spin: new THREE.Vector3(Math.random() * 0.03, Math.random() * 0.04, Math.random() * 0.04),
+                    .multiplyScalar(-slipSide * (0.026 + intensity * 0.038))
+                    .add(forward.clone().multiplyScalar(0.01 - intensity * 0.045))
+                    .add(new THREE.Vector3(0, 0.038 + intensity * 0.032, 0)),
+                spin: new THREE.Vector3(Math.random() * 0.04, Math.random() * 0.05, Math.random() * 0.05),
                 age: 0,
-                life: 24 + Math.floor(intensity * 18),
-                startOpacity: 0.16 + intensity * 0.22,
-                grow: 2.2 + intensity * 1.6
+                life: 32 + Math.floor(intensity * 24),
+                startOpacity: 0.26 + intensity * 0.22,
+                baseScale: puff.scale.clone(),
+                grow: 0.8 + intensity * 0.75,
+                gravity: 0.009,
+                drag: 0.965
             });
+
         });
     }
 
@@ -2635,6 +2656,7 @@ class GameManager {
             this.game.car.angle = 0;
             this.game.car.speed = 0;
             this.game.car.driftAmount = 0;
+            this.game.car.handbrakeIntensity = 0;
             this.game.car.driftSmokeCooldown = 0;
             this.game.car.steeringAngle = 0;
             this.game.car.driveYaw = collision.playerRotEnd.y;
@@ -2755,16 +2777,22 @@ class GameManager {
         this.collisionEffects = this.collisionEffects.filter(effect => {
             effect.age++;
             const progress = effect.age / effect.life;
-            effect.mesh.position.add(effect.velocity);
-            effect.velocity.y -= 0.018;
-            effect.velocity.multiplyScalar(0.985);
-            effect.mesh.rotation.x += effect.spin.x;
-            effect.mesh.rotation.y += effect.spin.y;
-            effect.mesh.rotation.z += effect.spin.z;
+            if (!effect.staticOnGround) {
+                effect.mesh.position.add(effect.velocity);
+                effect.velocity.y -= effect.gravity ?? 0.018;
+                effect.velocity.multiplyScalar(effect.drag ?? 0.985);
+                effect.mesh.rotation.x += effect.spin.x;
+                effect.mesh.rotation.y += effect.spin.y;
+                effect.mesh.rotation.z += effect.spin.z;
+            }
 
             if (effect.grow) {
                 const scale = 1 + progress * effect.grow;
-                effect.mesh.scale.setScalar(scale);
+                if (effect.baseScale) {
+                    effect.mesh.scale.copy(effect.baseScale).multiplyScalar(scale);
+                } else {
+                    effect.mesh.scale.setScalar(scale);
+                }
             }
 
             if (effect.mesh.material && typeof effect.mesh.material.opacity === 'number') {
