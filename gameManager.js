@@ -5,6 +5,7 @@ const environments = {
         terrainStyle: 'meadow',
         roadStyle: 'country-asphalt',
         shoulderStyle: 'grass-gravel',
+        roadWidth: 25,
         terrainColor: 0x3f7c47,
         terrainTint: 0xd6ead0,
         treeDensity: 0.2,
@@ -19,6 +20,7 @@ const environments = {
         terrainStyle: 'sand',
         roadStyle: 'sun-baked-asphalt',
         shoulderStyle: 'sand-gravel',
+        roadWidth: 28,
         terrainColor: 0xC2B280,
         terrainTint: 0xc69a58,
         treeDensity: 0,
@@ -31,6 +33,7 @@ const environments = {
         terrainStyle: 'snow-rock',
         roadStyle: 'cold-asphalt',
         shoulderStyle: 'snow-gravel',
+        roadWidth: 18.5,
         terrainColor: 0x7DFFFF,
         terrainTint: 0xe6f5f6,
         treeDensity: 0.4,
@@ -250,7 +253,7 @@ class GameManager {
 
         // Initialize the game object
         this.game = {
-            road: { length: 3000, width: 25, segments: [] },
+            road: { length: 3000, width: environment.roadWidth || 25, segments: [] },
             car: {
                 position: new THREE.Vector3(0, 0, -10),
                 speed: 0,
