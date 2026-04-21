@@ -85,6 +85,7 @@
                 width: game.road.width,
                 segments: game.road.segments.length
             } : null,
+            stageDecor: game ? game.stageDecor : null,
             trafficTypes: game ? gameManager.trafficCars.slice(0, 6).map(traffic => traffic.vehicleType) : [],
             trafficPreview: game ? gameManager.trafficCars.slice(0, 6).map(traffic => ({
                 type: traffic.vehicleType,

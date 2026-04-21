@@ -416,6 +416,326 @@ function generateRoadAndTerrain(scene, game, environment) {
 
     scene.add(road, leftShoulder, rightShoulder, leftTerrain, rightTerrain);
 
+    const stageDecorStats = {
+        style: environment.id || 'default',
+        guardrails: 0,
+        snowBanks: 0,
+        hazardMarkers: 0,
+        cacti: 0,
+        sandDrifts: 0,
+        rockClusters: 0,
+        fenceSegments: 0,
+        stoneWalls: 0
+    };
+    game.stageDecor = stageDecorStats;
+
+    function getTerrainHeightAt(x, z) {
+        const segmentIndex = Math.floor(Math.abs(z) / segmentLength) % game.road.segments.length;
+        const segment = game.road.segments[segmentIndex];
+        const distanceFromRoadCenter = Math.abs(x - segment.curve);
+        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth) / terrainWidth, 0), 1);
+        const baseHeight = segment.y;
+        const heightOffset = generateMountainHeight(x, z) * normalizedDistance;
+
+        return baseHeight + heightOffset;
+    }
+
+    function getRoadsidePose(z, side, offsetFromRoadEdge) {
+        const roadData = getRoadDataAtZ(z, game);
+        const x = roadData.curve + side * (halfRoadWidth + offsetFromRoadEdge);
+        return {
+            x,
+            y: getTerrainHeightAt(x, z),
+            z,
+            yaw: -roadData.curvatureAngle,
+            roadY: roadData.y,
+            curve: roadData.curve
+        };
+    }
+
+    function addDecorMesh(group, mesh, statsKey) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        if (statsKey) {
+            stageDecorStats[statsKey] += 1;
+        }
+        return mesh;
+    }
+
+    function addStageDecor() {
+        const decor = new THREE.Group();
+        decor.name = `stage-decor-${environment.id || 'default'}`;
+
+        if (environment.id === 'alpine') {
+            addAlpineRoadsideDecor(decor);
+        } else if (environment.id === 'desert') {
+            addDesertRoadsideDecor(decor);
+        } else {
+            addScotlandRoadsideDecor(decor);
+        }
+
+        if (decor.children.length > 0) {
+            scene.add(decor);
+        }
+    }
+
+    function addAlpineRoadsideDecor(decor) {
+        const railMaterial = new THREE.MeshPhongMaterial({ color: 0xd6e0e4, shininess: 32 });
+        const railShadowMaterial = new THREE.MeshPhongMaterial({ color: 0x6f7f85, shininess: 12 });
+        const postMaterial = new THREE.MeshPhongMaterial({ color: 0x8fa1a6, shininess: 18 });
+        const snowMaterial = new THREE.MeshPhongMaterial({ color: 0xeaf5f7, shininess: 6 });
+        const rockMaterial = new THREE.MeshPhongMaterial({ color: 0x59666c, shininess: 4 });
+        const markerRedMaterial = new THREE.MeshPhongMaterial({ color: 0xd8213d, shininess: 18 });
+        const markerWhiteMaterial = new THREE.MeshPhongMaterial({ color: 0xf6fbff, shininess: 14 });
+        const railLength = 17;
+        const railGeometry = new THREE.BoxGeometry(0.28, 0.28, railLength);
+        const postGeometry = new THREE.BoxGeometry(0.28, 1.25, 0.28);
+        const snowBankGeometry = new THREE.SphereGeometry(1, 12, 8);
+        const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+        const markerGeometry = new THREE.BoxGeometry(0.18, 0.86, 0.12);
+        const startZ = game.startLine - 42;
+        const endZ = game.finishLine + 80;
+        const localForward = new THREE.Vector3(0, 0, 1);
+
+        function alignGuardrail(mesh, z, side, offsetFromRoadEdge, heightOffset) {
+            const front = getRoadsidePose(z - railLength * 0.5, side, offsetFromRoadEdge);
+            const rear = getRoadsidePose(z + railLength * 0.5, side, offsetFromRoadEdge);
+            const start = new THREE.Vector3(rear.x, rear.roadY + heightOffset, rear.z);
+            const end = new THREE.Vector3(front.x, front.roadY + heightOffset, front.z);
+            const direction = end.clone().sub(start).normalize();
+
+            mesh.position.copy(start).add(end).multiplyScalar(0.5);
+            mesh.quaternion.setFromUnitVectors(localForward, direction);
+        }
+
+        let railIndex = 0;
+        for (let z = startZ; z > endZ; z -= 18) {
+            [-1, 1].forEach(side => {
+                const pose = getRoadsidePose(z, side, 0.85);
+                const topRail = new THREE.Mesh(railGeometry, railMaterial);
+                alignGuardrail(topRail, z, side, 0.85, 0.92);
+                addDecorMesh(decor, topRail, 'guardrails');
+
+                const lowerRail = new THREE.Mesh(railGeometry, railShadowMaterial);
+                alignGuardrail(lowerRail, z, side, 0.85, 0.52);
+                addDecorMesh(decor, lowerRail, 'guardrails');
+
+                if (railIndex % 2 === 0) {
+                    const post = new THREE.Mesh(postGeometry, postMaterial);
+                    post.position.set(pose.x, pose.roadY + 0.62, z);
+                    post.rotation.y = pose.yaw;
+                    addDecorMesh(decor, post);
+                }
+            });
+            railIndex += 1;
+        }
+
+        for (let z = startZ - 10; z > endZ; z -= 54) {
+            [-1, 1].forEach(side => {
+                const pose = getRoadsidePose(z, side, 1.65);
+                const bank = new THREE.Mesh(snowBankGeometry, snowMaterial);
+                bank.position.set(pose.x, pose.roadY + 0.16, z);
+                bank.scale.set(3.1 + Math.random() * 0.9, 0.28 + Math.random() * 0.08, 1.05 + Math.random() * 0.35);
+                bank.rotation.y = pose.yaw + Math.random() * 0.2;
+                addDecorMesh(decor, bank, 'snowBanks');
+            });
+        }
+
+        for (let z = startZ - 18; z > endZ; z -= 86) {
+            [-1, 1].forEach(side => {
+                const pose = getRoadsidePose(z, side, 1.35);
+                const lower = new THREE.Mesh(markerGeometry, markerWhiteMaterial);
+                lower.position.set(pose.x, pose.roadY + 0.65, z);
+                lower.rotation.y = pose.yaw;
+                addDecorMesh(decor, lower);
+
+                const upper = new THREE.Mesh(markerGeometry, markerRedMaterial);
+                upper.position.set(pose.x, pose.roadY + 1.3, z);
+                upper.rotation.y = pose.yaw;
+                addDecorMesh(decor, upper, 'hazardMarkers');
+            });
+        }
+
+        for (let z = startZ - 40; z > endZ; z -= 122) {
+            const side = Math.random() > 0.5 ? 1 : -1;
+            const pose = getRoadsidePose(z, side, 12 + Math.random() * 16);
+            const rocksInCluster = 2 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < rocksInCluster; i++) {
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                rock.position.set(
+                    pose.x + side * Math.random() * 3.4,
+                    pose.y + 0.35 + Math.random() * 0.4,
+                    z + (Math.random() - 0.5) * 7
+                );
+                rock.scale.set(1.2 + Math.random() * 1.5, 0.55 + Math.random() * 0.8, 0.9 + Math.random() * 1.6);
+                rock.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.35);
+                addDecorMesh(decor, rock);
+            }
+            stageDecorStats.rockClusters += 1;
+        }
+    }
+
+    function createCactus(material) {
+        const cactus = new THREE.Group();
+        const trunkHeight = 2.8 + Math.random() * 2.4;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, trunkHeight, 9), material);
+        trunk.position.y = trunkHeight / 2;
+        trunk.castShadow = true;
+        trunk.receiveShadow = true;
+        cactus.add(trunk);
+
+        [-1, 1].forEach(side => {
+            if (Math.random() < 0.68) {
+                const armHeight = 0.9 + Math.random() * 0.8;
+                const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, armHeight, 8), material);
+                arm.position.set(side * 0.62, trunkHeight * (0.52 + Math.random() * 0.18), 0);
+                arm.rotation.z = side * Math.PI / 2;
+                arm.castShadow = true;
+                arm.receiveShadow = true;
+                cactus.add(arm);
+
+                const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, armHeight * 0.85, 8), material);
+                tip.position.set(side * (0.62 + armHeight * 0.48), arm.position.y + armHeight * 0.32, 0);
+                tip.castShadow = true;
+                tip.receiveShadow = true;
+                cactus.add(tip);
+            }
+        });
+
+        return cactus;
+    }
+
+    function addDesertRoadsideDecor(decor) {
+        const cactusMaterial = new THREE.MeshPhongMaterial({ color: 0x2d7440, shininess: 4 });
+        const driftMaterial = new THREE.MeshPhongMaterial({ color: 0xd8bd78, shininess: 3 });
+        const rockMaterial = new THREE.MeshPhongMaterial({ color: 0x8c6a43, shininess: 4 });
+        const markerMaterial = new THREE.MeshPhongMaterial({ color: 0xf2d06a, shininess: 12 });
+        const driftGeometry = new THREE.SphereGeometry(1, 12, 8);
+        const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+        const markerGeometry = new THREE.BoxGeometry(0.3, 1.55, 0.2);
+        const startZ = game.startLine - 70;
+        const endZ = game.finishLine + 100;
+
+        for (let z = startZ; z > endZ; z -= 58) {
+            [-1, 1].forEach(side => {
+                const pose = getRoadsidePose(z, side, 2.7 + Math.random() * 1.6);
+                const drift = new THREE.Mesh(driftGeometry, driftMaterial);
+                drift.position.set(pose.x, pose.roadY + 0.1, z);
+                drift.scale.set(4 + Math.random() * 2.6, 0.18 + Math.random() * 0.08, 1.2 + Math.random() * 0.8);
+                drift.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.4;
+                addDecorMesh(decor, drift, 'sandDrifts');
+            });
+        }
+
+        for (let z = startZ - 22; z > endZ; z -= 108) {
+            [-1, 1].forEach(side => {
+                if (Math.random() < 0.74) {
+                    const pose = getRoadsidePose(z, side, 10 + Math.random() * 28);
+                    const cactus = createCactus(cactusMaterial);
+                    cactus.position.set(pose.x, pose.y, z + (Math.random() - 0.5) * 18);
+                    cactus.rotation.y = Math.random() * Math.PI;
+                    decor.add(cactus);
+                    stageDecorStats.cacti += 1;
+                }
+            });
+        }
+
+        for (let z = startZ - 50; z > endZ; z -= 132) {
+            const side = Math.random() > 0.5 ? 1 : -1;
+            const pose = getRoadsidePose(z, side, 12 + Math.random() * 30);
+            const rocksInCluster = 2 + Math.floor(Math.random() * 4);
+            for (let i = 0; i < rocksInCluster; i++) {
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                rock.position.set(
+                    pose.x + side * Math.random() * 4,
+                    pose.y + 0.35 + Math.random() * 0.6,
+                    z + (Math.random() - 0.5) * 9
+                );
+                rock.scale.set(0.9 + Math.random() * 2.4, 0.45 + Math.random() * 0.95, 0.8 + Math.random() * 2);
+                rock.rotation.set(Math.random() * 0.45, Math.random() * Math.PI, Math.random() * 0.35);
+                addDecorMesh(decor, rock);
+            }
+            stageDecorStats.rockClusters += 1;
+        }
+
+        for (let z = startZ - 12; z > endZ; z -= 96) {
+            [-1, 1].forEach(side => {
+                const pose = getRoadsidePose(z, side, 1.8);
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.set(pose.x, pose.roadY + 0.78, z);
+                marker.rotation.y = pose.yaw;
+                addDecorMesh(decor, marker);
+            });
+        }
+    }
+
+    function addScotlandRoadsideDecor(decor) {
+        const woodMaterial = new THREE.MeshPhongMaterial({ color: 0x7b5837, shininess: 6 });
+        const stoneMaterial = new THREE.MeshPhongMaterial({ color: 0x8b9180, shininess: 3 });
+        const darkStoneMaterial = new THREE.MeshPhongMaterial({ color: 0x5d6657, shininess: 2 });
+        const wildflowerMaterial = new THREE.MeshPhongMaterial({ color: 0xd7ce63, shininess: 8 });
+        const postGeometry = new THREE.BoxGeometry(0.22, 1.15, 0.22);
+        const railGeometry = new THREE.BoxGeometry(0.24, 0.2, 25);
+        const wallGeometry = new THREE.BoxGeometry(0.9, 0.78, 20);
+        const capStoneGeometry = new THREE.DodecahedronGeometry(0.38, 0);
+        const flowerGeometry = new THREE.ConeGeometry(0.12, 0.38, 6);
+        const startZ = game.startLine - 58;
+        const endZ = game.finishLine + 100;
+
+        for (let z = startZ; z > endZ; z -= 54) {
+            [-1, 1].forEach(side => {
+                if (Math.random() < 0.86) {
+                    const pose = getRoadsidePose(z, side, 2.8);
+                    const rail = new THREE.Mesh(railGeometry, woodMaterial);
+                    rail.position.set(pose.x, pose.y + 0.92, z);
+                    rail.rotation.y = pose.yaw;
+                    addDecorMesh(decor, rail, 'fenceSegments');
+
+                    const post = new THREE.Mesh(postGeometry, woodMaterial);
+                    post.position.set(pose.x, pose.y + 0.62, z);
+                    post.rotation.y = pose.yaw;
+                    addDecorMesh(decor, post);
+                }
+            });
+        }
+
+        for (let z = startZ - 25; z > endZ; z -= 92) {
+            const side = Math.random() > 0.5 ? 1 : -1;
+            const pose = getRoadsidePose(z, side, 4.6);
+            const wall = new THREE.Mesh(wallGeometry, stoneMaterial);
+            wall.position.set(pose.x, pose.y + 0.39, z);
+            wall.rotation.y = pose.yaw;
+            addDecorMesh(decor, wall, 'stoneWalls');
+
+            for (let i = -2; i <= 2; i++) {
+                const stone = new THREE.Mesh(capStoneGeometry, darkStoneMaterial);
+                stone.position.set(pose.x + side * (Math.random() - 0.5) * 0.4, pose.y + 0.75, z + i * 3.2);
+                stone.scale.set(1.2 + Math.random() * 0.5, 0.45 + Math.random() * 0.22, 0.8 + Math.random() * 0.5);
+                stone.rotation.set(Math.random() * 0.25, pose.yaw + Math.random(), Math.random() * 0.2);
+                addDecorMesh(decor, stone);
+            }
+        }
+
+        for (let z = startZ - 12; z > endZ; z -= 78) {
+            [-1, 1].forEach(side => {
+                const pose = getRoadsidePose(z, side, 10 + Math.random() * 16);
+                for (let i = 0; i < 5; i++) {
+                    const flower = new THREE.Mesh(flowerGeometry, wildflowerMaterial);
+                    flower.position.set(
+                        pose.x + (Math.random() - 0.5) * 5,
+                        pose.y + 0.18,
+                        z + (Math.random() - 0.5) * 8
+                    );
+                    flower.rotation.y = Math.random() * Math.PI;
+                    addDecorMesh(decor, flower);
+                }
+            });
+        }
+    }
+
+    addStageDecor();
+
     // Place trees if the environment has any
     if (environment.treeDensity > 0) {
         const treeDensity = environment.treeDensity;
@@ -440,21 +760,6 @@ function generateRoadAndTerrain(scene, game, environment) {
             
             tree.position.set(x, y, z);
             return tree;
-        }
-
-        function getTerrainHeightAt(x, z) {
-            const segmentIndex = Math.floor(Math.abs(z) / segmentLength) % game.road.segments.length;
-            const segment = game.road.segments[segmentIndex];
-            const terrainWidth = game.terrain.width;
-            const halfRoadWidth = game.road.width / 2;
-            
-            const distanceFromRoadCenter = Math.abs(x - segment.curve);
-            const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth) / terrainWidth, 0), 1);
-            
-            const baseHeight = segment.y;
-            const heightOffset = generateMountainHeight(x, z) * normalizedDistance;
-            
-            return baseHeight + heightOffset;
         }
 
         function placeTrees(startZ, endZ) {
