@@ -12,6 +12,12 @@ const environments = {
         treeColor: 0x2f7d3b,
         trunkColor: 0x6d4b2d,
         maxMountainHeight: 15,
+        mountainHeightRange: 20,
+        mountainHeightPower: 1.25,
+        mountainNoiseScale: 0.0065,
+        mountainNoiseGain: 0.32,
+        mountainRoadsideDelay: 0.2,
+        mountainRoadsidePower: 1.35,
         fogColor: 0x73b6cf,
         fogDensity: 0.00115
     },
@@ -25,6 +31,12 @@ const environments = {
         terrainTint: 0xc69a58,
         treeDensity: 0,
         maxMountainHeight: 40,
+        mountainHeightRange: 34,
+        mountainHeightPower: 1.4,
+        mountainNoiseScale: 0.0048,
+        mountainNoiseGain: 0.3,
+        mountainRoadsideDelay: 0.24,
+        mountainRoadsidePower: 1.45,
         fogColor: 0xd99d4f,
         fogDensity: 0.00105
     },
@@ -40,6 +52,12 @@ const environments = {
         treeColor: 0x175234,
         trunkColor: 0x4b3524,
         maxMountainHeight: 180,
+        mountainHeightRange: 340,
+        mountainHeightPower: 1.05,
+        mountainNoiseScale: 0.0085,
+        mountainNoiseGain: 0.34,
+        mountainRoadsideDelay: 0.04,
+        mountainRoadsidePower: 0.95,
         fogColor: 0x7fc4d8,
         fogDensity: 0.0012
     }
