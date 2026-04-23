@@ -47,7 +47,8 @@ button {
 
 .hud,
 .screenOverlay,
-#mobileControls {
+#mobileControls,
+.cameraTuner {
     position: fixed;
     z-index: 10;
 }
@@ -156,6 +157,12 @@ button {
     pointer-events: none;
 }
 
+.hudButtonStack {
+    display: grid;
+    gap: 10px;
+    justify-items: end;
+}
+
 .iconButton {
     position: relative;
     display: inline-grid;
@@ -172,6 +179,13 @@ button {
     box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
     backdrop-filter: blur(16px) saturate(1.25);
     transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.iconButton[data-active="true"] {
+    border-color: rgba(95, 226, 255, 0.62);
+    background:
+        linear-gradient(145deg, rgba(95, 226, 255, 0.22), transparent 44%),
+        var(--ui-bg-strong);
 }
 
 .iconButton:hover,
@@ -221,6 +235,102 @@ button {
         var(--ui-bg-strong);
     box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
     backdrop-filter: blur(22px) saturate(1.35);
+}
+
+.cameraTuner {
+    left: 16px;
+    bottom: 16px;
+    z-index: 13;
+    width: min(430px, calc(100vw - 32px));
+    padding: 12px;
+    pointer-events: none;
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    border-left: 4px solid var(--ui-accent);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(95, 226, 255, 0.15), transparent 38%),
+        rgba(7, 12, 18, 0.78);
+    box-shadow: 0 16px 42px var(--ui-shadow);
+    backdrop-filter: blur(18px) saturate(1.28);
+}
+
+.cameraTunerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--ui-muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.cameraTunerHeader strong {
+    color: var(--ui-accent-2);
+    font-size: 12px;
+}
+
+.cameraTunerValues {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.cameraTunerValue {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.cameraTunerValue span {
+    color: var(--ui-muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.cameraTunerValue strong {
+    color: var(--ui-text);
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.cameraTunerKeys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 10px;
+    margin-top: 11px;
+    color: rgba(235, 245, 255, 0.72);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+
+.cameraTunerKeys span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cameraTunerKeys kbd {
+    min-width: 18px;
+    padding: 3px 5px;
+    color: #061016;
+    border-radius: 4px;
+    background: var(--ui-accent);
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
 }
 
 .settingsPanelHeader {
@@ -313,6 +423,19 @@ button {
 
 .endPanel {
     width: min(500px, calc(100vw - 32px));
+}
+
+.garageMenuPanel {
+    width: min(1120px, calc(100vw - 32px));
+    display: grid;
+    grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
+    gap: 18px;
+}
+
+.menuIntro,
+.garageSelect {
+    position: relative;
+    z-index: 1;
 }
 
 .gameLogo {
@@ -443,6 +566,256 @@ select:focus,
 button:focus-visible {
     outline: 2px solid var(--ui-accent);
     outline-offset: 3px;
+}
+
+.garageSelect {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-height: 100%;
+    padding: 4px 0 0;
+}
+
+.garageHeader {
+    position: relative;
+    min-height: 108px;
+    padding: 14px 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-left: 4px solid var(--ui-accent-2);
+    border-radius: 8px;
+    background:
+        linear-gradient(125deg, rgba(255, 212, 71, 0.16), transparent 44%),
+        rgba(255, 255, 255, 0.07);
+}
+
+.garageHeader::after {
+    content: "";
+    position: absolute;
+    right: -26px;
+    bottom: -32px;
+    width: 180px;
+    height: 80px;
+    border-top: 2px solid rgba(255, 255, 255, 0.18);
+    transform: skewX(-28deg);
+}
+
+.garageHeader h2 {
+    position: relative;
+    margin: 6px 0 4px;
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 0.86;
+    text-transform: uppercase;
+    text-shadow: 0 4px 0 #000000, 0 16px 32px rgba(0, 0, 0, 0.64);
+}
+
+.garageHeader span {
+    position: relative;
+    color: var(--ui-muted);
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.garagePreview {
+    position: relative;
+    height: 252px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(95, 226, 255, 0.18), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 56px),
+        #071018;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 18px 44px rgba(0, 0, 0, 0.32);
+}
+
+.garagePreview::before,
+.garagePreview::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+}
+
+.garagePreview::before {
+    right: -12%;
+    bottom: -40%;
+    left: -12%;
+    height: 70%;
+    border-top: 1px solid rgba(95, 226, 255, 0.28);
+    background:
+        repeating-linear-gradient(90deg, transparent 0 46px, rgba(95, 226, 255, 0.18) 46px 47px),
+        linear-gradient(180deg, rgba(95, 226, 255, 0.14), rgba(95, 226, 255, 0));
+    transform: perspective(420px) rotateX(62deg);
+    transform-origin: top;
+}
+
+.garagePreview::after {
+    top: 16px;
+    right: 18px;
+    left: 18px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--ui-accent), transparent);
+    box-shadow: 0 0 22px rgba(95, 226, 255, 0.55);
+}
+
+.garagePreview canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.garagePreviewMeta {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    color: var(--ui-muted);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    background: rgba(5, 8, 12, 0.62);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    backdrop-filter: blur(12px);
+}
+
+.garagePreviewSignal {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ui-green);
+    box-shadow: 0 0 14px rgba(104, 255, 154, 0.7);
+}
+
+.garageGrid {
+    display: grid;
+    gap: 10px;
+}
+
+.garageCar {
+    position: relative;
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) minmax(76px, 112px);
+    align-items: center;
+    gap: 12px;
+    min-height: 74px;
+    padding: 12px 14px;
+    overflow: hidden;
+    color: var(--ui-text);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.1), transparent 44%),
+        rgba(255, 255, 255, 0.06);
+    text-align: left;
+    transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.garageCar::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--car-accent, var(--ui-accent));
+    opacity: 0;
+    transition: opacity 140ms ease;
+}
+
+.garageCar:hover,
+.garageCar.isSelected {
+    transform: translateY(-1px);
+    border-color: var(--car-accent, var(--ui-accent));
+    background:
+        linear-gradient(145deg, rgba(95, 226, 255, 0.16), transparent 44%),
+        rgba(255, 255, 255, 0.1);
+}
+
+.garageCar.isSelected::before {
+    opacity: 1;
+}
+
+.garageCarPaint {
+    width: 14px;
+    height: 42px;
+    border-radius: 7px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26), 0 0 18px rgba(255, 255, 255, 0.12);
+}
+
+.garageCarCopy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.garageCarCopy strong {
+    overflow: hidden;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.garageCarCopy span {
+    overflow: hidden;
+    color: var(--ui-muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.garageCarMeter,
+.garageStatTrack {
+    display: block;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.garageCarMeter span,
+.garageStatTrack span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--ui-accent), var(--ui-green));
+    box-shadow: 0 0 18px rgba(95, 226, 255, 0.42);
+}
+
+.garageTelemetry {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 2px;
+}
+
+.garageStat {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.garageStat > span:first-child {
+    overflow: hidden;
+    color: var(--ui-muted);
+    font-size: 10px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .menuActions {
@@ -813,6 +1186,10 @@ button:focus-visible {
         right: 10px;
     }
 
+    .hudButtonStack {
+        gap: 8px;
+    }
+
     .iconButton {
         width: 44px;
         height: 44px;
@@ -821,6 +1198,17 @@ button:focus-visible {
     .settingsPanel {
         width: min(280px, calc(100vw - 20px));
         padding: 10px;
+    }
+
+    .cameraTuner {
+        left: 10px;
+        bottom: 10px;
+        width: min(360px, calc(100vw - 20px));
+        padding: 10px;
+    }
+
+    .cameraTunerValues {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .hudTelemetry {
@@ -856,6 +1244,12 @@ button:focus-visible {
         padding: 12px;
     }
 
+    .garageMenuPanel {
+        width: min(430px, calc(100vw - 20px));
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
     .gameLogo {
         height: 176px;
     }
@@ -873,6 +1267,30 @@ button:focus-visible {
 
     .compactLogo .gameLogoTitle {
         font-size: 30px;
+    }
+
+    .garageHeader {
+        min-height: 92px;
+        padding: 12px;
+    }
+
+    .garageHeader h2 {
+        font-size: 38px;
+    }
+
+    .garagePreview {
+        height: 198px;
+    }
+
+    .garageCar {
+        grid-template-columns: 12px minmax(0, 1fr) minmax(56px, 80px);
+        min-height: 66px;
+        gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .garageTelemetry {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .menuCopy h1 {

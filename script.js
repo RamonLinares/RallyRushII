@@ -28,20 +28,34 @@
     const circuitSelect = document.getElementById('circuitSelect');
     const startButton = document.getElementById('startButton');
     const restartButton = document.getElementById('restartButton');
+    const changeCircuitButton = document.getElementById('changeCircuitButton');
+    const carSelect = document.getElementById('carSelect');
+    const selectedCarName = document.getElementById('selectedCarName');
+    const selectedCarClass = document.getElementById('selectedCarClass');
+    const selectedCarStats = document.getElementById('selectedCarStats');
+    const garagePreviewCanvas = document.getElementById('garagePreviewCanvas');
+    const garagePreviewStatus = document.getElementById('garagePreviewStatus');
     const loadingStageName = document.getElementById('loadingStageName');
     const loadingStatus = document.getElementById('loadingStatus');
     const loadingProgressBar = document.getElementById('loadingProgressBar');
     const loadingPercent = document.getElementById('loadingPercent');
     const loadingAssetName = document.getElementById('loadingAssetName');
     const settingsHud = document.getElementById('settingsHud');
+    const cameraButton = document.getElementById('cameraButton');
     const settingsButton = document.getElementById('settingsButton');
     const settingsPanel = document.getElementById('settingsPanel');
     const closeSettingsButton = document.getElementById('closeSettingsButton');
     const musicToggleButton = document.getElementById('musicToggleButton');
     const musicToggleIcon = document.getElementById('musicToggleIcon');
     const musicToggleLabel = document.getElementById('musicToggleLabel');
+    const cameraTuner = document.getElementById('cameraTuner');
+    const cameraTunerCar = document.getElementById('cameraTunerCar');
+    const cameraTunerValues = document.getElementById('cameraTunerValues');
+    const raceHud = document.getElementById('ui');
     let isStartingRace = false;
     let startRequestId = 0;
+    let garagePreview = null;
+    let cameraTunerEnabled = false;
 
     // Mobile button controls setup
     const accelerateButton = document.getElementById('accelerateButton');
@@ -70,11 +84,21 @@
             paused: Boolean(gameManager.isPaused),
             musicEnabled: Boolean(gameManager.musicEnabled),
             settingsOpen: settingsPanel.style.display !== 'none',
+            cameraTuner: cameraTunerEnabled && gameManager.getCockpitTunerState ? gameManager.getCockpitTunerState() : null,
+            selectedCar: gameManager.getPlayerVehicleOption ? gameManager.getPlayerVehicleOption(gameManager.getPlayerVehicleType()) : null,
+            camera: gameManager.getCameraMode ? {
+                id: gameManager.getCameraMode().id,
+                label: gameManager.getCameraMode().label,
+                fov: (gameManager.getActiveCameraMode ? gameManager.getActiveCameraMode() : gameManager.getCameraMode()).fov
+            } : null,
             countdown: countdownState,
             car: game ? {
+                vehicleType: game.car.vehicleType,
                 x: Number(game.car.xOffset.toFixed(2)),
                 z: Number(game.car.position.z.toFixed(2)),
                 speed: Number(game.car.speed.toFixed(2)),
+                maxSpeed: Number(game.car.maxSpeed.toFixed(2)),
+                acceleration: Number(game.car.acceleration.toFixed(4)),
                 lateralVelocity: Number((game.car.lateralVelocity || 0).toFixed(4)),
                 steering: Number(game.car.steeringAngle.toFixed(3)),
                 handbrake: Boolean(gameManager.controls.handbrake),
@@ -157,6 +181,285 @@
         return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || event.code === 'Space';
     }
 
+    function createGarageStat(label, value) {
+        const stat = document.createElement('div');
+        stat.className = 'garageStat';
+
+        const labelNode = document.createElement('span');
+        labelNode.textContent = label;
+        const track = document.createElement('span');
+        track.className = 'garageStatTrack';
+        const fill = document.createElement('span');
+        fill.style.width = `${Math.max(0, Math.min(100, value))}%`;
+        track.appendChild(fill);
+
+        stat.append(labelNode, track);
+        return stat;
+    }
+
+    function disposeObject3d(object) {
+        object.userData.disposed = true;
+        object.traverse(child => {
+            if (child.geometry && !child.userData.keepGeometry) {
+                child.geometry.dispose();
+            }
+
+            if (child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach(material => {
+                    if (!material.userData?.keepTextureMaps) {
+                        ['map', 'bumpMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach(key => {
+                            material[key]?.dispose?.();
+                        });
+                    }
+                    material.dispose?.();
+                });
+            }
+        });
+    }
+
+    function createGaragePreview() {
+        if (!garagePreviewCanvas || !window.THREE) {
+            return null;
+        }
+
+        function setStatus(text) {
+            if (garagePreviewStatus) {
+                garagePreviewStatus.textContent = text;
+            }
+        }
+
+        const previewScene = new THREE.Scene();
+        const previewCamera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 80);
+        let previewRenderer = null;
+        try {
+            previewRenderer = new THREE.WebGLRenderer({
+                canvas: garagePreviewCanvas,
+                antialias: true,
+                alpha: true,
+                preserveDrawingBuffer: true
+            });
+        } catch (error) {
+            console.warn('Garage preview renderer unavailable; continuing with standard menu selection.', error);
+            garagePreviewCanvas.classList.add('isUnavailable');
+            setStatus('Showroom standby');
+            return {
+                setVehicle(type) {
+                    const option = gameManager.getPlayerVehicleOption(type);
+                    setStatus(option ? `${option.name} selected` : 'Showroom standby');
+                },
+                resize() {},
+                pause() {},
+                resume() {},
+                dispose() {}
+            };
+        }
+        previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        previewRenderer.setClearColor(0x000000, 0);
+        if (THREE.sRGBEncoding) {
+            previewRenderer.outputEncoding = THREE.sRGBEncoding;
+        }
+        if (THREE.ACESFilmicToneMapping) {
+            previewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+            previewRenderer.toneMappingExposure = 0.92;
+        }
+
+        const stage = new THREE.Group();
+        previewScene.add(stage);
+
+        const turntable = new THREE.Group();
+        stage.add(turntable);
+
+        const platformMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111820,
+            metalness: 0.35,
+            roughness: 0.42,
+            transparent: true,
+            opacity: 0.92
+        });
+        const platform = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.95, 0.16, 72), platformMaterial);
+        platform.position.y = -0.14;
+        platform.receiveShadow = true;
+        stage.add(platform);
+
+        const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0x5fe2ff,
+            transparent: true,
+            opacity: 0.72
+        });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.018, 8, 96), ringMaterial);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = -0.04;
+        stage.add(ring);
+
+        const gridMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.12
+        });
+        [-1.2, 0, 1.2].forEach(offset => {
+            const line = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.018, 4.6), gridMaterial);
+            line.position.set(offset, -0.03, 0);
+            stage.add(line);
+        });
+
+        const hemi = new THREE.HemisphereLight(0xddeffd, 0x0f1820, 1.18);
+        previewScene.add(hemi);
+
+        const key = new THREE.DirectionalLight(0xfafcff, 1.6);
+        key.position.set(-4.5, 5, 5.5);
+        previewScene.add(key);
+
+        const rim = new THREE.DirectionalLight(0xa9d6ee, 0.78);
+        rim.position.set(4.2, 2.1, -3.6);
+        previewScene.add(rim);
+
+        const fill = new THREE.DirectionalLight(0xfff0d9, 0.34);
+        fill.position.set(-0.8, 1.6, 4.2);
+        previewScene.add(fill);
+
+        previewCamera.position.set(0, 1.8, 6.9);
+        previewCamera.lookAt(0, 0.62, 0);
+
+        let selectedType = null;
+        let previewCar = null;
+        let animationId = null;
+        let isPaused = false;
+
+        function resize() {
+            const host = garagePreviewCanvas.parentElement;
+            const rect = host.getBoundingClientRect();
+            const width = Math.max(1, Math.floor(rect.width));
+            const height = Math.max(1, Math.floor(rect.height));
+            previewRenderer.setSize(width, height, false);
+            previewCamera.aspect = width / height;
+            previewCamera.updateProjectionMatrix();
+        }
+
+        function removePreviewCar() {
+            if (!previewCar) {
+                return;
+            }
+
+            turntable.remove(previewCar);
+            disposeObject3d(previewCar);
+            previewCar = null;
+        }
+
+        function setVehicle(type) {
+            const option = gameManager.getPlayerVehicleOption(type);
+            if (!option || selectedType === option.type) {
+                return;
+            }
+
+            selectedType = option.type;
+            removePreviewCar();
+            setStatus('Loading showroom model');
+
+            previewCar = gameManager.createCar(option.color, option.type, { palette: option.palette });
+            const dimensions = gameManager.getVehicleDimensions(option.type);
+            const scale = Math.min(0.95, 4.3 / Math.max(dimensions.length, 1));
+            previewCar.scale.setScalar(scale);
+            previewCar.rotation.y = -Math.PI * 0.68;
+            previewCar.position.y = 0;
+            turntable.add(previewCar);
+            resize();
+        }
+
+        function render(time = 0) {
+            if (!isPaused) {
+                const pulse = (Math.sin(time * 0.002) + 1) * 0.5;
+                ringMaterial.opacity = 0.42 + pulse * 0.3;
+                turntable.rotation.y = Math.sin(time * 0.0007) * 0.16;
+
+                if (previewCar) {
+                    const ready = !previewCar.userData.assetVehicle
+                        || previewCar.userData.assetReady
+                        || previewCar.userData.assetFallback;
+                    setStatus(ready ? 'Vehicle ready' : 'Loading showroom model');
+                }
+
+                previewRenderer.render(previewScene, previewCamera);
+            }
+
+            animationId = requestAnimationFrame(render);
+        }
+
+        resize();
+        animationId = requestAnimationFrame(render);
+
+        return {
+            setVehicle,
+            resize,
+            pause() {
+                isPaused = true;
+            },
+            resume() {
+                isPaused = false;
+                resize();
+            },
+            dispose() {
+                cancelAnimationFrame(animationId);
+                removePreviewCar();
+                disposeObject3d(stage);
+                previewRenderer.dispose();
+            }
+        };
+    }
+
+    function updateGarageUi() {
+        if (!carSelect || !gameManager.getPlayerVehicleOption) {
+            return;
+        }
+
+        const selected = gameManager.getPlayerVehicleOption(gameManager.getPlayerVehicleType());
+        selectedCarName.textContent = selected.name;
+        selectedCarClass.textContent = selected.className;
+
+        Array.from(carSelect.querySelectorAll('.garageCar')).forEach(button => {
+            const isSelected = button.dataset.vehicleType === selected.type;
+            button.classList.toggle('isSelected', isSelected);
+            button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+        });
+
+        selectedCarStats.innerHTML = '';
+        Object.entries(selected.stats).forEach(([key, value]) => {
+            selectedCarStats.appendChild(createGarageStat(key, value));
+        });
+        garagePreview?.setVehicle(selected.type);
+    }
+
+    function renderGarageOptions() {
+        if (!carSelect || !gameManager.getPlayerVehicleOptions) {
+            return;
+        }
+
+        carSelect.innerHTML = '';
+        gameManager.getPlayerVehicleOptions().forEach(option => {
+            const button = document.createElement('button');
+            button.className = 'garageCar';
+            button.type = 'button';
+            button.setAttribute('role', 'radio');
+            button.dataset.vehicleType = option.type;
+            button.style.setProperty('--car-accent', `#${option.palette.stripe.toString(16).padStart(6, '0')}`);
+            button.innerHTML = `
+                <span class="garageCarPaint" aria-hidden="true" style="background:#${option.color.toString(16).padStart(6, '0')}"></span>
+                <span class="garageCarCopy">
+                    <strong>${option.name}</strong>
+                    <span>${option.className}</span>
+                </span>
+                <span class="garageCarMeter" aria-hidden="true"><span style="width:${option.stats.speed}%"></span></span>
+            `;
+            button.addEventListener('click', () => {
+                gameManager.setPlayerVehicleType(option.type);
+                updateGarageUi();
+            });
+            carSelect.appendChild(button);
+        });
+
+        updateGarageUi();
+    }
+
     function setSettingsPanelOpen(isOpen) {
         settingsPanel.style.display = isOpen ? 'block' : 'none';
         settingsButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
@@ -165,12 +468,16 @@
     function hideGameplayChrome() {
         settingsHud.style.display = 'none';
         setSettingsPanelOpen(false);
+        cameraTunerEnabled = false;
+        updateCameraTunerUi();
         hideMobileControls();
     }
 
     function showGameplayChrome() {
         settingsHud.style.display = 'grid';
         updateSettingsUi();
+        updateCameraButtonUi();
+        updateCameraTunerUi();
         showMobileControls();
     }
 
@@ -179,6 +486,123 @@
         musicToggleLabel.textContent = gameManager.musicEnabled ? 'Music on' : 'Music off';
         musicToggleButton.dataset.active = gameManager.musicEnabled ? 'true' : 'false';
         musicToggleButton.dataset.warning = gameManager.musicEnabled ? 'false' : 'true';
+    }
+
+    function updateCameraButtonUi() {
+        if (!cameraButton || !gameManager.getCameraMode) {
+            return;
+        }
+
+        const mode = gameManager.getCameraMode();
+        cameraButton.dataset.active = mode.id === 'chase' ? 'false' : 'true';
+        cameraButton.setAttribute('aria-label', `Camera view: ${mode.label}`);
+        cameraButton.setAttribute('title', `Camera view: ${mode.label}`);
+    }
+
+    function updateCameraTunerUi() {
+        if (!cameraTuner || !cameraTunerValues || !gameManager.getCockpitTunerState) {
+            return;
+        }
+
+        cameraTuner.style.display = cameraTunerEnabled ? 'block' : 'none';
+        if (!cameraTunerEnabled) {
+            return;
+        }
+
+        const state = gameManager.getCockpitTunerState();
+        cameraTunerCar.textContent = state.carName;
+        const rows = [
+            ['Eye X', state.lateral],
+            ['Eye Y', state.height],
+            ['Eye Z', state.forward],
+            ['Aim X', state.lookLateral],
+            ['Aim Y', state.lookHeight],
+            ['Aim Z', state.lookAhead],
+            ['FOV', state.fov]
+        ];
+        cameraTunerValues.innerHTML = rows.map(([label, value]) => `
+            <div class="cameraTunerValue">
+                <span>${label}</span>
+                <strong>${value}</strong>
+            </div>
+        `).join('');
+    }
+
+    function setCameraTunerEnabled(isEnabled) {
+        cameraTunerEnabled = Boolean(isEnabled && isGameplayActive() && gameManager.getCockpitTunerState);
+        if (cameraTunerEnabled) {
+            resetControls();
+            gameManager.setCameraMode('cockpitInterior');
+            updateCameraButtonUi();
+            renderer.render(scene, camera);
+        }
+        updateCameraTunerUi();
+    }
+
+    function adjustCameraTuner(key, delta) {
+        if (!gameManager.adjustCockpitRigValue) {
+            return;
+        }
+
+        gameManager.adjustCockpitRigValue(key, delta);
+        updateCameraTunerUi();
+        renderer.render(scene, camera);
+    }
+
+    function handleCameraTunerKey(event) {
+        if (!cameraTunerEnabled || !isGameplayActive()) {
+            return false;
+        }
+
+        const multiplier = event.shiftKey ? 5 : 1;
+        const positionStep = 0.02 * multiplier;
+        const lookStep = 0.02 * multiplier;
+        const lookAheadStep = 0.2 * multiplier;
+        const fovStep = 1 * multiplier;
+        const key = event.key.toLowerCase();
+
+        const actions = {
+            a: () => adjustCameraTuner('lateral', -positionStep),
+            d: () => adjustCameraTuner('lateral', positionStep),
+            w: () => adjustCameraTuner('forward', positionStep),
+            s: () => adjustCameraTuner('forward', -positionStep),
+            r: () => adjustCameraTuner('height', positionStep),
+            f: () => adjustCameraTuner('height', -positionStep),
+            j: () => adjustCameraTuner('lookLateral', -lookStep),
+            l: () => adjustCameraTuner('lookLateral', lookStep),
+            i: () => adjustCameraTuner('lookHeight', lookStep),
+            k: () => adjustCameraTuner('lookHeight', -lookStep),
+            u: () => adjustCameraTuner('lookAhead', -lookAheadStep),
+            o: () => adjustCameraTuner('lookAhead', lookAheadStep),
+            '[': () => adjustCameraTuner('fov', -fovStep),
+            ']': () => adjustCameraTuner('fov', fovStep),
+            '0': () => {
+                gameManager.resetCockpitRig?.();
+                updateCameraTunerUi();
+                renderer.render(scene, camera);
+            }
+        };
+
+        if (!actions[key]) {
+            return false;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        actions[key]();
+        return true;
+    }
+
+    function cycleCameraMode() {
+        if (!isGameplayActive() || !gameManager.cycleCameraMode) {
+            return;
+        }
+
+        cameraTunerEnabled = false;
+        gameManager.cycleCameraMode();
+        updateCameraButtonUi();
+        updateCameraTunerUi();
+        renderer.render(scene, camera);
     }
 
     function setPaused(isPaused) {
@@ -228,6 +652,7 @@
         document.getElementById('ui').style.display = 'none';
         startScreen.style.display = 'none';
         endScreen.style.display = 'none';
+        garagePreview?.pause();
         hideMobileControls();
         loadingScreen.style.display = 'grid';
     }
@@ -293,11 +718,7 @@
         }
     }
 
-    function returnToMainMenu() {
-        if (startScreen.style.display !== 'none' && loadingScreen.style.display === 'none') {
-            return;
-        }
-
+    function resetRaceSessionForMenu() {
         startRequestId += 1;
         isStartingRace = false;
         setStartButtonsLoading(false);
@@ -308,15 +729,29 @@
         gameManager.clearStartCountdown();
         hideGameplayChrome();
         hideLoadingScreen();
-        gameManager.stopAllMusic();
         gameManager.resetCollisionVisuals();
         gameManager.game = null;
         gameManager.playerCar = null;
         gameManager.trafficCars = [];
-        document.getElementById('ui').style.display = 'none';
+        raceHud.style.display = 'none';
         endScreen.style.display = 'none';
+    }
+
+    function showGarageMenu() {
+        resetRaceSessionForMenu();
         startScreen.style.display = 'grid';
+        renderGarageOptions();
+        garagePreview?.resume();
         renderer.render(scene, camera);
+    }
+
+    function returnToMainMenu() {
+        if (startScreen.style.display !== 'none' && loadingScreen.style.display === 'none') {
+            return;
+        }
+
+        gameManager.stopAllMusic();
+        showGarageMenu();
     }
 
     document.addEventListener('keydown', e => {
@@ -325,8 +760,24 @@
             return;
         }
 
+        if (e.key.toLowerCase() === 't' && isGameplayActive()) {
+            e.preventDefault();
+            setCameraTunerEnabled(!cameraTunerEnabled);
+            return;
+        }
+
+        if (handleCameraTunerKey(e)) {
+            return;
+        }
+
         if (e.key.toLowerCase() === 'p' && isGameplayActive()) {
             setPaused(!gameManager.isPaused);
+            return;
+        }
+
+        if (e.key.toLowerCase() === 'v' && isGameplayActive()) {
+            e.preventDefault();
+            cycleCameraMode();
             return;
         }
 
@@ -428,15 +879,13 @@
 
     restartButton.addEventListener('click', startRaceWithPreload);
 
-    document.getElementById('changeCircuitButton').addEventListener('click', () => {
-        startRequestId += 1;
-        isStartingRace = false;
-        setStartButtonsLoading(false);
-        gameManager.resumeGame();
-        hideGameplayChrome();
-        hideLoadingScreen();
-        endScreen.style.display = 'none';
-        startScreen.style.display = 'grid';
+    cameraButton.addEventListener('click', event => {
+        event.stopPropagation();
+        cycleCameraMode();
+    });
+
+    changeCircuitButton.addEventListener('click', () => {
+        showGarageMenu();
         hideMobileControls();
     });
 
@@ -473,6 +922,8 @@
 
     // Ensure mobile controls are hidden initially and on end screen
     hideMobileControls();
+    garagePreview = createGaragePreview();
+    renderGarageOptions();
 
     // Override the end game logic to hide controls
     gameManager.endGame = function (time) {
@@ -487,13 +938,14 @@
     };
 
     // Initial setup
-    document.getElementById('ui').style.display = 'none';
+    raceHud.style.display = 'none';
     renderer.render(scene, camera);
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        garagePreview?.resize();
         if (startScreen.style.display === 'none' && endScreen.style.display === 'none' && loadingScreen.style.display === 'none') {
             showMobileControls();
         }

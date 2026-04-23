@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RallyRushII</title>
     <meta name="description" content="RallyRushII, a standalone continuation of RallyRush.">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260423-garage-menu-fix">
 </head>
 
 <body>
@@ -31,11 +31,18 @@
         </div>
     </div>
     <div id="settingsHud" class="settingsHud" style="display:none;">
-        <button id="settingsButton" class="iconButton" type="button" aria-label="Settings" aria-expanded="false" aria-controls="settingsPanel">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm8.5 3.7c0-.5-.1-1-.2-1.5l2-1.5-2-3.5-2.4 1a8.2 8.2 0 0 0-2.6-1.5L15 2.4h-4l-.4 2.6A8.2 8.2 0 0 0 8 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.2 1-.2 1.5s.1 1 .2 1.5l-2 1.5 2 3.5 2.4-1a8.2 8.2 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a8.2 8.2 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5c.1-.5.2-1 .2-1.5Z" />
-            </svg>
-        </button>
+        <div class="hudButtonStack">
+            <button id="cameraButton" class="iconButton" type="button" aria-label="Camera view" title="Camera view">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4.5 7.2h3.1l1.1-1.8h6.6l1.1 1.8h3.1c.8 0 1.5.7 1.5 1.5v8.1c0 .8-.7 1.5-1.5 1.5h-15c-.8 0-1.5-.7-1.5-1.5V8.7c0-.8.7-1.5 1.5-1.5Zm7.5 8.6a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm0-1.7a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6Z" />
+                </svg>
+            </button>
+            <button id="settingsButton" class="iconButton" type="button" aria-label="Settings" aria-expanded="false" aria-controls="settingsPanel">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm8.5 3.7c0-.5-.1-1-.2-1.5l2-1.5-2-3.5-2.4 1a8.2 8.2 0 0 0-2.6-1.5L15 2.4h-4l-.4 2.6A8.2 8.2 0 0 0 8 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.2 1-.2 1.5s.1 1 .2 1.5l-2 1.5 2 3.5 2.4-1a8.2 8.2 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a8.2 8.2 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5c.1-.5.2-1 .2-1.5Z" />
+                </svg>
+            </button>
+        </div>
         <div id="settingsPanel" class="settingsPanel" style="display:none;" role="dialog" aria-label="Race settings">
             <div class="settingsPanelHeader">
                 <span>Race control</span>
@@ -51,27 +58,63 @@
             </button>
         </div>
     </div>
+    <div id="cameraTuner" class="cameraTuner" style="display:none;" aria-live="polite">
+        <div class="cameraTunerHeader">
+            <span>Camera tune</span>
+            <strong id="cameraTunerCar">Cockpit</strong>
+        </div>
+        <div id="cameraTunerValues" class="cameraTunerValues"></div>
+        <div class="cameraTunerKeys">
+            <span><kbd>W</kbd><kbd>S</kbd> eye forward</span>
+            <span><kbd>A</kbd><kbd>D</kbd> eye lateral</span>
+            <span><kbd>R</kbd><kbd>F</kbd> eye height</span>
+            <span><kbd>I</kbd><kbd>K</kbd> aim height</span>
+            <span><kbd>J</kbd><kbd>L</kbd> aim lateral</span>
+            <span><kbd>U</kbd><kbd>O</kbd> aim distance</span>
+            <span><kbd>[</kbd><kbd>]</kbd> FOV</span>
+            <span><kbd>Shift</kbd> coarse</span>
+            <span><kbd>0</kbd> reset</span>
+        </div>
+    </div>
     <!-- Start Screen -->
     <div id="startScreen" class="screenOverlay">
-        <div class="menuPanel">
-            <div class="gameLogo" role="img" aria-label="RallyRushII logo">
-                <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
-                <span class="gameLogoTitle">RallyRush<span>II</span></span>
+        <div class="menuPanel garageMenuPanel">
+            <div class="menuIntro">
+                <div class="gameLogo" role="img" aria-label="RallyRushII logo">
+                    <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
+                    <span class="gameLogoTitle">RallyRush<span>II</span></span>
+                </div>
+                <div class="menuCopy">
+                    <p class="eyebrow">Stage select</p>
+                    <h1>Choose your route</h1>
+                    <p>Telemetry online.</p>
+                </div>
+                <label class="selectLabel" for="circuitSelect">Circuit</label>
+                <div class="selectShell">
+                    <select id="circuitSelect">
+                        <option value="scotland">Scotland</option>
+                        <option value="desert">Desert</option>
+                        <option value="alpine">Alpine</option>
+                    </select>
+                </div>
+                <button id="startButton" class="primaryButton">Start race</button>
             </div>
-            <div class="menuCopy">
-                <p class="eyebrow">Stage select</p>
-                <h1>Choose your route</h1>
-                <p>Telemetry online.</p>
+            <div class="garageSelect" aria-label="Car selection">
+                <div class="garageHeader">
+                    <p class="eyebrow">Garage</p>
+                    <h2 id="selectedCarName">Rally R</h2>
+                    <span id="selectedCarClass">Balanced Rally</span>
+                </div>
+                <div class="garagePreview" aria-hidden="true">
+                    <canvas id="garagePreviewCanvas"></canvas>
+                    <div class="garagePreviewMeta">
+                        <span class="garagePreviewSignal"></span>
+                        <span id="garagePreviewStatus">Vehicle ready</span>
+                    </div>
+                </div>
+                <div id="carSelect" class="garageGrid" role="radiogroup" aria-label="Car selection"></div>
+                <div id="selectedCarStats" class="garageTelemetry" aria-label="Selected car telemetry"></div>
             </div>
-            <label class="selectLabel" for="circuitSelect">Circuit</label>
-            <div class="selectShell">
-                <select id="circuitSelect">
-                    <option value="scotland">Scotland</option>
-                    <option value="desert">Desert</option>
-                    <option value="alpine">Alpine</option>
-                </select>
-            </div>
-            <button id="startButton" class="primaryButton">Start race</button>
         </div>
     </div>
 
@@ -137,9 +180,10 @@
     
     <script src="vendor/three.min.js"></script>
     <script src="vendor/GLTFLoader.js"></script>
+    <script src="vendor/DRACOLoader.js"></script>
     <script src="roadGenerator.js"></script>
-    <script src="gameManager.js"></script>
-    <script src="script.js"></script>
+    <script src="gameManager.js?v=20260423-garage-menu-fix"></script>
+    <script src="script.js?v=20260423-garage-menu-fix"></script>
 </body>
 
 </html>

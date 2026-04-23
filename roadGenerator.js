@@ -923,12 +923,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                     addTreePart(tree, leaves);
                 });
 
-                const branchGeometry = new THREE.CylinderGeometry(0.06, 0.1, 1.3, 6);
+                const branchLength = 1.3;
+                const branchGeometry = new THREE.CylinderGeometry(0.06, 0.1, branchLength, 6);
+                branchGeometry.translate(0, branchLength / 2, 0);
                 [-1, 1].forEach(side => {
                     const branch = new THREE.Mesh(branchGeometry, trunkMaterial);
-                    branch.position.set(side * 0.45, trunkHeight * 0.82, 0);
-                    branch.rotation.z = side * 1.04;
-                    branch.rotation.y = side * 0.34;
+                    branch.position.set(side * 0.12, trunkHeight * 0.74, 0);
+                    branch.rotation.z = -side * 0.88;
+                    branch.rotation.y = side * 0.28;
                     addTreePart(tree, branch);
                 });
             }

@@ -73,6 +73,10 @@ class GameManager {
         this.renderer = renderer;
         this.game = null;
         this.playerCar = null;
+        this.playerVehicleTypes = ['rally', 'apexGt'];
+        this.playerVehicleType = this.playerVehicleTypes.includes(localStorage.getItem('selectedPlayerVehicleType'))
+            ? localStorage.getItem('selectedPlayerVehicleType')
+            : 'rally';
         this.animationId = null;
         this.isPaused = false;
         this.pauseStartedAt = 0;
@@ -80,7 +84,96 @@ class GameManager {
         this.startCountdown = null;
         this.bestTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
         this.controls = { left: false, right: false, accelerate: false, brake: false, handbrake: false };
-        this.cameraOffset = new THREE.Vector3(0, 4.6, 12);
+        this.cameraModes = [
+            {
+                id: 'chase',
+                label: 'Chase',
+                type: 'chase',
+                fov: 75,
+                distance: 12,
+                height: 4.6,
+                lookAhead: 10,
+                lookHeight: 0.55,
+                occlusion: true
+            },
+            {
+                id: 'cockpit',
+                label: 'Cockpit',
+                type: 'cockpit',
+                fov: 82,
+                near: 0.1,
+                lateral: -0.38,
+                forward: 1.2,
+                height: 1.55,
+                lookAhead: 26,
+                lookHeight: 1.25,
+                occlusion: false,
+                hideVehicle: true
+            },
+            {
+                id: 'cockpitInterior',
+                label: 'Cockpit Interior',
+                type: 'cockpit',
+                fov: 74,
+                near: 0.025,
+                lateral: -0.42,
+                forward: -0.42,
+                height: 1.34,
+                lookAhead: 10,
+                lookHeight: 0.96,
+                occlusion: false,
+                hideVehicle: false
+            },
+            {
+                id: 'close',
+                label: 'Close Chase',
+                type: 'chase',
+                fov: 78,
+                distance: 6.2,
+                height: 2.55,
+                lookAhead: 9,
+                lookHeight: 0.9,
+                occlusion: true
+            },
+            {
+                id: 'topDown',
+                label: 'Top Down',
+                type: 'topDown',
+                fov: 48,
+                height: 54,
+                lookAhead: 1.8,
+                occlusion: false
+            }
+        ];
+        this.cameraModeIndex = 0;
+        this.cameraMode = this.cameraModes[this.cameraModeIndex];
+        this.cockpitTunerStorageVersion = 2;
+        this.cockpitInteriorRigs = {
+            rally: {
+                fov: 61,
+                near: 0.025,
+                lateral: 0,
+                forward: 0.4,
+                height: 1.22,
+                lookAhead: 11.6,
+                lookHeight: 1.06,
+                lookLateral: -0.06,
+                hideVehicle: false
+            },
+            apexGt: {
+                fov: 74,
+                near: 0.025,
+                lateral: -0.4,
+                forward: 0.12,
+                height: 1.05,
+                lookAhead: 10,
+                lookHeight: 0.9,
+                lookLateral: -0.1,
+                hideVehicle: false
+            },
+        };
+        this.defaultCockpitInteriorRigs = JSON.parse(JSON.stringify(this.cockpitInteriorRigs));
+        this.loadCockpitTunerOverrides();
         this.carPosition = new THREE.Vector3(0, 0, 0);
         this.minCameraDistance = 5;
         // Add a reference to the directional light
@@ -95,11 +188,18 @@ class GameManager {
         this.maxTrafficCars = 10; // Maximum number of traffic cars
         this.trafficVehicleTypes = ['muscle', 'suv', 'hatchback', 'pickup', 'supercar'];
         this.gltfLoader = THREE.GLTFLoader ? new THREE.GLTFLoader() : null;
+        this.dracoLoader = null;
+        if (this.gltfLoader && THREE.DRACOLoader) {
+            this.dracoLoader = new THREE.DRACOLoader();
+            this.dracoLoader.setDecoderPath('vendor/draco/');
+            this.gltfLoader.setDRACOLoader(this.dracoLoader);
+        }
         this.vehicleModelCache = {};
         this.vehicleModelLoadState = {};
         this.vehicleModelAssets = {
             carConcept: { url: 'assets/models/car_concept.glb' },
-            milkTruck: { url: 'assets/models/cesium_milk_truck.glb' }
+            milkTruck: { url: 'assets/models/cesium_milk_truck.glb' },
+            ferrariGt: { url: 'assets/models/ferrari_gt.glb' }
         };
         this.vehicleAssetSpecs = {
             rally: {
@@ -109,6 +209,14 @@ class GameManager {
                 height: 1.66,
                 yaw: Math.PI,
                 groundOffset: -0.2
+            },
+            apexGt: {
+                asset: 'ferrariGt',
+                width: 3.05,
+                length: 5.86,
+                height: 1.36,
+                yaw: 0,
+                groundOffset: -0.12
             },
             supercar: {
                 asset: 'carConcept',
@@ -173,7 +281,117 @@ class GameManager {
         this.currentMusicElement = null;
         this.musicEnabled = localStorage.getItem('musicEnabled') !== 'false';
         this.applyMusicPreference();
+        this.applyCameraModeSettings();
         // Initialize the game music when the page loads
+    }
+
+    getCockpitTunerStorageKey() {
+        return `rallyRushIICockpitInteriorRigs:v${this.cockpitTunerStorageVersion}`;
+    }
+
+    getLegacyCockpitTunerStorageKeys() {
+        return ['rallyRushIICockpitInteriorRigs'];
+    }
+
+    getCockpitRigValues(rig) {
+        return {
+            fov: rig.fov,
+            lateral: rig.lateral,
+            forward: rig.forward,
+            height: rig.height,
+            lookLateral: rig.lookLateral ?? rig.lateral ?? 0,
+            lookAhead: rig.lookAhead,
+            lookHeight: rig.lookHeight
+        };
+    }
+
+    loadCockpitTunerOverrides() {
+        try {
+            this.getLegacyCockpitTunerStorageKeys().forEach(key => {
+                localStorage.removeItem(key);
+            });
+            const stored = JSON.parse(localStorage.getItem(this.getCockpitTunerStorageKey()) || '{}');
+            Object.entries(stored).forEach(([vehicleType, values]) => {
+                if (!this.cockpitInteriorRigs[vehicleType] || !values || typeof values !== 'object') {
+                    return;
+                }
+
+                Object.entries(values).forEach(([key, value]) => {
+                    if (Number.isFinite(value) && key in this.getCockpitRigValues(this.cockpitInteriorRigs[vehicleType])) {
+                        this.cockpitInteriorRigs[vehicleType][key] = value;
+                    }
+                });
+            });
+        } catch (error) {
+            localStorage.removeItem(this.getCockpitTunerStorageKey());
+        }
+    }
+
+    saveCockpitTunerOverrides() {
+        try {
+            const payload = {};
+            Object.entries(this.cockpitInteriorRigs).forEach(([vehicleType, rig]) => {
+                payload[vehicleType] = this.getCockpitRigValues(rig);
+            });
+            localStorage.setItem(this.getCockpitTunerStorageKey(), JSON.stringify(payload));
+        } catch (error) {
+            // Camera tuning is optional; keep driving if localStorage is unavailable.
+        }
+    }
+
+    getCockpitTunerState(vehicleType = this.getPlayerVehicleType()) {
+        const rig = this.cockpitInteriorRigs[vehicleType] || this.cockpitInteriorRigs.rally;
+        const option = this.getPlayerVehicleOption(vehicleType);
+        const values = this.getCockpitRigValues(rig);
+        const roundedValues = Object.fromEntries(Object.entries(values).map(([key, value]) => [
+            key,
+            Number((value || 0).toFixed(key === 'fov' ? 0 : 2))
+        ]));
+
+        return {
+            vehicleType,
+            carName: option?.name || vehicleType,
+            ...roundedValues
+        };
+    }
+
+    adjustCockpitRigValue(key, delta) {
+        const vehicleType = this.getPlayerVehicleType();
+        const rig = this.cockpitInteriorRigs[vehicleType] || this.cockpitInteriorRigs.rally;
+        const limits = {
+            fov: [45, 96],
+            lateral: [-1.4, 1.4],
+            forward: [-1.6, 1.8],
+            height: [0.35, 2.2],
+            lookLateral: [-1.8, 1.8],
+            lookAhead: [2, 30],
+            lookHeight: [0.2, 2.5]
+        };
+
+        if (!rig || !limits[key]) {
+            return this.getCockpitTunerState(vehicleType);
+        }
+
+        const current = Number.isFinite(rig[key]) ? rig[key] : (this.defaultCockpitInteriorRigs[vehicleType]?.[key] || 0);
+        rig[key] = THREE.MathUtils.clamp(current + delta, limits[key][0], limits[key][1]);
+        this.saveCockpitTunerOverrides();
+        this.applyCameraModeSettings();
+        if (this.game) {
+            this.updateCameraPosition();
+        }
+        return this.getCockpitTunerState(vehicleType);
+    }
+
+    resetCockpitRig(vehicleType = this.getPlayerVehicleType()) {
+        if (this.defaultCockpitInteriorRigs[vehicleType] && this.cockpitInteriorRigs[vehicleType]) {
+            Object.assign(this.cockpitInteriorRigs[vehicleType], JSON.parse(JSON.stringify(this.defaultCockpitInteriorRigs[vehicleType])));
+            this.saveCockpitTunerOverrides();
+            this.applyCameraModeSettings();
+            if (this.game) {
+                this.updateCameraPosition();
+            }
+        }
+        return this.getCockpitTunerState(vehicleType);
     }
 
     configureSceneEnvironment(environment = {}) {
@@ -269,17 +487,21 @@ class GameManager {
         hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
         this.scene.add(hemiLight);
 
+        const playerVehicleType = this.playerVehicleType || 'rally';
+        const playerSpec = this.getVehicleSpec(playerVehicleType);
+
         // Initialize the game object
         this.game = {
             road: { length: 3000, width: environment.roadWidth || 25, segments: [] },
             car: {
+                vehicleType: playerVehicleType,
                 position: new THREE.Vector3(0, 0, -10),
                 speed: 0,
-                acceleration: 0.010,
-                deceleration: 0.002,
-                brakePower: 0.01,
-                handbrakePower: 0.03,
-                maxSpeed: 2.5,
+                acceleration: playerSpec.acceleration,
+                deceleration: playerSpec.deceleration,
+                brakePower: playerSpec.brakePower,
+                handbrakePower: playerSpec.handbrakePower,
+                maxSpeed: playerSpec.maxSpeed,
                 minSpeed: 0,
                 xOffset: 0,
                 lateralVelocity: 0,
@@ -292,10 +514,13 @@ class GameManager {
                 visualYaw: 0,
                 bodyRoll: 0,
                 steeringAngle: 0,
-                maxSteeringAngle: Math.PI / 12,
-                steeringSpeed: 0.15,
-                turnSpeed: 0.08,
-                grip: 0.7,
+                maxSteeringAngle: playerSpec.maxSteeringAngle,
+                steeringSpeed: playerSpec.steeringSpeed,
+                turnSpeed: playerSpec.turnSpeed,
+                curveSlip: playerSpec.curveSlip,
+                lateralGrip: playerSpec.lateralGrip,
+                driftBoost: playerSpec.driftBoost,
+                headingRecovery: playerSpec.headingRecovery,
                 borderCollisionCooldown: 0,
                 trafficCollisionCooldown: 0
             },
@@ -310,10 +535,12 @@ class GameManager {
         // Generate the road and terrain based on the environment
         generateRoadAndTerrain(this.scene, this.game, environment);
 
-        this.playerCar = this.createCar(0xe30f24, 'rally', {
-            palette: { body: 0xe30f24, accent: 0xf7fbff, stripe: 0x5fe2ff }
+        const playerOption = this.getPlayerVehicleOption(playerVehicleType);
+        this.playerCar = this.createCar(playerOption.color, playerVehicleType, {
+            palette: playerOption.palette
         });
         this.scene.add(this.playerCar);
+        this.applyCameraModeSettings();
 
         this.createInitialTrafficCars();
         this.resetCarPosition();
@@ -455,7 +682,48 @@ class GameManager {
                 roofScoop: true,
                 splitter: true,
                 stripe: 'center',
-                speedBase: 0.82
+                speedBase: 0.82,
+                acceleration: 0.010,
+                deceleration: 0.002,
+                brakePower: 0.010,
+                handbrakePower: 0.030,
+                maxSpeed: 2.5,
+                maxSteeringAngle: Math.PI / 12,
+                steeringSpeed: 0.15,
+                turnSpeed: 0.08,
+                curveSlip: 1,
+                lateralGrip: 1,
+                driftBoost: 1,
+                headingRecovery: 1
+            },
+            apexGt: {
+                width: 2.2,
+                length: 4.55,
+                bodyHeight: 0.62,
+                cabinWidth: 1.26,
+                cabinLength: 1.26,
+                cabinHeight: 0.48,
+                cabinZ: 0,
+                wheelRadius: 0.42,
+                wheelWidth: 0.38,
+                stance: 1.34,
+                spoiler: true,
+                splitter: true,
+                diffuser: true,
+                stripe: 'center',
+                speedBase: 0.92,
+                acceleration: 0.0112,
+                deceleration: 0.0017,
+                brakePower: 0.011,
+                handbrakePower: 0.026,
+                maxSpeed: 2.86,
+                maxSteeringAngle: Math.PI / 14,
+                steeringSpeed: 0.125,
+                turnSpeed: 0.068,
+                curveSlip: 0.78,
+                lateralGrip: 1.18,
+                driftBoost: 0.82,
+                headingRecovery: 1.16
             },
             muscle: {
                 width: 2.34,
@@ -542,6 +810,46 @@ class GameManager {
         };
 
         return specs[type] || specs.rally;
+    }
+
+    getPlayerVehicleOptions() {
+        return [
+            {
+                type: 'rally',
+                name: 'Rally R',
+                className: 'Balanced Rally',
+                color: 0xe30f24,
+                palette: { body: 0xe30f24, accent: 0xf7fbff, stripe: 0x5fe2ff },
+                stats: { speed: 78, launch: 72, handling: 76, drift: 76, stability: 72 }
+            },
+            {
+                type: 'apexGt',
+                name: 'Apex GT',
+                className: 'High-Speed GT',
+                color: 0xd51f2a,
+                palette: { body: 0xd51f2a, accent: 0x111820, stripe: 0xffd447 },
+                stats: { speed: 94, launch: 80, handling: 66, drift: 58, stability: 86 }
+            }
+        ];
+    }
+
+    getPlayerVehicleOption(type = this.getPlayerVehicleType()) {
+        return this.getPlayerVehicleOptions().find(option => option.type === type) || this.getPlayerVehicleOptions()[0];
+    }
+
+    getPlayerVehicleType() {
+        return this.game?.car?.vehicleType || this.playerVehicleType || 'rally';
+    }
+
+    setPlayerVehicleType(type) {
+        const option = this.getPlayerVehicleOption(type);
+        this.playerVehicleType = option.type;
+        localStorage.setItem('selectedPlayerVehicleType', option.type);
+        return option;
+    }
+
+    getPlayerVehiclePalette(type = this.getPlayerVehicleType()) {
+        return this.getPlayerVehicleOption(type).palette;
     }
 
     getVehicleDimensions(type = 'rally') {
@@ -979,6 +1287,8 @@ class GameManager {
         const car = new THREE.Group();
         car.userData.vehicleType = type;
         car.userData.wheels = [];
+        car.userData.steeringWheels = [];
+        car.userData.wheelContactPoints = [];
         car.userData.assetVehicle = true;
         car.userData.assetReady = false;
         car.userData.assetName = assetSpec.asset;
@@ -1000,7 +1310,16 @@ class GameManager {
 
                 const model = source.clone(true);
                 this.prepareAssetVehicleModel(model, type, palette, assetSpec);
+                model.traverse(child => {
+                    if (child.userData.assetWheel) {
+                        car.userData.wheels.push(child);
+                    }
+                    if (child.userData.assetSteeringWheel) {
+                        car.userData.steeringWheels.push(child);
+                    }
+                });
                 car.add(model);
+                this.cacheVehicleWheelContactPoints(car);
                 car.userData.assetReady = true;
             })
             .catch(error => {
@@ -1011,6 +1330,7 @@ class GameManager {
 
                 const materials = this.createVehicleMaterials(palette);
                 this.populateProceduralCar(car, spec, materials, type);
+                this.cacheVehicleWheelContactPoints(car);
                 car.userData.assetReady = false;
                 car.userData.assetFallback = true;
             });
@@ -1027,7 +1347,8 @@ class GameManager {
     getVehicleAssetLabel(assetName) {
         const labels = {
             carConcept: 'Sports fleet model',
-            milkTruck: 'Utility fleet model'
+            milkTruck: 'Utility fleet model',
+            ferrariGt: 'Apex GT model'
         };
         return labels[assetName] || assetName;
     }
@@ -1208,6 +1529,10 @@ class GameManager {
                 child.rotation.y = 0;
             }
 
+            if (this.isAssetSteeringWheelTarget(child.name || '')) {
+                this.prepareAssetSteeringWheelObject(child);
+            }
+
             if (!child.isMesh) {
                 return;
             }
@@ -1217,29 +1542,124 @@ class GameManager {
             child.userData.keepGeometry = true;
 
             const materials = Array.isArray(child.material) ? child.material : [child.material];
-            const clonedMaterials = materials.map(material => this.cloneAssetMaterial(material, palette, type));
+            const clonedMaterials = materials.map(material => this.cloneAssetMaterial(material, palette, type, child.name || ''));
             child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
 
-            const name = `${child.name || ''} ${child.material.name || ''}`.toLowerCase();
-            if (/wheel(front|rear)|wheels|tire|rim/.test(name) && !/steering/.test(name)) {
-                child.userData.assetWheel = true;
+            const name = `${child.name || ''} ${child.material.name || ''}`;
+            if (this.isAssetWheelName(name)) {
+                this.prepareAssetWheelMesh(child, name);
+            }
+            if (this.isAssetSteeringWheelTarget(name)) {
+                this.prepareAssetSteeringWheelObject(child);
             }
         });
 
         this.normalizeAssetVehicle(model, assetSpec);
     }
 
-    cloneAssetMaterial(material, palette, type) {
+    normalizeAssetName(name = '') {
+        return name
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/[_-]+/g, ' ')
+            .toLowerCase();
+    }
+
+    hasAssetNameToken(name, tokens) {
+        const normalized = this.normalizeAssetName(name);
+        return tokens.some(token => {
+            const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return new RegExp(`(^|\\s)${escapedToken}(s)?(?=\\s|$|\\d)`).test(normalized);
+        });
+    }
+
+    isAssetWheelName(name) {
+        const normalized = this.normalizeAssetName(name);
+        return !/(^|\s)steering(?=\s|$)/.test(normalized)
+            && (
+                this.hasAssetNameToken(normalized, ['wheel', 'tire', 'tyre', 'rim'])
+                || /(^|\s)(front|rear|back)\s*wheels?(?=\s|$|\d)/.test(normalized)
+            );
+    }
+
+    isAssetSteeringWheelTarget(name) {
+        const normalized = this.normalizeAssetName(name);
+        return normalized === 'steering wheel'
+            || /(^|\s)interior steering cylinder(?=\s|$)/.test(normalized);
+    }
+
+    prepareAssetSteeringWheelObject(object) {
+        if (object.userData.assetSteeringWheel) {
+            return;
+        }
+
+        object.userData.assetSteeringWheel = true;
+        object.userData.assetSteeringBaseRotation = object.rotation.clone();
+        object.userData.assetSteeringAxis = 'y';
+        object.userData.assetSteeringDirection = /interior steering/i.test(object.name || '') ? -1 : 1;
+        object.userData.assetSteeringVisualAngle = 0;
+    }
+
+    prepareAssetWheelMesh(mesh, name) {
+        const normalizedName = this.normalizeAssetName(name);
+        mesh.userData.assetWheel = true;
+        mesh.userData.isFront = /(^|\s)front(?=\s|$)/.test(normalizedName);
+        mesh.userData.assetWheelCanSpin = false;
+
+        if (!mesh.geometry) {
+            return;
+        }
+
+        mesh.geometry.computeBoundingBox();
+        const box = mesh.geometry.boundingBox;
+        if (!box) {
+            return;
+        }
+
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const dimensions = [
+            { axis: 'x', value: size.x },
+            { axis: 'y', value: size.y },
+            { axis: 'z', value: size.z }
+        ].sort((a, b) => b.value - a.value);
+        const largest = dimensions[0].value;
+        const secondLargest = dimensions[1].value;
+        const smallest = dimensions[2];
+        const hasSingleWheelShape = secondLargest > 0.001 && largest / secondLargest < 1.48;
+
+        mesh.userData.assetWheelCanSpin = hasSingleWheelShape;
+        mesh.userData.assetWheelSpinAxis = smallest.axis;
+        mesh.userData.assetWheelSpin = 0;
+        mesh.userData.assetWheelBaseRotation = mesh.rotation.clone();
+
+        if (!hasSingleWheelShape || center.lengthSq() < 0.000001) {
+            return;
+        }
+
+        const offset = center.clone().multiply(mesh.scale).applyQuaternion(mesh.quaternion);
+        mesh.geometry = mesh.geometry.clone();
+        mesh.geometry.translate(-center.x, -center.y, -center.z);
+        mesh.geometry.computeBoundingBox();
+        mesh.geometry.computeBoundingSphere();
+        mesh.position.add(offset);
+        mesh.userData.keepGeometry = false;
+    }
+
+    cloneAssetMaterial(material, palette, type, meshName = '') {
         const cloned = material.clone();
-        const name = (cloned.name || '').toLowerCase();
+        const name = `${meshName} ${cloned.name || ''}`;
+        const normalizedName = this.normalizeAssetName(name);
         cloned.userData.keepTextureMaps = true;
         cloned.envMapIntensity = Math.max(cloned.envMapIntensity || 0, 0.9);
 
-        const isGlass = /glass|window|windshield/.test(name);
-        const isTire = /tire|rubber|wheel/.test(name);
-        const isRim = /rim|disc|brake/.test(name);
-        const isLight = /headlight|brakelight|signallight|taillight/.test(name);
-        const isPaint = /paint|body|panel|toycar|truck/.test(name) && !isGlass && !isTire && !isLight;
+        const isGlass = /glass|window|windshield/.test(normalizedName);
+        const isTire = this.hasAssetNameToken(name, ['tire', 'tyre', 'rubber', 'wheel']);
+        const isRim = this.hasAssetNameToken(name, ['rim', 'disc', 'brake']);
+        const isLight = /headlight|brakelight|signallight|taillight/.test(normalizedName);
+        const isPaint = /paint|body|panel|toycar|truck|sportscar|suv|orange|white|body color/.test(normalizedName)
+            && !isGlass
+            && !isTire
+            && !isLight;
 
         if (isPaint && cloned.color) {
             cloned.map = null;
@@ -1249,7 +1669,7 @@ class GameManager {
             if (cloned.normalMap && cloned.normalScale) {
                 cloned.normalScale.set(1.35, 1.35);
             }
-            cloned.color.copy(this.getAssetPaintColor(palette.body, name, type));
+            cloned.color.copy(this.getAssetPaintColor(palette.body, normalizedName, type));
             if ('metalness' in cloned) {
                 cloned.metalness = Math.max(cloned.metalness || 0, 0.28);
             }
@@ -1269,6 +1689,10 @@ class GameManager {
             cloned.color.setHex(0x172b3d);
             cloned.transparent = true;
             cloned.opacity = Math.min(cloned.opacity || 0.8, 0.68);
+            cloned.userData.isVehicleGlass = true;
+            cloned.userData.cockpitBaseOpacity = cloned.opacity;
+            cloned.userData.cockpitBaseTransparent = cloned.transparent;
+            cloned.userData.cockpitBaseDepthWrite = cloned.depthWrite;
             cloned.envMapIntensity = 1.7;
             if ('roughness' in cloned) {
                 cloned.roughness = 0.05;
@@ -1399,6 +1823,7 @@ class GameManager {
         car.userData.wheels = [];
 
         this.populateProceduralCar(car, spec, materials, type);
+        this.cacheVehicleWheelContactPoints(car);
 
         return car;
     }
@@ -1409,13 +1834,137 @@ class GameManager {
         }
 
         car.userData.wheels.forEach(wheel => {
-            if (wheel.userData.tire) {
+            if (wheel.userData.assetWheel) {
+                const baseRotation = wheel.userData.assetWheelBaseRotation || wheel.rotation;
+                const spinAxis = wheel.userData.assetWheelSpinAxis || 'x';
+                if (wheel.userData.assetWheelCanSpin) {
+                    wheel.userData.assetWheelSpin = (wheel.userData.assetWheelSpin || 0) + amount;
+                    wheel.rotation[spinAxis] = baseRotation[spinAxis] + wheel.userData.assetWheelSpin;
+                }
+                if (wheel.userData.isFront && spinAxis !== 'y') {
+                    wheel.rotation.y = baseRotation.y + steeringAngle;
+                }
+            } else if (wheel.userData.tire) {
                 wheel.userData.tire.rotation.x += amount;
-            }
-            if (wheel.userData.isFront) {
+                if (wheel.userData.isFront) {
+                    wheel.rotation.y = steeringAngle;
+                }
+            } else if (wheel.userData.isFront) {
                 wheel.rotation.y = steeringAngle;
             }
         });
+    }
+
+    animateVehicleSteeringWheel(car, steeringAngle = 0, maxSteeringAngle = Math.PI / 12) {
+        if (!car?.userData?.steeringWheels?.length) {
+            return;
+        }
+
+        const steeringRatio = maxSteeringAngle > 0.001
+            ? THREE.MathUtils.clamp(steeringAngle / maxSteeringAngle, -1, 1)
+            : 0;
+        const targetAngle = steeringRatio * Math.PI * 0.58;
+
+        car.userData.steeringWheels.forEach(steeringWheel => {
+            const axis = steeringWheel.userData.assetSteeringAxis || 'y';
+            const baseRotation = steeringWheel.userData.assetSteeringBaseRotation || steeringWheel.rotation;
+            const direction = steeringWheel.userData.assetSteeringDirection || 1;
+            steeringWheel.userData.assetSteeringVisualAngle += (
+                targetAngle * direction - (steeringWheel.userData.assetSteeringVisualAngle || 0)
+            ) * 0.34;
+            steeringWheel.rotation[axis] = baseRotation[axis] + steeringWheel.userData.assetSteeringVisualAngle;
+        });
+    }
+
+    isTireContactMesh(mesh) {
+        if (!mesh?.isMesh) {
+            return false;
+        }
+
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const materialNames = materials.map(material => material?.name || '').join(' ');
+        const meshName = this.normalizeAssetName(mesh.name || '');
+        const fullName = this.normalizeAssetName(`${mesh.name || ''} ${materialNames}`);
+        if (/(^|\s)tireside(?=\s|$|\d)/.test(fullName)) {
+            return false;
+        }
+
+        return /(^|\s)(tire|tyre|tread|tiretread|rubber)(?=\s|$|\d)/.test(fullName)
+            && !/(^|\s)(grill|grille|wiper|steering|interior|trim)(?=\s|$|\d)/.test(meshName);
+    }
+
+    cacheVehicleWheelContactPoints(vehicle) {
+        if (!vehicle) {
+            return [];
+        }
+
+        vehicle.updateMatrixWorld(true);
+        const inverseVehicleMatrix = vehicle.matrixWorld.clone().invert();
+        const contactPoints = [];
+        vehicle.traverse(child => {
+            if (!this.isTireContactMesh(child)) {
+                return;
+            }
+
+            const box = new THREE.Box3().setFromObject(child);
+            if (box.isEmpty()) {
+                return;
+            }
+
+            const bottomWorld = new THREE.Vector3(
+                (box.min.x + box.max.x) * 0.5,
+                box.min.y,
+                (box.min.z + box.max.z) * 0.5
+            );
+            const bottomLocal = bottomWorld.applyMatrix4(inverseVehicleMatrix);
+            contactPoints.push(bottomLocal);
+        });
+
+        if (contactPoints.length === 0 && vehicle.userData.wheels?.length) {
+            vehicle.userData.wheels.forEach(wheel => {
+                const box = new THREE.Box3().setFromObject(wheel);
+                if (box.isEmpty()) {
+                    return;
+                }
+
+                const bottomWorld = new THREE.Vector3(
+                    (box.min.x + box.max.x) * 0.5,
+                    box.min.y,
+                    (box.min.z + box.max.z) * 0.5
+                );
+                contactPoints.push(bottomWorld.applyMatrix4(inverseVehicleMatrix));
+            });
+        }
+
+        vehicle.userData.wheelContactPoints = contactPoints;
+        return contactPoints;
+    }
+
+    alignVehicleToRoadSurface(vehicle, contactPadding = 0.018) {
+        if (!vehicle || !this.game?.road) {
+            return 0;
+        }
+
+        if (!vehicle.userData.wheelContactPoints?.length) {
+            this.cacheVehicleWheelContactPoints(vehicle);
+        }
+
+        const contactPoints = vehicle.userData.wheelContactPoints || [];
+        if (contactPoints.length === 0) {
+            return 0;
+        }
+
+        vehicle.updateMatrixWorld(true);
+        const correction = contactPoints.reduce((sum, localPoint) => {
+            const worldPoint = vehicle.localToWorld(localPoint.clone());
+            const roadData = getRoadDataAtZ(worldPoint.z, this.game);
+            return sum + ((roadData.y + contactPadding) - worldPoint.y);
+        }, 0) / contactPoints.length;
+        const clampedCorrection = THREE.MathUtils.clamp(correction, -0.16, 0.16);
+        vehicle.position.y += clampedCorrection;
+        vehicle.updateMatrixWorld(true);
+        vehicle.userData.lastGroundCorrection = clampedCorrection;
+        return clampedCorrection;
     }
 
     getRandomTrafficType() {
@@ -1498,6 +2047,7 @@ class GameManager {
             z
         );
         this.applyVehicleRoadPose(trafficCar.mesh, frame);
+        this.alignVehicleToRoadSurface(trafficCar.mesh);
     }
 
     createTrafficCar() {
@@ -1520,9 +2070,10 @@ class GameManager {
         this.trafficCars.push(trafficState);
     }
     resetCarPosition() {
-        const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1, 'rally');
+        const playerType = this.getPlayerVehicleType();
+        const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1, playerType);
         const roadData = roadFrame.roadData;
-        this.game.car.position.set(roadData.curve, this.getVehicleGroundY(roadFrame, 'rally'), this.game.startLine);
+        this.game.car.position.set(roadData.curve, this.getVehicleGroundY(roadFrame, playerType), this.game.startLine);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
         this.game.car.lateralVelocity = 0;
@@ -1540,6 +2091,10 @@ class GameManager {
 
         this.playerCar.position.copy(this.game.car.position);
         this.applyVehicleRoadPose(this.playerCar, roadFrame);
+        this.alignVehicleToRoadSurface(this.playerCar);
+        this.carPosition.copy(this.playerCar.position);
+        this.game.car.position.copy(this.carPosition);
+        this.animateVehicleSteeringWheel(this.playerCar, 0, this.game.car.maxSteeringAngle);
     }
 
     createCountdownTexture(label) {
@@ -2323,14 +2878,15 @@ class GameManager {
         this.game.car.speed = THREE.MathUtils.clamp(this.game.car.speed, this.game.car.minSpeed, this.game.car.maxSpeed);
         const speedRatio = THREE.MathUtils.clamp(this.game.car.speed / this.game.car.maxSpeed, 0, 1);
         const steeringStrength = Math.abs(steeringInput);
-        const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
+        const playerType = this.getPlayerVehicleType();
+        const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, playerType);
         const curveProbeDistance = THREE.MathUtils.lerp(18, 42, speedRatio);
-        const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, 'rally');
+        const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, playerType);
         const roadBend = this.getAngleDelta(currentRoadFrame.yaw, futureRoadFrame.yaw);
         const entryNearDistance = THREE.MathUtils.lerp(14, 30, speedRatio);
         const entryProbeDistance = THREE.MathUtils.lerp(78, 132, speedRatio);
-        const nearEntryFrame = this.getVehicleRoadFrame(this.game.car.position.z - entryNearDistance, -1, 'rally');
-        const entryRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - entryProbeDistance, -1, 'rally');
+        const nearEntryFrame = this.getVehicleRoadFrame(this.game.car.position.z - entryNearDistance, -1, playerType);
+        const entryRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - entryProbeDistance, -1, playerType);
         const nearEntryBend = this.getAngleDelta(currentRoadFrame.yaw, nearEntryFrame.yaw);
         const upcomingEntryBend = this.getAngleDelta(currentRoadFrame.yaw, entryRoadFrame.yaw);
         const entryBendMagnitude = Math.abs(upcomingEntryBend);
@@ -2359,11 +2915,12 @@ class GameManager {
         const handbrakeIntensity = THREE.MathUtils.clamp(this.game.car.handbrakeIntensity, 0, 1);
         this.game.car.handbrakeIntensity = handbrakeIntensity;
         const canHandbrakeDrift = handbrakeActive && driftDemand > 0 && speedRatio > 0.2;
+        const driftBoost = this.game.car.driftBoost || 1;
         const rollingDriftTarget = canHandbrakeDrift
-            ? THREE.MathUtils.clamp((speedRatio - 0.18) / 0.42, 0, 1) * (0.46 + driftDemand * 0.54)
+            ? THREE.MathUtils.clamp((speedRatio - 0.18) / 0.42, 0, 1) * (0.46 + driftDemand * 0.54) * driftBoost
             : 0;
         const entryDriftTarget = turnEntryDrift > 0
-            ? THREE.MathUtils.clamp(0.46 + turnEntryDrift * 0.36, 0, 0.86)
+            ? THREE.MathUtils.clamp((0.46 + turnEntryDrift * 0.36) * driftBoost, 0, 0.9)
             : 0;
         const targetDrift = Math.max(rollingDriftTarget, entryDriftTarget);
         const currentDrift = this.game.car.driftAmount || 0;
@@ -2382,19 +2939,19 @@ class GameManager {
         this.game.car.angle += driftDirection * driftAmount * speedRatio * 0.026;
         this.game.car.angle += driftDirection * entryDriftKick * 0.032;
         const headingRecoveryBase = driftDemand === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
-        const headingRecovery = headingRecoveryBase * (1 - driftAmount * 0.68);
+        const headingRecovery = headingRecoveryBase * (this.game.car.headingRecovery || 1) * (1 - driftAmount * 0.68);
         this.game.car.angle += (0 - this.game.car.angle) * headingRecovery;
         const maxBodySlip = THREE.MathUtils.lerp(Math.PI / 5, Math.PI / 3.8, driftAmount);
         this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -maxBodySlip, maxBodySlip);
 
         const steeringIntoCurve = steeringInput !== 0 && Math.sign(steeringInput) === Math.sign(roadBend);
-        const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14);
+        const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14) * (this.game.car.curveSlip || 1);
         this.game.car.lateralVelocity += curveSlip;
         if (canHandbrakeDrift) {
             this.game.car.lateralVelocity += -driftDirection * driftAmount * speedRatio * 0.048;
             this.game.car.lateralVelocity += -driftDirection * entryDriftKick * 0.052;
         }
-        const lateralDamping = THREE.MathUtils.clamp(0.9 - speedRatio * 0.08 + driftAmount * 0.095, 0.76, 0.97);
+        const lateralDamping = THREE.MathUtils.clamp(0.9 - speedRatio * 0.08 + driftAmount * 0.095 - ((this.game.car.lateralGrip || 1) - 1) * 0.08, 0.72, 0.97);
         this.game.car.lateralVelocity *= lateralDamping;
 
         // Calculate movement
@@ -2423,13 +2980,13 @@ class GameManager {
             this.game.car.borderCollisionCooldown--;
         }
 
-        const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, 'rally');
+        const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, playerType);
         const updatedRoadData = updatedRoadFrame.roadData;
 
         // Update car's position and rotation
         this.carPosition.set(
             this.game.car.xOffset + updatedRoadData.curve,
-            this.getVehicleGroundY(updatedRoadFrame, 'rally'),
+            this.getVehicleGroundY(updatedRoadFrame, playerType),
             this.game.car.position.z
         );
         this.game.car.position.copy(this.carPosition);
@@ -2451,13 +3008,17 @@ class GameManager {
             this.getAngleDelta(updatedRoadFrame.yaw, this.game.car.visualYaw),
             this.game.car.bodyRoll
         );
+        this.alignVehicleToRoadSurface(this.playerCar);
+        this.carPosition.copy(this.playerCar.position);
+        this.game.car.position.copy(this.carPosition);
         const counterSteer = -driftDirection * driftAmount * speedRatio * 0.16;
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85 + counterSteer);
+        this.animateVehicleSteeringWheel(this.playerCar, this.game.car.steeringAngle + counterSteer, this.game.car.maxSteeringAngle);
         this.updateDriftEffects(updatedRoadFrame, driftAmount, handbrakeIntensity, driftDirection, speedRatio);
     }
 
     getPlayerRoadLimit() {
-        const dimensions = this.getVehicleDimensions('rally');
+        const dimensions = this.getVehicleDimensions(this.getPlayerVehicleType());
         return Math.max(2, this.game.road.width / 2 - dimensions.width / 2 - 0.45);
     }
 
@@ -2595,19 +3156,20 @@ class GameManager {
 
         const playerPeakZ = playerStart.z + playerZKick;
         const playerPeakRoad = getRoadDataAtZ(playerPeakZ, this.game);
-        const playerPeakFrame = this.getVehicleRoadFrame(playerPeakZ, -1, 'rally');
+        const playerType = this.getPlayerVehicleType();
+        const playerPeakFrame = this.getVehicleRoadFrame(playerPeakZ, -1, playerType);
         const playerPeakOffset = THREE.MathUtils.clamp(this.game.car.xOffset + side * playerSlide, -borderThreshold, borderThreshold);
         const playerPeak = new THREE.Vector3(
             playerPeakRoad.curve + playerPeakOffset,
-            this.getVehicleGroundY(playerPeakFrame, 'rally'),
+            this.getVehicleGroundY(playerPeakFrame, playerType),
             playerPeakZ
         );
         const playerEndZ = playerPeakZ + 4;
         const playerEndRoad = getRoadDataAtZ(playerEndZ, this.game);
-        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1, 'rally');
+        const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1, playerType);
         const playerEnd = new THREE.Vector3(
             playerEndRoad.curve,
-            this.getVehicleGroundY(playerEndFrame, 'rally'),
+            this.getVehicleGroundY(playerEndFrame, playerType),
             playerEndZ
         );
         const playerRotEnd = new THREE.Euler(playerEndFrame.pitch, playerEndFrame.yaw, 0);
@@ -2710,8 +3272,11 @@ class GameManager {
             this.game.car.visualYaw = collision.playerRotEnd.y;
             this.game.car.bodyRoll = 0;
             this.playerCar.position.copy(collision.playerEnd);
-            this.applyVehicleRoadPose(this.playerCar, this.getVehicleRoadFrame(collision.playerEnd.z, -1, 'rally'));
-            this.carPosition.copy(collision.playerEnd);
+            this.applyVehicleRoadPose(this.playerCar, this.getVehicleRoadFrame(collision.playerEnd.z, -1, this.getPlayerVehicleType()));
+            this.alignVehicleToRoadSurface(this.playerCar);
+            this.carPosition.copy(this.playerCar.position);
+            this.game.car.position.copy(this.carPosition);
+            this.animateVehicleSteeringWheel(this.playerCar, 0, this.game.car.maxSteeringAngle);
 
             const trafficSpec = this.getVehicleSpec(collision.trafficCar.vehicleType);
             const spawnPose = this.getTrafficSpawnPose(
@@ -2936,7 +3501,7 @@ class GameManager {
     }
 
     isPlayerCollidingWithTraffic(trafficCar) {
-        const playerBounds = this.getVehicleCollisionBounds('rally');
+        const playerBounds = this.getVehicleCollisionBounds(this.getPlayerVehicleType());
         const trafficBounds = this.getVehicleCollisionBounds(trafficCar.vehicleType);
         const xGap = Math.abs(this.game.car.xOffset - trafficCar.xOffset);
         const relativeZ = trafficCar.mesh.position.z - this.game.car.position.z;
@@ -2952,36 +3517,238 @@ class GameManager {
         return xGap < lateralLimit && zGap < longitudinalLimit + closingAllowance;
     }
 
-    updateCameraPosition() {
+    getCameraMode() {
+        return this.cameraMode || this.cameraModes[this.cameraModeIndex] || this.cameraModes[0];
+    }
+
+    getActiveCameraMode() {
+        const mode = this.getCameraMode();
+        if (mode.id !== 'cockpitInterior') {
+            return mode;
+        }
+
+        const vehicleType = this.getPlayerVehicleType();
+        return {
+            ...mode,
+            ...(this.cockpitInteriorRigs[vehicleType] || this.cockpitInteriorRigs.rally || {})
+        };
+    }
+
+    setCameraMode(mode) {
+        const nextIndex = typeof mode === 'number'
+            ? THREE.MathUtils.euclideanModulo(mode, this.cameraModes.length)
+            : this.cameraModes.findIndex(cameraMode => cameraMode.id === mode);
+        if (nextIndex < 0) {
+            return this.getCameraMode();
+        }
+
+        this.cameraModeIndex = nextIndex;
+        this.cameraMode = this.cameraModes[nextIndex];
+        this.applyCameraModeSettings();
+        if (this.game) {
+            this.updateCameraPosition();
+        }
+        return this.cameraMode;
+    }
+
+    cycleCameraMode() {
+        return this.setCameraMode(this.cameraModeIndex + 1);
+    }
+
+    applyCameraModeSettings() {
+        const mode = this.getActiveCameraMode();
+        if (this.camera && this.camera.fov !== mode.fov) {
+            this.camera.fov = mode.fov;
+        }
+        if (this.camera && this.camera.near !== (mode.near || 0.1)) {
+            this.camera.near = mode.near || 0.1;
+        }
+        if (this.camera) {
+            this.camera.updateProjectionMatrix();
+        }
+
+        if (this.playerCar) {
+            this.playerCar.visible = !mode.hideVehicle;
+            this.updatePlayerCockpitGlass(mode);
+        }
+    }
+
+    updatePlayerCockpitGlass(mode = this.getActiveCameraMode()) {
+        if (!this.playerCar) {
+            return;
+        }
+
+        const hideGlass = mode.id === 'cockpitInterior';
+        this.playerCar.traverse(child => {
+            if (!child.isMesh || !child.material) {
+                return;
+            }
+
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            const hasGlassMaterial = materials.some(material => material?.userData?.isVehicleGlass);
+            if (!hasGlassMaterial) {
+                return;
+            }
+
+            if (child.userData.cockpitBaseVisible === undefined) {
+                child.userData.cockpitBaseVisible = child.visible;
+            }
+            child.visible = hideGlass ? false : child.userData.cockpitBaseVisible;
+
+            materials.forEach(material => {
+                if (!material?.userData?.isVehicleGlass) {
+                    return;
+                }
+
+                if (material.userData.cockpitBaseOpacity === undefined) {
+                    material.userData.cockpitBaseOpacity = material.opacity;
+                    material.userData.cockpitBaseTransparent = material.transparent;
+                    material.userData.cockpitBaseDepthWrite = material.depthWrite;
+                    material.userData.cockpitBaseColorWrite = material.colorWrite;
+                }
+
+                if (!hideGlass) {
+                    material.opacity = material.userData.cockpitBaseOpacity;
+                    material.transparent = material.userData.cockpitBaseTransparent;
+                    material.depthWrite = material.userData.cockpitBaseDepthWrite;
+                    material.colorWrite = material.userData.cockpitBaseColorWrite;
+                } else {
+                    material.opacity = 0;
+                    material.transparent = true;
+                    material.depthWrite = false;
+                    material.colorWrite = false;
+                }
+                material.needsUpdate = true;
+            });
+        });
+    }
+
+    resolveCameraOcclusion(cameraPosition, mode) {
+        if (!mode.occlusion || !this.game?.cameraOccluders?.length) {
+            return cameraPosition;
+        }
+
+        const rayStart = this.carPosition.clone().add(new THREE.Vector3(0, mode.height, 0));
+        const rayDirection = cameraPosition.clone().sub(rayStart);
+        const targetDistance = rayDirection.length();
+        if (targetDistance <= 0.001) {
+            return cameraPosition;
+        }
+
+        rayDirection.normalize();
+        const ray = new THREE.Raycaster(rayStart, rayDirection);
+        const intersects = ray.intersectObjects(this.game.cameraOccluders, true);
+
+        if (intersects.length > 0 && intersects[0].distance < targetDistance) {
+            const adjustedDistance = Math.max(intersects[0].distance, Math.min(this.minCameraDistance, targetDistance));
+            return rayStart.add(rayDirection.multiplyScalar(adjustedDistance));
+        }
+
+        return cameraPosition;
+    }
+
+    getVehicleLocalDirection(localDirection) {
+        if (!this.playerCar) {
+            return localDirection.clone().normalize();
+        }
+
+        this.playerCar.updateMatrixWorld(true);
+        const quaternion = this.playerCar.getWorldQuaternion(new THREE.Quaternion());
+        return localDirection.clone().applyQuaternion(quaternion).normalize();
+    }
+
+    getVehicleLocalPosition(localPosition) {
+        if (!this.playerCar) {
+            return this.carPosition.clone().add(localPosition);
+        }
+
+        this.playerCar.updateMatrixWorld(true);
+        return this.playerCar.localToWorld(localPosition.clone());
+    }
+
+    getVehicleAnchoredCockpitFrame(mode) {
+        const cameraLocal = new THREE.Vector3(
+            mode.lateral || 0,
+            mode.height || 1,
+            -(mode.forward || 0)
+        );
+        const lookAtLocal = new THREE.Vector3(
+            mode.lookLateral ?? mode.lateral ?? 0,
+            mode.lookHeight ?? mode.height ?? 1,
+            -(mode.lookAhead || 10)
+        );
+        const cameraPosition = this.getVehicleLocalPosition(cameraLocal);
+        const lookAtPosition = this.getVehicleLocalPosition(lookAtLocal);
+        const carDirection = this.getVehicleLocalDirection(new THREE.Vector3(0, 0, -1));
+        const cameraUp = this.getVehicleLocalDirection(new THREE.Vector3(0, 1, 0));
+
+        return {
+            mode,
+            carDirection,
+            cameraPosition,
+            lookAtPosition,
+            cameraUp
+        };
+    }
+
+    getCameraFrame() {
+        const mode = this.getActiveCameraMode();
         const cameraYaw = this.game.car.driveYaw ?? this.game.car.visualYaw ?? this.game.car.angle;
-        // Create a direction vector pointing in the same direction as the car
         const carDirection = new THREE.Vector3(
             -Math.sin(cameraYaw),
             0,
             -Math.cos(cameraYaw)
-        );
+        ).normalize();
+        const carRight = new THREE.Vector3(
+            Math.cos(cameraYaw),
+            0,
+            -Math.sin(cameraYaw)
+        ).normalize();
 
-        // Calculate ideal camera position
-        let cameraPosition = this.carPosition.clone()
-            .add(carDirection.clone().multiplyScalar(-this.cameraOffset.z))
-            .add(new THREE.Vector3(0, this.cameraOffset.y, 0));
+        if (mode.type === 'cockpit') {
+            if (mode.id === 'cockpitInterior' && this.playerCar) {
+                return this.getVehicleAnchoredCockpitFrame(mode);
+            }
 
-        // Check for collision with terrain
-        const rayStart = this.carPosition.clone().add(new THREE.Vector3(0, this.cameraOffset.y, 0));
-        const rayDirection = cameraPosition.clone().sub(rayStart).normalize();
-        const ray = new THREE.Raycaster(rayStart, rayDirection);
-        const cameraOccluders = this.game.cameraOccluders || [];
-        const intersects = cameraOccluders.length > 0 ? ray.intersectObjects(cameraOccluders, true) : [];
-
-        if (intersects.length > 0 && intersects[0].distance < this.cameraOffset.z) {
-            // Adjust camera position to avoid clipping
-            const adjustedDistance = Math.max(intersects[0].distance, this.minCameraDistance);
-            cameraPosition = rayStart.add(rayDirection.multiplyScalar(adjustedDistance));
+            return {
+                mode,
+                carDirection,
+                cameraPosition: this.carPosition.clone()
+                    .add(carRight.clone().multiplyScalar(mode.lateral))
+                    .add(carDirection.clone().multiplyScalar(mode.forward))
+                    .add(new THREE.Vector3(0, mode.height, 0)),
+                lookAtPosition: this.carPosition.clone()
+                    .add(carDirection.clone().multiplyScalar(mode.lookAhead))
+                    .add(new THREE.Vector3(0, mode.lookHeight, 0))
+            };
         }
 
-        // Calculate look-at position (slightly ahead of the car)
-        const lookAtPosition = this.carPosition.clone()
-            .add(carDirection.clone().multiplyScalar(10)); // Look 10 units ahead
+        if (mode.type === 'topDown') {
+            return {
+                mode,
+                carDirection,
+                cameraPosition: this.carPosition.clone().add(new THREE.Vector3(0, mode.height, 0)),
+                lookAtPosition: this.carPosition.clone()
+                    .add(carDirection.clone().multiplyScalar(mode.lookAhead))
+                    .add(new THREE.Vector3(0, 0.05, 0))
+            };
+        }
+
+        const cameraPosition = this.carPosition.clone()
+            .add(carDirection.clone().multiplyScalar(-mode.distance))
+            .add(new THREE.Vector3(0, mode.height, 0));
+        return {
+            mode,
+            carDirection,
+            cameraPosition: this.resolveCameraOcclusion(cameraPosition, mode),
+            lookAtPosition: this.carPosition.clone()
+                .add(carDirection.clone().multiplyScalar(mode.lookAhead))
+                .add(new THREE.Vector3(0, mode.lookHeight, 0))
+        };
+    }
+
+    updateCameraPosition() {
+        const { mode, carDirection, cameraPosition, lookAtPosition, cameraUp } = this.getCameraFrame();
 
         if (this.cameraShakeFrames > 0) {
             const falloff = this.cameraShakeFrames / this.cameraShakeDuration;
@@ -2996,10 +3763,15 @@ class GameManager {
             this.cameraShakeFrames--;
         }
 
-        // Set camera position
-        this.camera.position.copy(cameraPosition);
+        if (cameraUp) {
+            this.camera.up.copy(cameraUp);
+        } else if (mode.type === 'topDown') {
+            this.camera.up.copy(carDirection);
+        } else {
+            this.camera.up.set(0, 1, 0);
+        }
 
-        // Set camera to look at this position
+        this.camera.position.copy(cameraPosition);
         this.camera.lookAt(lookAtPosition);
     }
 
