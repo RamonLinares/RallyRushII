@@ -184,7 +184,7 @@
     }
 
     function isDrivingKey(event) {
-        return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift'].includes(event.key) || event.code === 'Space';
+        return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || event.code === 'Space';
     }
 
     function createGarageStat(label, value) {
@@ -796,13 +796,8 @@
         if (e.key === 'ArrowLeft') { controls.left = true; controlChanged = true; }
         if (e.key === 'ArrowRight') { controls.right = true; controlChanged = true; }
         if (e.key === 'ArrowUp') { controls.accelerate = true; controlChanged = true; }
-        if (e.key === 'ArrowDown') { controls.brake = true; controlChanged = true; }
-        if (e.code === 'Space' && isGameplayActive()) {
-            e.preventDefault();
-            controls.handbrake = true;
-            controlChanged = true;
-        }
-        if (e.key === 'Shift' && isGameplayActive() && !cameraTunerEnabled) {
+        if (e.key === 'ArrowDown') { controls.handbrake = true; controlChanged = true; }
+        if (e.code === 'Space' && isGameplayActive() && !cameraTunerEnabled) {
             e.preventDefault();
             gameManager.queueJump?.();
         }
@@ -828,12 +823,7 @@
         if (e.key === 'ArrowLeft') { controls.left = false; controlChanged = true; }
         if (e.key === 'ArrowRight') { controls.right = false; controlChanged = true; }
         if (e.key === 'ArrowUp') { controls.accelerate = false; controlChanged = true; }
-        if (e.key === 'ArrowDown') { controls.brake = false; controlChanged = true; }
-        if (e.code === 'Space' && isGameplayActive()) {
-            e.preventDefault();
-            controls.handbrake = false;
-            controlChanged = true;
-        }
+        if (e.key === 'ArrowDown') { controls.handbrake = false; controlChanged = true; }
         if (controlChanged) {
             gameManager.setControls(controls);
         }

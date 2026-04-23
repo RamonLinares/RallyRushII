@@ -139,9 +139,10 @@ class GameManager {
                 id: 'topDown',
                 label: 'Top Down',
                 type: 'topDown',
-                fov: 48,
-                height: 54,
-                lookAhead: 1.8,
+                fov: 50,
+                height: 118,
+                forwardOffset: 32,
+                lookAhead: 0,
                 occlusion: false
             }
         ];
@@ -4187,12 +4188,13 @@ class GameManager {
         }
 
         if (mode.type === 'topDown') {
+            const focusPoint = this.carPosition.clone()
+                .add(carDirection.clone().multiplyScalar(mode.forwardOffset || 0));
             return {
                 mode,
                 carDirection,
-                cameraPosition: this.carPosition.clone().add(new THREE.Vector3(0, mode.height, 0)),
-                lookAtPosition: this.carPosition.clone()
-                    .add(carDirection.clone().multiplyScalar(mode.lookAhead))
+                cameraPosition: focusPoint.clone().add(new THREE.Vector3(0, mode.height, 0)),
+                lookAtPosition: focusPoint
                     .add(new THREE.Vector3(0, 0.05, 0))
             };
         }
