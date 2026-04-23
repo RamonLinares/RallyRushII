@@ -1288,6 +1288,7 @@ class GameManager {
         car.userData.vehicleType = type;
         car.userData.wheels = [];
         car.userData.steeringWheels = [];
+        car.userData.dashboardDisplays = [];
         car.userData.wheelContactPoints = [];
         car.userData.assetVehicle = true;
         car.userData.assetReady = false;
@@ -1317,10 +1318,20 @@ class GameManager {
                     if (child.userData.assetSteeringWheel) {
                         car.userData.steeringWheels.push(child);
                     }
+                    if (child.userData.assetDashboardDisplay) {
+                        car.userData.dashboardDisplays.push(child.userData.assetDashboardDisplay);
+                    }
                 });
                 car.add(model);
                 this.cacheVehicleWheelContactPoints(car);
                 car.userData.assetReady = true;
+                if (car === this.playerCar) {
+                    this.applyCameraModeSettings();
+                    if (this.game?.car) {
+                        this.animateVehicleSteeringWheel(car, this.game.car.steeringAngle || 0, this.game.car.maxSteeringAngle || spec.maxSteeringAngle);
+                        this.updateVehicleDashboardDisplays();
+                    }
+                }
             })
             .catch(error => {
                 console.warn(`Falling back to procedural ${type} vehicle.`, error);
@@ -1530,7 +1541,7 @@ class GameManager {
             }
 
             if (this.isAssetSteeringWheelTarget(child.name || '')) {
-                this.prepareAssetSteeringWheelObject(child);
+                this.prepareAssetSteeringWheelObject(child, type);
             }
 
             if (!child.isMesh) {
@@ -1550,7 +1561,18 @@ class GameManager {
                 this.prepareAssetWheelMesh(child, name);
             }
             if (this.isAssetSteeringWheelTarget(name)) {
-                this.prepareAssetSteeringWheelObject(child);
+                this.prepareAssetSteeringWheelObject(child, type);
+            }
+
+            const dashboardConfig = this.getAssetDashboardDisplayConfig(
+                type,
+                child.name || '',
+                Array.isArray(child.material)
+                    ? child.material.map(material => material?.name || '').join(' ')
+                    : child.material?.name || ''
+            );
+            if (dashboardConfig) {
+                this.prepareAssetDashboardDisplayMesh(child, dashboardConfig);
             }
         });
 
@@ -1587,16 +1609,242 @@ class GameManager {
             || /(^|\s)interior steering cylinder(?=\s|$)/.test(normalized);
     }
 
-    prepareAssetSteeringWheelObject(object) {
+    getAssetSteeringWheelConfig(type, name = '') {
+        const normalized = this.normalizeAssetName(name);
+        const config = {
+            axis: 'y',
+            direction: /interior steering/i.test(normalized) ? -1 : 1
+        };
+
+        if (type === 'rally' && /(^|\s)interior steering cylinder(?=\s|$)/.test(normalized)) {
+            config.direction = -1;
+            config.baseAxisValue = 0;
+        } else if (type === 'apexGt' && normalized === 'steering wheel') {
+            config.direction = -1;
+        }
+
+        return config;
+    }
+
+    prepareAssetSteeringWheelObject(object, type = '') {
         if (object.userData.assetSteeringWheel) {
             return;
         }
 
+        const config = this.getAssetSteeringWheelConfig(type, object.name || '');
         object.userData.assetSteeringWheel = true;
         object.userData.assetSteeringBaseRotation = object.rotation.clone();
-        object.userData.assetSteeringAxis = 'y';
-        object.userData.assetSteeringDirection = /interior steering/i.test(object.name || '') ? -1 : 1;
+        object.userData.assetSteeringAxis = config.axis || 'y';
+        if (Number.isFinite(config.baseAxisValue)) {
+            object.userData.assetSteeringBaseRotation[object.userData.assetSteeringAxis] = config.baseAxisValue;
+        }
+        object.rotation[object.userData.assetSteeringAxis] = object.userData.assetSteeringBaseRotation[object.userData.assetSteeringAxis];
+        object.userData.assetSteeringDirection = config.direction ?? 1;
         object.userData.assetSteeringVisualAngle = 0;
+    }
+
+    getAssetDashboardDisplayConfig(type, meshName = '', materialName = '') {
+        const normalizedMesh = this.normalizeAssetName(meshName);
+        const normalizedMaterial = this.normalizeAssetName(materialName);
+
+        if (type === 'rally' && (
+            normalizedMesh === 'interior steering dash'
+            || normalizedMaterial === 'dashboard'
+        )) {
+            return {
+                style: 'rallyTelemetry',
+                emissiveIntensity: 1.22
+            };
+        }
+
+        return null;
+    }
+
+    prepareAssetDashboardDisplayMesh(mesh, config) {
+        if (mesh.userData.assetDashboardDisplay) {
+            return;
+        }
+
+        const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+        if (!material) {
+            return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return;
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.flipY = false;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            texture.colorSpace = THREE.SRGBColorSpace;
+        } else if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
+
+        material.map = null;
+        material.emissiveMap = texture;
+        material.userData.keepTextureMaps = false;
+        if (material.color) {
+            material.color.setHex(0x000000);
+        }
+        if (material.emissive) {
+            material.emissive.setHex(0xffffff);
+        }
+        material.emissiveIntensity = config.emissiveIntensity || 1;
+        material.transparent = false;
+        material.opacity = 1;
+        material.toneMapped = false;
+        if ('metalness' in material) {
+            material.metalness = 0;
+        }
+        if ('roughness' in material) {
+            material.roughness = 0.28;
+        }
+        material.needsUpdate = true;
+
+        mesh.userData.assetDashboardDisplay = {
+            style: config.style,
+            mesh,
+            material,
+            canvas,
+            context,
+            texture,
+            lastSpeedKmh: null,
+            lastStatus: '',
+            lastRpmRatio: null
+        };
+
+        this.drawAssetDashboardDisplay(mesh.userData.assetDashboardDisplay, {
+            speedKmh: 0,
+            speedRatio: 0,
+            accelerating: false,
+            status: 'READY'
+        });
+    }
+
+    drawAssetDashboardDisplay(display, data) {
+        if (!display?.context || !display?.canvas) {
+            return;
+        }
+
+        const speedKmh = Math.max(0, Math.round(data.speedKmh || 0));
+        const status = data.status || 'READY';
+        const rpmRatio = THREE.MathUtils.clamp(data.speedRatio || 0, 0, 1);
+        if (
+            display.lastSpeedKmh === speedKmh
+            && display.lastStatus === status
+            && display.lastRpmRatio !== null
+            && Math.abs(display.lastRpmRatio - rpmRatio) < 0.02
+        ) {
+            return;
+        }
+
+        display.lastSpeedKmh = speedKmh;
+        display.lastStatus = status;
+        display.lastRpmRatio = rpmRatio;
+
+        if (display.style === 'rallyTelemetry') {
+            this.drawRallyDashboardDisplay(display, {
+                speedKmh,
+                speedRatio: rpmRatio,
+                accelerating: Boolean(data.accelerating),
+                status
+            });
+        }
+
+        display.texture.needsUpdate = true;
+    }
+
+    drawRallyDashboardDisplay(display, data) {
+        const { canvas, context } = display;
+        const width = canvas.width;
+        const height = canvas.height;
+        const accent = '#ff8a1f';
+        const accentSoft = '#ffb562';
+        const dark = '#050608';
+        const glow = '#ff7a00';
+        const speedText = String(data.speedKmh).padStart(3, '0');
+        const rpmSegments = 11;
+        const rpmActive = Math.max(1, Math.round((data.speedRatio * 0.82 + (data.accelerating ? 0.14 : 0.04)) * rpmSegments));
+
+        context.clearRect(0, 0, width, height);
+        const background = context.createLinearGradient(0, 0, 0, height);
+        background.addColorStop(0, '#090b10');
+        background.addColorStop(1, dark);
+        context.fillStyle = background;
+        context.fillRect(0, 0, width, height);
+
+        context.strokeStyle = accent;
+        context.lineWidth = 8;
+        context.beginPath();
+        context.moveTo(118, 78);
+        context.lineTo(906, 78);
+        context.lineTo(968, 152);
+        context.lineTo(968, 430);
+        context.lineTo(56, 430);
+        context.lineTo(56, 152);
+        context.closePath();
+        context.stroke();
+
+        context.fillStyle = 'rgba(255, 138, 31, 0.08)';
+        context.fill();
+
+        context.fillStyle = accent;
+        context.shadowColor = glow;
+        context.shadowBlur = 18;
+        context.font = '700 34px "Arial Narrow", Arial, sans-serif';
+        context.textAlign = 'center';
+        context.fillText('fuel', 170, 458);
+        context.fillText('engine RPM', 360, 458);
+        context.fillText('acceleration', 514, 458);
+        context.fillText('speed km/h', 653, 458);
+        context.fillText('temperature', 880, 458);
+
+        context.font = '900 156px "Arial Narrow", Arial, sans-serif';
+        context.fillText(speedText, 650, 248);
+
+        context.font = '800 34px "Arial Narrow", Arial, sans-serif';
+        context.fillText(status, 650, 328);
+
+        context.shadowBlur = 12;
+        const rpmBarX = 306;
+        const rpmBarY = 120;
+        const rpmBarHeight = 210;
+        const rpmGap = 8;
+        const rpmWidth = 28;
+        for (let i = 0; i < rpmSegments; i++) {
+            const segmentHeight = (rpmBarHeight - rpmGap * (rpmSegments - 1)) / rpmSegments;
+            const y = rpmBarY + (rpmSegments - 1 - i) * (segmentHeight + rpmGap);
+            const active = i < rpmActive;
+            context.fillStyle = active ? accentSoft : 'rgba(255, 138, 31, 0.18)';
+            context.fillRect(rpmBarX, y, rpmWidth, segmentHeight);
+        }
+
+        context.fillStyle = data.accelerating ? accentSoft : 'rgba(255, 138, 31, 0.22)';
+        context.fillRect(458, 128, 34, 194 * (data.accelerating ? 1 : 0.36));
+
+        const tempX = 876;
+        context.strokeStyle = accentSoft;
+        context.lineWidth = 10;
+        context.beginPath();
+        context.moveTo(tempX, 118);
+        context.lineTo(tempX, 314);
+        context.stroke();
+
+        context.fillStyle = accentSoft;
+        context.fillRect(136, 292, 52, 28);
+        context.fillRect(136, 248, 52, 28);
+        context.fillStyle = 'rgba(255, 181, 98, 0.2)';
+        context.fillRect(136, 204, 52, 28);
+        context.shadowBlur = 0;
     }
 
     prepareAssetWheelMesh(mesh, name) {
@@ -2715,6 +2963,35 @@ class GameManager {
         localStorage.setItem('bestTimes', JSON.stringify(this.bestTimes));
     }
 
+    updateVehicleDashboardDisplays() {
+        if (!this.playerCar?.userData?.dashboardDisplays?.length || !this.game?.car) {
+            return;
+        }
+
+        const speedKmh = Math.max(0, Math.round(this.game.car.speed * 100));
+        const speedRatio = THREE.MathUtils.clamp(
+            this.game.car.speed / Math.max(this.game.car.maxSpeed || 0.001, 0.001),
+            0,
+            1
+        );
+        const countdownState = this.getStartCountdownState?.();
+        const status = this.isPaused
+            ? 'PAUSE'
+            : this.game.finishTime
+                ? 'DONE'
+                : this.game.startTime
+                    ? 'LIVE'
+                    : countdownState?.label || 'READY';
+
+        this.playerCar.userData.dashboardDisplays.forEach(display => {
+            this.drawAssetDashboardDisplay(display, {
+                speedKmh,
+                speedRatio,
+                accelerating: this.controls.accelerate,
+                status
+            });
+        });
+    }
 
 
     updateUI() {
@@ -2732,6 +3009,8 @@ class GameManager {
                 timerValue.textContent = elapsedTime.toFixed(2);
             }
         }
+
+        this.updateVehicleDashboardDisplays();
     }
 
     updateLightPosition() {
