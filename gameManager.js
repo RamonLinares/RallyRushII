@@ -521,6 +521,17 @@ class GameManager {
                 lateralGrip: playerSpec.lateralGrip,
                 driftBoost: playerSpec.driftBoost,
                 headingRecovery: playerSpec.headingRecovery,
+                jumpQueued: false,
+                jumpOffset: 0,
+                jumpVelocity: 0,
+                jumpCooldown: 0,
+                airborne: false,
+                landingTractionTimer: 0,
+                landingTractionDuration: 0,
+                landingTractionSide: 1,
+                landingWobblePhase: 0,
+                landingDriftAmount: 0,
+                lastLandingSpeedLoss: 0,
                 borderCollisionCooldown: 0,
                 trafficCollisionCooldown: 0
             },
@@ -2335,6 +2346,17 @@ class GameManager {
         this.game.car.visualYaw = roadFrame.yaw;
         this.game.car.bodyRoll = 0;
         this.game.car.steeringAngle = 0;
+        this.game.car.jumpQueued = false;
+        this.game.car.jumpOffset = 0;
+        this.game.car.jumpVelocity = 0;
+        this.game.car.jumpCooldown = 0;
+        this.game.car.airborne = false;
+        this.game.car.landingTractionTimer = 0;
+        this.game.car.landingTractionDuration = 0;
+        this.game.car.landingTractionSide = 1;
+        this.game.car.landingWobblePhase = 0;
+        this.game.car.landingDriftAmount = 0;
+        this.game.car.lastLandingSpeedLoss = 0;
         this.carPosition.copy(this.game.car.position);
 
         this.playerCar.position.copy(this.game.car.position);
@@ -3064,7 +3086,7 @@ class GameManager {
         return current + this.getAngleDelta(current, target) * amount;
     }
 
-    applyVehicleRoadPose(vehicle, frame, yawOffset = 0, roll = 0) {
+    applyVehicleRoadPose(vehicle, frame, yawOffset = 0, roll = 0, pitchOffset = 0) {
         const forward = frame.forward || new THREE.Vector3(
             -Math.sin(frame.yaw),
             Math.sin(frame.pitch),
@@ -3080,6 +3102,93 @@ class GameManager {
         if (roll) {
             vehicle.rotateZ(roll);
         }
+        if (pitchOffset) {
+            vehicle.rotateX(pitchOffset);
+        }
+    }
+
+    spawnJumpBurst(position, tint = 0xe7f2ff, upwardVelocity = 0.09, count = 9, size = 0.2) {
+        if (!position) {
+            return;
+        }
+
+        const burstGeometry = new THREE.CircleGeometry(size, 12);
+        for (let i = 0; i < count; i++) {
+            const puff = new THREE.Mesh(
+                burstGeometry.clone(),
+                new THREE.MeshBasicMaterial({
+                    color: tint,
+                    transparent: true,
+                    opacity: 0.58
+                })
+            );
+            puff.position.copy(position);
+            puff.position.x += (Math.random() - 0.5) * 1.25;
+            puff.position.y += 0.08 + Math.random() * 0.16;
+            puff.position.z += (Math.random() - 0.5) * 0.9;
+            puff.rotation.x = -Math.PI / 2;
+            puff.rotation.z = Math.random() * Math.PI;
+            this.scene.add(puff);
+            this.collisionEffects.push({
+                mesh: puff,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.04,
+                    upwardVelocity + Math.random() * 0.05,
+                    (Math.random() - 0.5) * 0.05
+                ),
+                spin: new THREE.Vector3(0, 0, (Math.random() - 0.5) * 0.03),
+                age: 0,
+                life: 18 + Math.floor(Math.random() * 10),
+                startOpacity: 0.58,
+                grow: 1.45,
+                gravity: 0.004,
+                drag: 0.965
+            });
+        }
+        burstGeometry.dispose();
+    }
+
+    updatePlayerJumpState(speedRatio) {
+        const car = this.game?.car;
+        if (!car) {
+            return { jumpOffset: 0, landed: false, landingImpact: 0 };
+        }
+
+        let landed = false;
+        let landingImpact = 0;
+        if (car.jumpCooldown > 0) {
+            car.jumpCooldown--;
+        }
+
+        const canJump = !car.airborne && car.jumpCooldown <= 0 && !this.activeCollision;
+        if (car.jumpQueued && canJump) {
+            car.airborne = true;
+            car.jumpVelocity = THREE.MathUtils.lerp(0.36, 0.46, speedRatio);
+            car.jumpOffset = Math.max(car.jumpOffset, 0.08);
+            car.jumpCooldown = 42;
+            this.spawnJumpBurst(this.playerCar?.position?.clone(), 0xd9f4ff, 0.12, 14, 0.24);
+        }
+        car.jumpQueued = false;
+
+        if (car.airborne || car.jumpOffset > 0 || Math.abs(car.jumpVelocity) > 0.0001) {
+            car.jumpOffset = Math.max(0, car.jumpOffset + car.jumpVelocity);
+            car.jumpVelocity -= 0.0175;
+            if (car.jumpOffset <= 0 && car.jumpVelocity <= 0) {
+                car.jumpOffset = 0;
+                landingImpact = Math.abs(car.jumpVelocity);
+                car.jumpVelocity = 0;
+                if (car.airborne) {
+                    landed = true;
+                }
+                car.airborne = false;
+            }
+        } else {
+            car.jumpOffset = 0;
+            car.jumpVelocity = 0;
+            car.airborne = false;
+        }
+
+        return { jumpOffset: car.jumpOffset || 0, landed, landingImpact };
     }
 
     animate() {
@@ -3230,7 +3339,35 @@ class GameManager {
             this.game.car.lateralVelocity += -driftDirection * driftAmount * speedRatio * 0.048;
             this.game.car.lateralVelocity += -driftDirection * entryDriftKick * 0.052;
         }
-        const lateralDamping = THREE.MathUtils.clamp(0.9 - speedRatio * 0.08 + driftAmount * 0.095 - ((this.game.car.lateralGrip || 1) - 1) * 0.08, 0.72, 0.97);
+        let landingLooseRatio = 0;
+        let landingDriftOscillation = 0;
+        if ((this.game.car.landingTractionTimer || 0) > 0) {
+            landingLooseRatio = THREE.MathUtils.clamp(
+                this.game.car.landingTractionTimer / Math.max(1, this.game.car.landingTractionDuration || 1),
+                0,
+                1
+            );
+            const driftAmount = this.game.car.landingDriftAmount || 0.65;
+            this.game.car.landingWobblePhase += 0.24 + speedRatio * 0.26;
+            const slipEnvelope = landingLooseRatio * driftAmount;
+            landingDriftOscillation = Math.sin(this.game.car.landingWobblePhase);
+            const landingWobble = landingDriftOscillation * slipEnvelope;
+            const landingSide = this.game.car.landingTractionSide || 1;
+            const recoveryCountersteer = steeringInput && Math.sign(steeringInput) !== Math.sign(landingSide * landingWobble)
+                ? 0.78
+                : 1;
+            this.game.car.lateralVelocity += landingSide * landingWobble * (0.055 + speedRatio * 0.062) * recoveryCountersteer;
+            this.game.car.angle += landingSide * landingWobble * (0.018 + speedRatio * 0.014) * recoveryCountersteer;
+            this.game.car.landingTractionTimer--;
+            if (this.game.car.landingTractionTimer <= 0) {
+                this.game.car.landingDriftAmount = 0;
+            }
+        }
+        const lateralDamping = THREE.MathUtils.clamp(
+            0.9 - speedRatio * 0.08 + driftAmount * 0.095 + landingLooseRatio * 0.16 - ((this.game.car.lateralGrip || 1) - 1) * 0.08,
+            0.72,
+            0.992
+        );
         this.game.car.lateralVelocity *= lateralDamping;
 
         // Calculate movement
@@ -3261,11 +3398,12 @@ class GameManager {
 
         const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, playerType);
         const updatedRoadData = updatedRoadFrame.roadData;
+        const { jumpOffset, landed, landingImpact } = this.updatePlayerJumpState(speedRatio);
 
         // Update car's position and rotation
         this.carPosition.set(
             this.game.car.xOffset + updatedRoadData.curve,
-            this.getVehicleGroundY(updatedRoadFrame, playerType),
+            this.getVehicleGroundY(updatedRoadFrame, playerType) + jumpOffset,
             this.game.car.position.z
         );
         this.game.car.position.copy(this.carPosition);
@@ -3281,19 +3419,49 @@ class GameManager {
         const targetRoll = (-this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio)
             + driftDirection * driftAmount * 0.045;
         this.game.car.bodyRoll += (targetRoll - this.game.car.bodyRoll) * 0.16;
+        const jumpRoll = this.game.car.airborne ? (-steeringInput * (0.015 + speedRatio * 0.028)) : 0;
+        const jumpPitch = this.game.car.airborne
+            ? THREE.MathUtils.clamp(this.game.car.jumpVelocity * 0.55, -0.085, 0.12)
+            : 0;
+        const landingRoll = landingLooseRatio * (this.game.car.landingTractionSide || 1) * landingDriftOscillation * 0.075;
         this.applyVehicleRoadPose(
             this.playerCar,
             updatedRoadFrame,
             this.getAngleDelta(updatedRoadFrame.yaw, this.game.car.visualYaw),
-            this.game.car.bodyRoll
+            this.game.car.bodyRoll + jumpRoll + landingRoll,
+            jumpPitch
         );
-        this.alignVehicleToRoadSurface(this.playerCar);
+        if (!this.game.car.airborne) {
+            this.alignVehicleToRoadSurface(this.playerCar);
+        }
         this.carPosition.copy(this.playerCar.position);
         this.game.car.position.copy(this.carPosition);
         const counterSteer = -driftDirection * driftAmount * speedRatio * 0.16;
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85 + counterSteer);
         this.animateVehicleSteeringWheel(this.playerCar, this.game.car.steeringAngle + counterSteer, this.game.car.maxSteeringAngle);
         this.updateDriftEffects(updatedRoadFrame, driftAmount, handbrakeIntensity, driftDirection, speedRatio);
+
+        if (landed) {
+            const landingSpeedLoss = THREE.MathUtils.clamp(0.18 + landingImpact * 0.34, 0.18, 0.34);
+            this.game.car.speed *= (1 - landingSpeedLoss);
+            this.game.car.lastLandingSpeedLoss = landingSpeedLoss;
+            const landingSide = Math.sign(this.game.car.lateralVelocity)
+                || Math.sign(steeringInput)
+                || (Math.random() < 0.5 ? -1 : 1);
+            const landingDriftAmount = THREE.MathUtils.clamp(0.62 + landingImpact * 2.5 + speedRatio * 0.32, 0.62, 1.18);
+            this.game.car.landingTractionDuration = 76;
+            this.game.car.landingTractionTimer = 76;
+            this.game.car.landingTractionSide = landingSide;
+            this.game.car.landingWobblePhase = Math.random() * Math.PI;
+            this.game.car.landingDriftAmount = landingDriftAmount;
+            this.game.car.lateralVelocity += landingSide * landingDriftAmount * (0.09 + speedRatio * 0.075);
+            this.game.car.angle += landingSide * landingDriftAmount * (0.04 + speedRatio * 0.022);
+            this.game.car.driftAmount = Math.max(this.game.car.driftAmount || 0, landingDriftAmount * 0.32);
+            this.cameraShakeDuration = 16;
+            this.cameraShakeFrames = 16;
+            this.cameraShakeStrength = 0.26;
+            this.spawnJumpBurst(this.playerCar.position.clone(), 0xd6e4ea, 0.052, 18, 0.28);
+        }
     }
 
     getPlayerRoadLimit() {
@@ -3550,6 +3718,17 @@ class GameManager {
             this.game.car.driveYaw = collision.playerRotEnd.y;
             this.game.car.visualYaw = collision.playerRotEnd.y;
             this.game.car.bodyRoll = 0;
+            this.game.car.jumpQueued = false;
+            this.game.car.jumpOffset = 0;
+            this.game.car.jumpVelocity = 0;
+            this.game.car.jumpCooldown = 0;
+            this.game.car.airborne = false;
+            this.game.car.landingTractionTimer = 0;
+            this.game.car.landingTractionDuration = 0;
+            this.game.car.landingTractionSide = 1;
+            this.game.car.landingWobblePhase = 0;
+            this.game.car.landingDriftAmount = 0;
+            this.game.car.lastLandingSpeedLoss = 0;
             this.playerCar.position.copy(collision.playerEnd);
             this.applyVehicleRoadPose(this.playerCar, this.getVehicleRoadFrame(collision.playerEnd.z, -1, this.getPlayerVehicleType()));
             this.alignVehicleToRoadSurface(this.playerCar);
@@ -3792,6 +3971,11 @@ class GameManager {
         const lateralLimit = (playerBounds.width + trafficBounds.width) * 0.55;
         const longitudinalLimit = (playerBounds.length + trafficBounds.length) * 0.52;
         const closingAllowance = Math.min(0.55, this.game.car.speed * 0.08 + trafficCar.speed * 0.06);
+
+        const jumpOffset = this.game.car.jumpOffset || 0;
+        if (jumpOffset > 1.35) {
+            return false;
+        }
 
         return xGap < lateralLimit && zGap < longitudinalLimit + closingAllowance;
     }
@@ -4056,6 +4240,15 @@ class GameManager {
 
     setControls(controls) {
         this.controls = { ...this.controls, ...controls };
+    }
+
+    queueJump() {
+        if (!this.game?.car || this.isPaused || this.activeCollision || this.game.finishTime) {
+            return false;
+        }
+
+        this.game.car.jumpQueued = true;
+        return true;
     }
 }
 

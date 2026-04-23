@@ -105,6 +105,12 @@
                 drift: Number((game.car.driftAmount || 0).toFixed(3)),
                 handbrakeIntensity: Number((game.car.handbrakeIntensity || 0).toFixed(3)),
                 turnEntryDrift: Number((game.car.turnEntryDrift || 0).toFixed(3)),
+                airborne: Boolean(game.car.airborne),
+                jumpOffset: Number((game.car.jumpOffset || 0).toFixed(3)),
+                jumpVelocity: Number((game.car.jumpVelocity || 0).toFixed(3)),
+                landingTraction: Number(((game.car.landingTractionTimer || 0) / Math.max(1, game.car.landingTractionDuration || 1)).toFixed(3)),
+                landingDrift: Number((game.car.landingDriftAmount || 0).toFixed(3)),
+                lastLandingSpeedLoss: Number((game.car.lastLandingSpeedLoss || 0).toFixed(3)),
                 tireEffects: gameManager.collisionEffects.length,
                 roadYaw: Number((gameManager.getVehicleRoadFrame(game.car.position.z, -1).yaw).toFixed(3)),
                 driveYaw: Number((game.car.driveYaw || 0).toFixed(3)),
@@ -178,7 +184,7 @@
     }
 
     function isDrivingKey(event) {
-        return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || event.code === 'Space';
+        return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift'].includes(event.key) || event.code === 'Space';
     }
 
     function createGarageStat(label, value) {
@@ -795,6 +801,10 @@
             e.preventDefault();
             controls.handbrake = true;
             controlChanged = true;
+        }
+        if (e.key === 'Shift' && isGameplayActive() && !cameraTunerEnabled) {
+            e.preventDefault();
+            gameManager.queueJump?.();
         }
         if (controlChanged) {
             gameManager.setControls(controls);
