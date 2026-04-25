@@ -1157,6 +1157,11 @@ button:focus-visible {
     left: 0;
     display: none;
     pointer-events: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .pedalControls,
@@ -1186,6 +1191,11 @@ button:focus-visible {
     min-height: 58px;
     padding: 10px 14px;
     pointer-events: all;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     color: var(--ui-text);
     border: 1px solid var(--ui-border);
     border-radius: 8px;
@@ -1199,6 +1209,12 @@ button:focus-visible {
     text-align: left;
     text-transform: uppercase;
     transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.controlButton * {
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
 }
 
 .controlButton:active {

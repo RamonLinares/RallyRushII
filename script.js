@@ -1,8 +1,8 @@
 (function () {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     if (THREE.sRGBEncoding) {
         renderer.outputEncoding = THREE.sRGBEncoding;
     }
@@ -62,6 +62,7 @@
     // Mobile button controls setup
     const accelerateButton = document.getElementById('accelerateButton');
     const brakeButton = document.getElementById('brakeButton');
+    const jumpButton = document.getElementById('jumpButton');
     const leftButton = document.getElementById('leftButton');
     const rightButton = document.getElementById('rightButton');
 
@@ -194,7 +195,11 @@
     }
 
     function isDrivingKey(event) {
-        return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || event.code === 'Space';
+        return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift'].includes(event.key) || event.code === 'Space';
+    }
+
+    function isHandbrakeKey(event) {
+        return event.key === 'Shift';
     }
 
     function createGarageStat(label, value) {
@@ -850,7 +855,12 @@
         if (e.key === 'ArrowLeft') { controls.left = true; controlChanged = true; }
         if (e.key === 'ArrowRight') { controls.right = true; controlChanged = true; }
         if (e.key === 'ArrowUp') { controls.accelerate = true; controlChanged = true; }
-        if (e.key === 'ArrowDown') { controls.handbrake = true; controlChanged = true; }
+        if (e.key === 'ArrowDown') { controls.brake = true; controlChanged = true; }
+        if (isHandbrakeKey(e) && isGameplayActive() && !cameraTunerEnabled) {
+            e.preventDefault();
+            controls.handbrake = true;
+            controlChanged = true;
+        }
         if (e.code === 'Space' && isGameplayActive() && !cameraTunerEnabled) {
             e.preventDefault();
             gameManager.queueJump?.();
@@ -877,56 +887,90 @@
         if (e.key === 'ArrowLeft') { controls.left = false; controlChanged = true; }
         if (e.key === 'ArrowRight') { controls.right = false; controlChanged = true; }
         if (e.key === 'ArrowUp') { controls.accelerate = false; controlChanged = true; }
-        if (e.key === 'ArrowDown') { controls.handbrake = false; controlChanged = true; }
+        if (e.key === 'ArrowDown') { controls.brake = false; controlChanged = true; }
+        if (isHandbrakeKey(e)) { controls.handbrake = false; controlChanged = true; }
         if (controlChanged) {
             gameManager.setControls(controls);
         }
     });
 
+    function preventTouchDefault(event) {
+        event.preventDefault();
+    }
+
+    mobileControls.addEventListener('contextmenu', event => {
+        event.preventDefault();
+    });
+
+    const touchControlOptions = { passive: false };
+    mobileControls.addEventListener('touchmove', preventTouchDefault, touchControlOptions);
+    mobileControls.addEventListener('touchcancel', event => {
+        preventTouchDefault(event);
+        resetControls();
+    }, touchControlOptions);
+
     // Touch controls
-    accelerateButton.addEventListener('touchstart', () => {
+    accelerateButton.addEventListener('touchstart', event => {
+        preventTouchDefault(event);
         if (!canDrive()) { return; }
         controls.accelerate = true;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    brakeButton.addEventListener('touchstart', () => {
+    brakeButton.addEventListener('touchstart', event => {
+        preventTouchDefault(event);
         if (!canDrive()) { return; }
         controls.brake = true;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    leftButton.addEventListener('touchstart', () => {
+    jumpButton.addEventListener('touchstart', event => {
+        preventTouchDefault(event);
+        if (!canDrive()) { return; }
+        gameManager.queueJump?.();
+    }, touchControlOptions);
+
+    leftButton.addEventListener('touchstart', event => {
+        preventTouchDefault(event);
         if (!canDrive()) { return; }
         controls.left = true;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    rightButton.addEventListener('touchstart', () => {
+    rightButton.addEventListener('touchstart', event => {
+        preventTouchDefault(event);
         if (!canDrive()) { return; }
         controls.right = true;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    accelerateButton.addEventListener('touchend', () => {
+    accelerateButton.addEventListener('touchend', event => {
+        preventTouchDefault(event);
         controls.accelerate = false;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    brakeButton.addEventListener('touchend', () => {
+    brakeButton.addEventListener('touchend', event => {
+        preventTouchDefault(event);
         controls.brake = false;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    leftButton.addEventListener('touchend', () => {
+    jumpButton.addEventListener('touchend', event => {
+        preventTouchDefault(event);
+    }, touchControlOptions);
+
+    leftButton.addEventListener('touchend', event => {
+        preventTouchDefault(event);
         controls.left = false;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
-    rightButton.addEventListener('touchend', () => {
+    rightButton.addEventListener('touchend', event => {
+        preventTouchDefault(event);
         controls.right = false;
         gameManager.setControls(controls);
-    });
+    }, touchControlOptions);
 
     // Handle game start and restart
     startButton.addEventListener('click', startRaceWithPreload);

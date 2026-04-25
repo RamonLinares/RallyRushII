@@ -111,6 +111,74 @@ function drawWavyLines(context, width, height, color, count, alpha) {
     context.globalAlpha = 1;
 }
 
+function createJungleLeafTexture(width = 512, height = 512, repeatX = 2, repeatY = 2) {
+    return createCanvasTexture(width, height, repeatX, repeatY, (context, w, h) => {
+        const gradient = context.createLinearGradient(0, 0, w, h);
+        gradient.addColorStop(0, '#0b281c');
+        gradient.addColorStop(0.42, '#1d5b35');
+        gradient.addColorStop(0.68, '#2e7540');
+        gradient.addColorStop(1, '#102f21');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, w, h);
+
+        for (let i = 0; i < 360; i++) {
+            const x = Math.random() * w;
+            const y = Math.random() * h;
+            const leafLength = 16 + Math.random() * 62;
+            const leafWidth = 4 + Math.random() * 16;
+            const angle = Math.random() * Math.PI * 2;
+            context.save();
+            context.translate(x, y);
+            context.rotate(angle);
+            context.globalAlpha = 0.22 + Math.random() * 0.38;
+            context.fillStyle = ['#0d3524', '#1f6a3e', '#2e8447', '#173f2c', '#4f8b48'][Math.floor(Math.random() * 5)];
+            context.beginPath();
+            context.ellipse(0, 0, leafWidth, leafLength, 0, 0, Math.PI * 2);
+            context.fill();
+            context.globalAlpha *= 0.9;
+            context.strokeStyle = '#b0c878';
+            context.lineWidth = 0.7;
+            context.beginPath();
+            context.moveTo(0, -leafLength * 0.72);
+            context.lineTo(0, leafLength * 0.72);
+            context.stroke();
+            context.restore();
+        }
+
+        context.globalAlpha = 0.32;
+        drawSpeckle(context, w, h, ['#07170f', '#113621', '#2c703a', '#668a45'], 2500, 1, 4, 0.75);
+        context.globalAlpha = 1;
+    });
+}
+
+function createJungleBarkTexture(width = 256, height = 512, repeatX = 1.2, repeatY = 2.5) {
+    return createCanvasTexture(width, height, repeatX, repeatY, (context, w, h) => {
+        const gradient = context.createLinearGradient(0, 0, w, 0);
+        gradient.addColorStop(0, '#25170f');
+        gradient.addColorStop(0.32, '#54331f');
+        gradient.addColorStop(0.64, '#302015');
+        gradient.addColorStop(1, '#6b4a2e');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, w, h);
+
+        for (let i = 0; i < 90; i++) {
+            const x = Math.random() * w;
+            context.globalAlpha = 0.22 + Math.random() * 0.36;
+            context.strokeStyle = Math.random() < 0.5 ? '#140d09' : '#80603c';
+            context.lineWidth = 1 + Math.random() * 3;
+            context.beginPath();
+            context.moveTo(x, -20);
+            for (let y = 0; y < h + 24; y += 34) {
+                context.lineTo(x + Math.sin(y * 0.026 + i) * (3 + Math.random() * 5), y);
+            }
+            context.stroke();
+        }
+
+        drawSpeckle(context, w, h, ['#1a0f09', '#4a2d1b', '#7c5a37', '#2f2517'], 1200, 1, 4, 0.42);
+        context.globalAlpha = 1;
+    });
+}
+
 function createLakeSkyTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -311,33 +379,35 @@ function createJungleSkyTexture() {
     canvas.height = 1024;
     const context = canvas.getContext('2d');
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#6e9eaa');
-    skyGradient.addColorStop(0.34, '#8fb7b4');
-    skyGradient.addColorStop(0.68, '#a8bfae');
-    skyGradient.addColorStop(1, '#597f61');
+    skyGradient.addColorStop(0, '#4c6264');
+    skyGradient.addColorStop(0.32, '#718382');
+    skyGradient.addColorStop(0.64, '#8e9d91');
+    skyGradient.addColorStop(1, '#3d6647');
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     const stormBand = context.createLinearGradient(0, 0, 0, canvas.height * 0.58);
-    stormBand.addColorStop(0, 'rgba(58,75,78,0.5)');
-    stormBand.addColorStop(0.45, 'rgba(94,112,109,0.34)');
+    stormBand.addColorStop(0, 'rgba(33,43,45,0.84)');
+    stormBand.addColorStop(0.38, 'rgba(60,72,72,0.62)');
+    stormBand.addColorStop(0.76, 'rgba(106,122,116,0.28)');
     stormBand.addColorStop(1, 'rgba(128,150,142,0)');
     context.fillStyle = stormBand;
     context.fillRect(0, 0, canvas.width, canvas.height * 0.6);
 
     const drawRainCloud = (cx, cy, width, height, opacity, seed) => {
         context.save();
-        context.filter = 'blur(10px)';
-        for (let i = 0; i < 18; i++) {
+        context.filter = 'blur(18px)';
+        for (let i = 0; i < 28; i++) {
             const t = i / 17;
             const x = cx + (t - 0.5) * width + Math.sin(seed + i * 1.7) * width * 0.08;
             const y = cy + Math.sin(t * Math.PI) * -height * 0.16 + Math.cos(seed * 0.7 + i) * height * 0.18;
             const rx = width * (0.07 + (Math.sin(seed + i * 2.1) * 0.5 + 0.5) * 0.08);
             const ry = height * (0.22 + (Math.cos(seed + i * 1.3) * 0.5 + 0.5) * 0.18);
             const cloud = context.createRadialGradient(x - rx * 0.2, y - ry * 0.35, 0, x, y, Math.max(rx, ry));
-            cloud.addColorStop(0, `rgba(214,226,221,${opacity * 0.68})`);
-            cloud.addColorStop(0.52, `rgba(126,146,141,${opacity * 0.42})`);
-            cloud.addColorStop(1, 'rgba(64,78,76,0)');
+            cloud.addColorStop(0, `rgba(194,202,196,${opacity * 0.72})`);
+            cloud.addColorStop(0.42, `rgba(91,103,101,${opacity * 0.62})`);
+            cloud.addColorStop(0.82, `rgba(47,57,58,${opacity * 0.32})`);
+            cloud.addColorStop(1, 'rgba(33,41,42,0)');
             context.fillStyle = cloud;
             context.beginPath();
             context.ellipse(x, y, rx, ry, Math.sin(seed + i) * 0.08, 0, Math.PI * 2);
@@ -347,12 +417,35 @@ function createJungleSkyTexture() {
         context.restore();
     };
 
-    for (let x = -260; x < canvas.width + 320; x += 320) {
-        drawRainCloud(x + 120, 112 + Math.sin(x * 0.01) * 24, 520, 150, 0.56, x * 0.03);
+    for (let x = -340; x < canvas.width + 420; x += 260) {
+        drawRainCloud(x + 120, 116 + Math.sin(x * 0.01) * 20, 620, 190, 0.76, x * 0.03);
     }
-    for (let x = -180; x < canvas.width + 260; x += 420) {
-        drawRainCloud(x + 150, 310 + Math.cos(x * 0.008) * 26, 620, 120, 0.34, x * 0.019 + 9);
+    for (let x = -260; x < canvas.width + 320; x += 360) {
+        drawRainCloud(x + 150, 288 + Math.cos(x * 0.008) * 22, 760, 150, 0.48, x * 0.019 + 9);
     }
+
+    context.save();
+    context.filter = 'blur(26px)';
+    for (let i = 0; i < 46; i++) {
+        const y = 26 + Math.random() * 390;
+        const cloudSheet = context.createLinearGradient(0, y - 90, 0, y + 90);
+        cloudSheet.addColorStop(0, 'rgba(28,36,38,0)');
+        cloudSheet.addColorStop(0.5, `rgba(${42 + Math.floor(Math.random() * 28)},${52 + Math.floor(Math.random() * 30)},${54 + Math.floor(Math.random() * 28)},${0.08 + Math.random() * 0.18})`);
+        cloudSheet.addColorStop(1, 'rgba(96,112,112,0)');
+        context.fillStyle = cloudSheet;
+        context.beginPath();
+        context.ellipse(
+            Math.random() * canvas.width,
+            y,
+            440 + Math.random() * 760,
+            54 + Math.random() * 120,
+            (Math.random() - 0.5) * 0.12,
+            0,
+            Math.PI * 2
+        );
+        context.fill();
+    }
+    context.restore();
 
     context.globalAlpha = 0.2;
     context.strokeStyle = '#e2f3ef';
@@ -385,9 +478,14 @@ function createJungleSkyTexture() {
 }
 
 function createRoadTexture(environment, segmentCount) {
-    const repeatY = environment.roadStyle === 'mud-road'
-        ? Math.max(7, segmentCount / 28)
-        : Math.max(24, segmentCount / 8);
+    const approximateRoadLength = segmentCount * 10;
+    const repeatY = Number.isFinite(environment.roadTextureRepeatY)
+        ? environment.roadTextureRepeatY
+        : Number.isFinite(environment.roadTextureMetersPerTile)
+            ? Math.max(1, approximateRoadLength / environment.roadTextureMetersPerTile)
+        : environment.roadStyle === 'mud-road'
+            ? Math.max(7, segmentCount / 28)
+            : Math.max(24, segmentCount / 8);
     const palette = {
         'sun-baked-asphalt': {
             base: '#5b5147',
@@ -438,16 +536,24 @@ function createRoadTexture(environment, segmentCount) {
         edge: '#f7f8ef'
     };
 
-    return createCanvasTexture(512, 1024, 1, repeatY, (context, width, height) => {
+    const texture = createCanvasTexture(512, 1024, 1, repeatY, (context, width, height) => {
         context.fillStyle = palette.base;
         context.fillRect(0, 0, width, height);
 
         if (environment.roadStyle === 'mud-road') {
-            drawSpeckle(context, width, height, palette.flecks, 2300, 1, 3, 0.24);
+            const mudBase = context.createLinearGradient(0, 0, width, 0);
+            mudBase.addColorStop(0, '#2c2117');
+            mudBase.addColorStop(0.18, '#5b442b');
+            mudBase.addColorStop(0.48, '#3c2a1d');
+            mudBase.addColorStop(0.82, '#604a30');
+            mudBase.addColorStop(1, '#2b1e15');
+            context.fillStyle = mudBase;
+            context.fillRect(0, 0, width, height);
+            drawSpeckle(context, width, height, palette.flecks, 6200, 1, 5, 0.42);
             context.globalAlpha = 0.26;
             palette.flecks.forEach((color, colorIndex) => {
                 context.fillStyle = color;
-                for (let i = 0; i < 210; i++) {
+                for (let i = 0; i < 360; i++) {
                     const x = Math.random() * width;
                     const y = Math.random() * height;
                     context.beginPath();
@@ -476,13 +582,29 @@ function createRoadTexture(environment, segmentCount) {
             context.fillStyle = rutGradient;
             context.fillRect(0, 0, width, height);
 
-            context.globalAlpha = 0.24;
-            context.strokeStyle = '#21150f';
-            context.lineWidth = 7;
+            context.globalAlpha = 0.42;
+            context.strokeStyle = '#1c120c';
+            context.lineWidth = 11;
             [width * 0.28, width * 0.72].forEach((rutX, rutIndex) => {
                 context.beginPath();
                 for (let y = -20; y <= height + 20; y += 26) {
                     const wobble = Math.sin(y * 0.018 + rutIndex * 3.1) * 8 + Math.sin(y * 0.047) * 2.4;
+                    if (y <= -20) {
+                        context.moveTo(rutX + wobble, y);
+                    } else {
+                        context.lineTo(rutX + wobble, y);
+                    }
+                }
+                context.stroke();
+            });
+
+            context.globalAlpha = 0.18;
+            context.strokeStyle = '#8c714b';
+            context.lineWidth = 3.2;
+            [width * 0.25, width * 0.75].forEach((rutX, rutIndex) => {
+                context.beginPath();
+                for (let y = -20; y <= height + 20; y += 32) {
+                    const wobble = Math.sin(y * 0.016 + rutIndex * 2.7) * 9 + Math.sin(y * 0.05) * 2;
                     if (y <= -20) {
                         context.moveTo(rutX + wobble, y);
                     } else {
@@ -524,8 +646,8 @@ function createRoadTexture(environment, segmentCount) {
                 context.stroke();
             }
 
-            context.globalAlpha = 0.46;
-            for (let i = 0; i < 46; i++) {
+            context.globalAlpha = 0.28;
+            for (let i = 0; i < 34; i++) {
                 const x = width * (0.14 + Math.random() * 0.72);
                 const y = Math.random() * height;
                 const rx = 7 + Math.random() * 20;
@@ -575,6 +697,47 @@ function createRoadTexture(environment, segmentCount) {
         }
 
     });
+
+    if (environment.roadStyle === 'mud-road') {
+        const mudTextureUrl = environment.terrainStyle === 'rainforest'
+            ? 'assets/textures/jungle_road_mud_custom.png'
+            : 'assets/textures/polyhaven/mud_forest_diff_1k.jpg';
+        return loadImageIntoTexture(texture, mudTextureUrl);
+    }
+
+    return texture;
+}
+
+function createJungleMudNormalTexture(segmentCount, environment = {}) {
+    const approximateRoadLength = segmentCount * 10;
+    const repeatY = Number.isFinite(environment.roadTextureRepeatY)
+        ? environment.roadTextureRepeatY
+        : Number.isFinite(environment.roadTextureMetersPerTile)
+            ? Math.max(1, approximateRoadLength / environment.roadTextureMetersPerTile)
+        : Math.max(7, segmentCount / 28);
+    const texture = createCanvasTexture(512, 1024, 1, repeatY, (context, width, height) => {
+        context.fillStyle = '#8080ff';
+        context.fillRect(0, 0, width, height);
+        context.globalAlpha = 0.42;
+        context.strokeStyle = '#5f64cf';
+        context.lineWidth = 9;
+        [width * 0.28, width * 0.72].forEach((rutX, rutIndex) => {
+            context.beginPath();
+            for (let y = -20; y <= height + 20; y += 24) {
+                const wobble = Math.sin(y * 0.018 + rutIndex * 3.1) * 8 + Math.sin(y * 0.047) * 2.4;
+                if (y <= -20) {
+                    context.moveTo(rutX + wobble, y);
+                } else {
+                    context.lineTo(rutX + wobble, y);
+                }
+            }
+            context.stroke();
+        });
+        context.globalAlpha = 0.22;
+        drawSpeckle(context, width, height, ['#6b70db', '#9aa0ff', '#777ce8', '#555ac6'], 3600, 1, 4, 0.62);
+        context.globalAlpha = 1;
+    });
+    return loadImageIntoTexture(texture, 'assets/textures/polyhaven/mud_forest_nor_gl_1k.jpg');
 }
 
 function createTerrainTexture(environment, segmentCount) {
@@ -657,40 +820,28 @@ function createTerrainTexture(environment, segmentCount) {
 
     if (environment.terrainStyle === 'jungle-night' || environment.terrainStyle === 'rainforest') {
         const isRainforest = environment.terrainStyle === 'rainforest';
-        return createCanvasTexture(512, 512, 8, repeatY, (context, width, height) => {
-            context.fillStyle = isRainforest ? '#2d5b35' : '#082118';
+        const terrainRepeatX = isRainforest ? 5 : 8;
+        const terrainRepeatY = isRainforest ? Math.max(14, segmentCount / 16) : repeatY;
+        return createCanvasTexture(512, 512, terrainRepeatX, terrainRepeatY, (context, width, height) => {
+            context.fillStyle = isRainforest ? '#426d42' : '#082118';
             context.fillRect(0, 0, width, height);
             drawSpeckle(
                 context,
                 width,
                 height,
                 isRainforest
-                    ? ['#3f7f43', '#17391f', '#69a857', '#264529', '#7a5a34', '#1f2b18']
+                    ? ['#4f7d45', '#386138', '#5f884e', '#345332', '#6b7250']
                     : ['#155437', '#03100c', '#23824e', '#0a3528'],
-                isRainforest ? 10400 : 9200,
+                isRainforest ? 13500 : 9200,
                 1,
-                7,
-                isRainforest ? 0.78 : 0.9
+                isRainforest ? 3 : 7,
+                isRainforest ? 0.34 : 0.9
             );
-            drawGrassStrokes(
-                context,
-                width,
-                height,
-                isRainforest ? ['#78a95c', '#2f713e', '#b1b766', '#1a4b2d', '#4c7d3d'] : ['#1d7844', '#0e5933', '#35a15d', '#061c15'],
-                isRainforest ? 3800 : 3000
-            );
-            drawWavyLines(context, width, height, isRainforest ? '#214224' : '#02090d', 26, isRainforest ? 0.16 : 0.2);
             if (isRainforest) {
-                context.globalAlpha = 0.2;
-                context.fillStyle = '#1d1711';
-                for (let i = 0; i < 80; i++) {
-                    const x = Math.random() * width;
-                    const y = Math.random() * height;
-                    context.beginPath();
-                    context.ellipse(x, y, 4 + Math.random() * 18, 1.2 + Math.random() * 5, Math.random() * Math.PI, 0, Math.PI * 2);
-                    context.fill();
-                }
-                context.globalAlpha = 1;
+                drawSpeckle(context, width, height, ['#45683a', '#55794a', '#314d31', '#69754e'], 4600, 2, 5, 0.22);
+            } else {
+                drawGrassStrokes(context, width, height, ['#1d7844', '#0e5933', '#35a15d', '#061c15'], 3000);
+                drawWavyLines(context, width, height, '#02090d', 26, 0.2);
             }
         });
     }
@@ -756,7 +907,7 @@ function createShoulderTexture(environment, segmentCount) {
 
     if (environment.shoulderStyle === 'dark-mud' || environment.shoulderStyle === 'jungle-mud') {
         const isJungleMud = environment.shoulderStyle === 'jungle-mud';
-        return createCanvasTexture(256, 512, 1, repeatY, (context, width, height) => {
+        const texture = createCanvasTexture(256, 512, 1, repeatY, (context, width, height) => {
             context.fillStyle = isJungleMud ? '#463622' : '#172418';
             context.fillRect(0, 0, width, height);
             drawSpeckle(
@@ -787,6 +938,7 @@ function createShoulderTexture(environment, segmentCount) {
                 context.globalAlpha = 1;
             }
         });
+        return texture;
     }
 
     if (environment.shoulderStyle === 'limestone-gravel') {
@@ -1309,6 +1461,20 @@ function generateRoadAndTerrain(scene, game, environment) {
     const roadElevationAmplitude = Number.isFinite(environment.roadElevationAmplitude)
         ? environment.roadElevationAmplitude
         : 10;
+    const rainforestRidgeBands = environment.terrainStyle === 'rainforest'
+        ? [-1, 1].reduce((bandsBySide, side) => {
+            bandsBySide[side] = [];
+            for (let z = game.startLine - 80; z > game.finishLine - 260; z -= 560 + Math.random() * 360) {
+                bandsBySide[side].push({
+                    center: z - Math.random() * 280,
+                    width: 360 + Math.random() * 520,
+                    height: 5.5 + Math.random() * 14,
+                    shoulder: 2 + Math.random() * 20
+                });
+            }
+            return bandsBySide;
+        }, {})
+        : null;
     
     function createRoadSegment(index) {
         const z = -index * segmentLength;
@@ -1334,8 +1500,9 @@ function generateRoadAndTerrain(scene, game, environment) {
     
     const halfRoadWidth = game.road.width / 2;
     const terrainWidth = game.terrain.width;
-    const terrainSteps = 10;
-    const shoulderWidth = environment.shoulderWidth || 4;
+    const terrainSteps = environment.terrainStyle === 'rainforest' ? 22 : 10;
+    const shoulderWidth = Number.isFinite(environment.shoulderWidth) ? environment.shoulderWidth : 4;
+    const hasShoulders = shoulderWidth > 0.001;
     const localUp = new THREE.Vector3(0, 1, 0);
     const lowestRoadY = game.road.segments.reduce((lowest, segment) => Math.min(lowest, segment.y), Infinity);
     const lakeBiome = environment.id === 'lakes'
@@ -1388,6 +1555,22 @@ function generateRoadAndTerrain(scene, game, environment) {
         const halfWidth = Math.max(1, width * 0.5);
         const t = THREE.MathUtils.clamp(1 - Math.abs(z - center) / halfWidth, 0, 1);
         return t * t * (3 - 2 * t);
+    }
+
+    function getRainforestTerrainDistance(normalizedDistance, z, side) {
+        if (environment.terrainStyle !== 'rainforest') {
+            return normalizedDistance * terrainWidth;
+        }
+
+        const edgeLock = smoothStep(0.04, 0.2, normalizedDistance);
+        const farLock = 1 - smoothStep(0.86, 1, normalizedDistance);
+        const roughness = edgeLock * farLock * (0.25 + normalizedDistance * 0.75);
+        const baseDistance = Math.pow(normalizedDistance, 1.45) * terrainWidth;
+        const broadJitter = terrainNoise.noise2D(z * 0.0054 + side * 11.7, normalizedDistance * 4.2 + side * 2.6) * 5.8;
+        const ribJitter = Math.sin(z * 0.0062 + side * 3.4 + normalizedDistance * 8.1) * 2.4;
+        const detailJitter = terrainNoise.noise2D(z * 0.017 + side * 3.2, normalizedDistance * 11.5) * 1.8;
+
+        return THREE.MathUtils.clamp(baseDistance + (broadJitter + ribJitter + detailJitter) * roughness, 0, terrainWidth);
     }
 
     function getLakeSideIntensity(side, z) {
@@ -1542,13 +1725,19 @@ function generateRoadAndTerrain(scene, game, environment) {
             // Road vertices
             roadPositions.push(leftRoadX, segment.y, segment.z);
             roadPositions.push(rightRoadX, segment.y, segment.z);
-            roadUVs.push(0, v);
-            roadUVs.push(1, v);
+            if (environment.roadStyle === 'mud-road') {
+                roadUVs.push(0.06, v);
+                roadUVs.push(0.94, v);
+            } else {
+                roadUVs.push(0, v);
+                roadUVs.push(1, v);
+            }
 
             // Left terrain vertices
             for (let j = 0; j <= terrainSteps; j++) {
                 const normalizedDistance = j / terrainSteps;
-                const x = leftTerrainStartX - normalizedDistance * terrainWidth;
+                const terrainDistance = getRainforestTerrainDistance(normalizedDistance, segment.z, -1);
+                const x = leftTerrainStartX - terrainDistance;
                 leftTerrainPositions.push(x, getTerrainHeightAt(x, segment.z), segment.z);
                 leftTerrainUVs.push(normalizedDistance, v);
             }
@@ -1556,7 +1745,8 @@ function generateRoadAndTerrain(scene, game, environment) {
             // Right terrain vertices
             for (let j = 0; j <= terrainSteps; j++) {
                 const normalizedDistance = j / terrainSteps;
-                const x = rightTerrainStartX + normalizedDistance * terrainWidth;
+                const terrainDistance = getRainforestTerrainDistance(normalizedDistance, segment.z, 1);
+                const x = rightTerrainStartX + terrainDistance;
                 rightTerrainPositions.push(x, getTerrainHeightAt(x, segment.z), segment.z);
                 rightTerrainUVs.push(normalizedDistance, v);
             }
@@ -1606,7 +1796,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         game.road.segments.forEach((segment, i) => {
             const roadEdgeX = segment.curve + side * halfRoadWidth;
             const shoulderEdgeX = roadEdgeX + side * shoulderWidth;
-            const y = segment.y + 0.04;
+            const y = environment.shoulderStyle === 'jungle-mud' ? segment.y - 0.006 : segment.y + 0.04;
             const v = i / game.road.segments.length;
 
             shoulderPositions.push(roadEdgeX, y, segment.z);
@@ -1629,12 +1819,17 @@ function generateRoadAndTerrain(scene, game, environment) {
 
     const roadTexture = createRoadTexture(environment, game.road.segments.length);
     const isMudRoad = environment.roadStyle === 'mud-road';
+    const roadNormalTexture = isMudRoad ? createJungleMudNormalTexture(game.road.segments.length, environment) : null;
+    const roadBrightness = Number.isFinite(environment.roadTextureBrightness)
+        ? environment.roadTextureBrightness
+        : 1;
     const road = new THREE.Mesh(roadGeometry, new THREE.MeshPhongMaterial({
         map: roadTexture,
-        bumpMap: isMudRoad ? roadTexture : null,
-        bumpScale: isMudRoad ? 0.08 : 0,
-        shininess: isMudRoad ? 28 : environment.roadStyle === 'wet-asphalt' ? 42 : environment.roadStyle === 'city-asphalt' ? 24 : 14,
-        specular: isMudRoad ? 0x394f42 : environment.roadStyle === 'wet-asphalt' ? 0x446875 : 0x222222
+        normalMap: roadNormalTexture,
+        emissive: isMudRoad && roadBrightness > 1 ? 0x302416 : 0x000000,
+        emissiveIntensity: isMudRoad ? Math.max(0, Math.min(0.18, (roadBrightness - 1) * 0.5)) : 0,
+        shininess: isMudRoad ? 7 : environment.roadStyle === 'wet-asphalt' ? 42 : environment.roadStyle === 'city-asphalt' ? 24 : 14,
+        specular: isMudRoad ? 0x18140f : environment.roadStyle === 'wet-asphalt' ? 0x446875 : 0x222222
     }));
     road.receiveShadow = true;
 
@@ -1642,39 +1837,49 @@ function generateRoadAndTerrain(scene, game, environment) {
     const terrainMaterial = new THREE.MeshPhongMaterial({
         color: environment.terrainTint || 0xffffff,
         map: terrainTexture,
-        bumpMap: terrainTexture,
-        bumpScale: environment.terrainStyle === 'snow-rock' ? 0.18 : environment.terrainStyle === 'rainforest' ? 0.34 : 0.28,
+        bumpMap: environment.terrainStyle === 'rainforest' ? null : terrainTexture,
+        bumpScale: environment.terrainStyle === 'snow-rock' ? 0.18 : environment.terrainStyle === 'rainforest' ? 0 : 0.28,
         side: THREE.DoubleSide,
         flatShading: false,
         shininess: environment.terrainStyle === 'snow-rock' ? 8 : environment.terrainStyle === 'rainforest' ? 9 : 3,
         specular: environment.terrainStyle === 'rainforest' ? 0x243824 : 0x111111
     });
 
-    const shoulderTexture = createShoulderTexture(environment, game.road.segments.length);
-    const shoulderMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffffff,
-        map: shoulderTexture,
-        bumpMap: environment.shoulderStyle === 'jungle-mud' ? shoulderTexture : null,
-        bumpScale: environment.shoulderStyle === 'jungle-mud' ? 0.16 : 0,
-        side: THREE.DoubleSide,
-        shininess: environment.shoulderStyle === 'jungle-mud' ? 18 : 4,
-        specular: environment.shoulderStyle === 'jungle-mud' ? 0x344634 : 0x111111
-    });
+    const shoulderTexture = hasShoulders ? createShoulderTexture(environment, game.road.segments.length) : null;
+    const shoulderMaterial = hasShoulders
+        ? new THREE.MeshPhongMaterial({
+            color: environment.shoulderStyle === 'jungle-mud' ? 0x2f2418 : 0xffffff,
+            map: shoulderTexture,
+            side: THREE.DoubleSide,
+            shininess: environment.shoulderStyle === 'jungle-mud' ? 1 : 4,
+            specular: environment.shoulderStyle === 'jungle-mud' ? 0x080604 : 0x111111
+        })
+        : null;
 
     const leftTerrain = new THREE.Mesh(leftTerrainGeometry, terrainMaterial);
     const rightTerrain = new THREE.Mesh(rightTerrainGeometry, terrainMaterial);
-    const leftShoulder = new THREE.Mesh(createShoulderGeometry(-1), shoulderMaterial);
-    const rightShoulder = new THREE.Mesh(createShoulderGeometry(1), shoulderMaterial);
+    const leftShoulder = hasShoulders ? new THREE.Mesh(createShoulderGeometry(-1), shoulderMaterial) : null;
+    const rightShoulder = hasShoulders ? new THREE.Mesh(createShoulderGeometry(1), shoulderMaterial) : null;
     
     leftTerrain.receiveShadow = true;
     rightTerrain.receiveShadow = true;
-    leftShoulder.receiveShadow = true;
-    rightShoulder.receiveShadow = true;
+    if (leftShoulder) {
+        leftShoulder.receiveShadow = true;
+    }
+    if (rightShoulder) {
+        rightShoulder.receiveShadow = true;
+    }
     leftTerrain.userData.cameraOccluder = true;
     rightTerrain.userData.cameraOccluder = true;
     game.cameraOccluders = [leftTerrain, rightTerrain];
 
-    scene.add(road, leftShoulder, rightShoulder, leftTerrain, rightTerrain);
+    scene.add(road, leftTerrain, rightTerrain);
+    if (leftShoulder) {
+        scene.add(leftShoulder);
+    }
+    if (rightShoulder) {
+        scene.add(rightShoulder);
+    }
 
     const stageDecorStats = {
         style: environment.id || 'default',
@@ -1732,9 +1937,57 @@ function generateRoadAndTerrain(scene, game, environment) {
     function getTerrainHeightAt(x, z) {
         const roadData = getLinearRoadDataAtZ(z);
         const distanceFromRoadCenter = Math.abs(x - roadData.curve);
+        const distanceFromRoadEdge = distanceFromRoadCenter - halfRoadWidth;
         const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
         const baseHeight = roadData.y;
-        const heightOffset = generateMountainHeight(x, z) * getTerrainLiftFactor(normalizedDistance);
+        let heightOffset = generateMountainHeight(x, z) * getTerrainLiftFactor(normalizedDistance);
+
+        if (environment.terrainStyle === 'rainforest') {
+            const side = x < roadData.curve ? -1 : 1;
+            const broadNoise = (terrainNoise.noise2D(z * 0.0026, side * 12.4) + 1) * 0.5;
+            const detailNoise = (terrainNoise.noise2D((x + side * 31) * 0.014, z * 0.007) + 1) * 0.5;
+            const oppositeNoise = (terrainNoise.noise2D(z * 0.0021 + 37, -side * 8.5) + 1) * 0.5;
+            const crossNoise = terrainNoise.noise2D((distanceFromRoadEdge + side * 40) * 0.026, z * 0.0058);
+            const asymmetry = THREE.MathUtils.clamp(0.52 + broadNoise * 0.78 - oppositeNoise * 0.34, 0.12, 1.22);
+            const bands = rainforestRidgeBands?.[side] || [];
+            const ridge = bands.reduce((active, band) => {
+                const strength = smoothBand(z, band.center, band.width);
+                if (strength <= active.strength) {
+                    return active;
+                }
+                return { ...band, strength };
+            }, { strength: 0, height: 0, shoulder: 18 });
+            const opening = smoothStep(0.16, 0.84, 1 - ridge.strength) * (0.5 + broadNoise * 0.5);
+            const slopePocket = THREE.MathUtils.clamp(
+                0.36 + ridge.strength * 0.54 + terrainNoise.noise2D(z * 0.0044 + side * 23.8, 19.4) * 0.36,
+                0.12,
+                1.18
+            );
+            const sideOpening = smoothStep(0.22, 0.82, (Math.sin(z * 0.0041 + side * 1.7) + 1) * 0.5);
+            const brokenLift = THREE.MathUtils.clamp(0.24 + slopePocket * 0.34 + sideOpening * 0.58, 0.16, 1.08);
+            const baseLift = smoothStep(shoulderWidth + 1.8, terrainWidth * 0.72, distanceFromRoadEdge);
+            const closeRidgeCenter = 16 + ridge.shoulder * ridge.strength + opening * 18 + broadNoise * 12;
+            const midRidgeCenter = closeRidgeCenter + 34 + oppositeNoise * 28;
+            const farRidgeCenter = midRidgeCenter + 44 + detailNoise * 34;
+            const closeShelf = smoothBand(distanceFromRoadEdge, closeRidgeCenter, 34 + broadNoise * 22) * (3.6 + ridge.height * 0.3) * asymmetry * slopePocket * (0.55 + sideOpening * 0.55);
+            const midShelf = smoothBand(distanceFromRoadEdge, midRidgeCenter, 46 + oppositeNoise * 30) * (8.8 + ridge.height * 0.5) * (0.42 + broadNoise * 0.48 + sideOpening * 0.36);
+            const farShelf = smoothBand(distanceFromRoadEdge, farRidgeCenter, 76 + detailNoise * 34) * (12.5 + ridge.height * 0.82) * (0.34 + asymmetry * 0.38 + sideOpening * 0.44);
+            const gullyCenter = closeRidgeCenter + 20 + oppositeNoise * 24;
+            const gully = smoothBand(distanceFromRoadEdge, gullyCenter, 22 + detailNoise * 22) * (3.4 + detailNoise * 7.2) * (0.25 + opening * 0.75);
+            const pocketCut = smoothBand(
+                distanceFromRoadEdge,
+                10 + opening * 26 + oppositeNoise * 18,
+                26 + broadNoise * 24
+            ) * (1.12 - sideOpening * 0.62) * (1 - slopePocket * 0.55) * (3.5 + oppositeNoise * 6.5);
+            const moundNoise = terrainNoise.noise2D((x + side * 90) * 0.031, z * 0.018);
+            const fineNoise = terrainNoise.noise2D((x - side * 18) * 0.072, z * 0.039);
+            const ripple = (crossNoise * 4.8 + moundNoise * 6.6 + fineNoise * 1.8) * baseLift * (0.22 + normalizedDistance * 0.78);
+
+            heightOffset *= 0.2 + baseLift * (0.25 + asymmetry * 0.16 + brokenLift * 0.48);
+            heightOffset += closeShelf + midShelf + farShelf + ripple - gully - pocketCut;
+            heightOffset *= smoothStep(2.4, 11, distanceFromRoadEdge);
+            heightOffset = Math.max(heightOffset, -0.35 + baseLift * 0.2);
+        }
 
         const lakeAdjustedHeight = getLakeAdjustedTerrainHeight(x, z, baseHeight + heightOffset, roadData);
         return getCoastalAdjustedTerrainHeight(x, z, lakeAdjustedHeight, roadData);
@@ -2893,55 +3146,61 @@ function generateRoadAndTerrain(scene, game, environment) {
             jungleAssetCache.rockSmall
         ].filter(Boolean);
         const rainforestNoise = new SimplexNoise();
-        const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x4a2f20, shininess: 5 });
-        const canopyMaterial = new THREE.MeshPhongMaterial({ color: 0x1d5d33, shininess: 7, specular: 0x102414 });
-        const canopyDarkMaterial = new THREE.MeshPhongMaterial({ color: 0x103d27, shininess: 5, specular: 0x08160d });
+        const barkTexture = loadImageIntoTexture(createJungleBarkTexture(256, 512, 1.1, 4), 'assets/textures/polyhaven/bark_willow_diff_1k.jpg');
+        const barkNormalTexture = loadImageIntoTexture(createJungleBarkTexture(256, 512, 1.1, 4), 'assets/textures/polyhaven/bark_willow_nor_gl_1k.jpg');
+        const leafTexture = createJungleLeafTexture(512, 512, 3, 3);
+        const leafDarkTexture = createJungleLeafTexture(512, 512, 2.2, 2.2);
+        const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x4a2f20, map: barkTexture, shininess: 3, specular: 0x15100c });
+        const trunkDarkMaterial = new THREE.MeshPhongMaterial({ color: 0x2d1f16, map: barkTexture, shininess: 3, specular: 0x100c08 });
+        const canopyMaterial = new THREE.MeshPhongMaterial({ color: 0x1d5d33, map: leafTexture, shininess: 5, specular: 0x0d1c10 });
+        const canopyDarkMaterial = new THREE.MeshPhongMaterial({ color: 0x103d27, map: leafDarkTexture, shininess: 4, specular: 0x07110a });
+        const canopyShadowMaterial = new THREE.MeshPhongMaterial({ color: 0x0b2b1d, map: leafDarkTexture, shininess: 3, specular: 0x050b07 });
+        const canopyHighlightMaterial = new THREE.MeshPhongMaterial({ color: 0x2d7440, map: leafTexture, shininess: 6, specular: 0x142917 });
+        const vineMaterial = new THREE.MeshPhongMaterial({ color: 0x263d20, shininess: 4 });
+        const rootMaterial = new THREE.MeshPhongMaterial({ color: 0x352717, shininess: 4 });
         const leafCardMaterial = new THREE.MeshPhongMaterial({
-            color: 0x2f8a49,
+            color: 0x256f3f,
+            map: leafTexture,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.92,
-            shininess: 12,
+            opacity: 0.78,
+            shininess: 9,
             specular: 0x18391f
         });
         const fernMaterial = new THREE.MeshPhongMaterial({
-            color: 0x4b9d4a,
+            color: 0x3f8240,
+            map: leafTexture,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.86,
+            opacity: 0.82,
             shininess: 9,
             specular: 0x1f3c22
         });
         const palmLeafMaterial = new THREE.MeshPhongMaterial({
             color: 0x237d43,
+            map: leafTexture,
             side: THREE.DoubleSide,
             shininess: 14,
             specular: 0x1d3c23
         });
         const tropicalLeafMaterial = new THREE.MeshPhongMaterial({
             color: 0x2f9651,
+            map: leafTexture,
             side: THREE.DoubleSide,
             shininess: 18,
             specular: 0x2e5f34
         });
         const tropicalLeafDarkMaterial = new THREE.MeshPhongMaterial({
             color: 0x14522f,
+            map: leafDarkTexture,
             side: THREE.DoubleSide,
             shininess: 12,
             specular: 0x17351d
         });
-        const puddleMaterial = new THREE.MeshPhongMaterial({
-            color: 0x415346,
-            transparent: true,
-            opacity: 0.48,
-            depthWrite: false,
-            shininess: 72,
-            specular: 0xa5c8b6
-        });
         const startZ = game.startLine - 70;
         const endZ = game.finishLine + 150;
 
-        function cloneJungleMaterial(material) {
+        function cloneJungleMaterial(material, assetName = '') {
             if (!material) {
                 return material;
             }
@@ -2955,7 +3214,16 @@ function generateRoadAndTerrain(scene, game, environment) {
                 cloned.metalness = Math.min(cloned.metalness || 0, 0.06);
             }
             if (cloned.color) {
-                cloned.color.offsetHSL(0.02, 0.03, -0.02);
+                const normalizedAssetName = assetName.toLowerCase();
+                if (normalizedAssetName.includes('palm') || normalizedAssetName.includes('bush') || normalizedAssetName.includes('plant') || normalizedAssetName.includes('grass')) {
+                    cloned.color.lerp(new THREE.Color(0x1e6738), 0.58);
+                    cloned.color.offsetHSL(0.015, 0.04, -0.08);
+                } else if (normalizedAssetName.includes('log') || normalizedAssetName.includes('stump')) {
+                    cloned.color.lerp(new THREE.Color(0x4a2f20), 0.42);
+                    cloned.color.offsetHSL(0, -0.02, -0.04);
+                } else {
+                    cloned.color.offsetHSL(0.01, 0, -0.06);
+                }
             }
             cloned.needsUpdate = true;
             return cloned;
@@ -2978,9 +3246,9 @@ function generateRoadAndTerrain(scene, game, environment) {
                 child.receiveShadow = true;
                 child.userData.keepGeometry = true;
                 if (Array.isArray(child.material)) {
-                    child.material = child.material.map(cloneJungleMaterial);
+                    child.material = child.material.map(material => cloneJungleMaterial(material, asset.assetName || asset.key || ''));
                 } else {
-                    child.material = cloneJungleMaterial(child.material);
+                    child.material = cloneJungleMaterial(child.material, asset.assetName || asset.key || '');
                 }
             });
 
@@ -3127,28 +3395,6 @@ function generateRoadAndTerrain(scene, game, environment) {
             });
         }
 
-        function addMudPuddles() {
-            const puddleGeometry = new THREE.CircleGeometry(1, 22);
-            for (let z = startZ - 16; z > endZ; z -= 46) {
-                const roadData = getLinearRoadDataAtZ(z);
-                const roadPose = getRoadDataAtZ(z, game);
-                const count = 1 + Math.floor(Math.random() * 3);
-                for (let i = 0; i < count; i++) {
-                    const onRoad = Math.random() < 0.58;
-                    const side = Math.random() < 0.5 ? -1 : 1;
-                    const lateral = onRoad
-                        ? (Math.random() - 0.5) * (game.road.width * 0.78)
-                        : side * (halfRoadWidth + 0.6 + Math.random() * (shoulderWidth * 0.7));
-                    const puddle = new THREE.Mesh(puddleGeometry, puddleMaterial.clone());
-                    puddle.name = 'jungle-mud-puddle';
-                    puddle.position.set(roadData.curve + lateral, roadData.y + 0.062, z + (Math.random() - 0.5) * 18);
-                    puddle.rotation.set(-Math.PI / 2, 0, -roadPose.curvatureAngle + (Math.random() - 0.5) * 0.72);
-                    puddle.scale.set(1.4 + Math.random() * 2.8, 0.45 + Math.random() * 1.15, 1);
-                    addDecorMesh(decor, puddle, 'mudPuddles');
-                }
-            }
-        }
-
         function addRainField() {
             const streakCount = 760;
             const positions = new Float32Array(streakCount * 6);
@@ -3197,42 +3443,424 @@ function generateRoadAndTerrain(scene, game, environment) {
             stageDecorStats.rainStreaks += streakCount;
         }
 
-        function collectDenseForest() {
-            const trunks = [];
-            const highLeaves = [];
-            const highDarkLeaves = [];
-            const broadleafCards = [];
-            const ferns = [];
+        function addDistantRainforestWall() {
+            const texture = createCanvasTexture(1024, 512, 1, Math.max(8, game.road.segments.length / 60), (context, width, height) => {
+                const gradient = context.createLinearGradient(0, 0, 0, height);
+                gradient.addColorStop(0, 'rgba(7,31,23,0)');
+                gradient.addColorStop(0.18, 'rgba(13,53,32,0.78)');
+                gradient.addColorStop(0.58, 'rgba(10,43,27,0.88)');
+                gradient.addColorStop(1, 'rgba(8,29,20,0.16)');
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, width, height);
 
-            for (let z = startZ; z > endZ; z -= 26) {
+                for (let i = 0; i < 170; i++) {
+                    const x = Math.random() * width;
+                    const trunkHeight = height * (0.42 + Math.random() * 0.5);
+                    const y = height - trunkHeight + Math.random() * 80;
+                    context.globalAlpha = 0.32 + Math.random() * 0.28;
+                    context.strokeStyle = Math.random() < 0.5 ? '#1c2116' : '#29351d';
+                    context.lineWidth = 1 + Math.random() * 3.4;
+                    context.beginPath();
+                    context.moveTo(x, height);
+                    context.bezierCurveTo(x + (Math.random() - 0.5) * 16, height * 0.72, x + (Math.random() - 0.5) * 18, y, x + (Math.random() - 0.5) * 12, y);
+                    context.stroke();
+                }
+
+                const leafColors = ['#123d28', '#18552f', '#0c2f21', '#226238', '#2f7241'];
+                for (let i = 0; i < 520; i++) {
+                    const x = Math.random() * width;
+                    const y = height * (0.1 + Math.random() * 0.58);
+                    const rx = 11 + Math.random() * 34;
+                    const ry = 6 + Math.random() * 20;
+                    context.globalAlpha = 0.18 + Math.random() * 0.32;
+                    context.fillStyle = leafColors[Math.floor(Math.random() * leafColors.length)];
+                    context.beginPath();
+                    context.ellipse(x, y, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
+                    context.fill();
+                }
+                context.globalAlpha = 1;
+            });
+
+            const material = new THREE.MeshLambertMaterial({
+                map: texture,
+                color: 0x8fb69b,
+                transparent: true,
+                opacity: 0.72,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+
+            [-1, 1].forEach(side => {
+                const positions = [];
+                const uvs = [];
+                const indices = [];
+                const distance = halfRoadWidth + shoulderWidth + 78;
+                const sampleStride = 4;
+                let rowIndex = 0;
+                for (let i = 0; i < game.road.segments.length; i += sampleStride) {
+                    const segment = game.road.segments[i];
+                    const x = segment.curve + side * distance;
+                    const y = getTerrainHeightAt(x, segment.z);
+                    const wallHeight = 17 + Math.max(0, rainforestNoise.noise2D(i * 0.03, side * 12.3)) * 7;
+                    positions.push(x, y + 1.2, segment.z, x, y + wallHeight, segment.z);
+                    uvs.push(0, rowIndex * 0.08, 1, rowIndex * 0.08);
+                    if (rowIndex > 0) {
+                        const base = rowIndex * 2;
+                        indices.push(base - 2, base - 1, base, base - 1, base + 1, base);
+                    }
+                    rowIndex++;
+                }
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+                geometry.setIndex(indices);
+                geometry.computeVertexNormals();
+                const wall = new THREE.Mesh(geometry, material);
+                wall.name = `jungle-distant-rainforest-wall-${side}`;
+                wall.renderOrder = -2;
+                decor.add(wall);
+                stageDecorStats.canopy += 1;
+            });
+        }
+
+        function addSegmentedRainforestBackdrop() {
+            const backdropTexture = createCanvasTexture(512, 256, 1, 1, (context, width, height) => {
+                context.clearRect(0, 0, width, height);
+                const alphaMask = context.createLinearGradient(0, 0, width, 0);
+                alphaMask.addColorStop(0, 'rgba(0,0,0,0)');
+                alphaMask.addColorStop(0.16, 'rgba(0,0,0,1)');
+                alphaMask.addColorStop(0.84, 'rgba(0,0,0,1)');
+                alphaMask.addColorStop(1, 'rgba(0,0,0,0)');
+                const groundGradient = context.createLinearGradient(0, height * 0.1, 0, height);
+                groundGradient.addColorStop(0, 'rgba(12,40,27,0)');
+                groundGradient.addColorStop(0.34, 'rgba(17,62,34,0.56)');
+                groundGradient.addColorStop(0.72, 'rgba(9,31,22,0.72)');
+                groundGradient.addColorStop(1, 'rgba(7,22,16,0)');
+                context.fillStyle = groundGradient;
+                context.fillRect(0, 0, width, height);
+
+                for (let i = 0; i < 28; i++) {
+                    const x = Math.random() * width;
+                    const trunkTop = height * (0.22 + Math.random() * 0.34);
+                    context.globalAlpha = 0.42 + Math.random() * 0.34;
+                    context.strokeStyle = Math.random() < 0.5 ? '#171f14' : '#26351d';
+                    context.lineWidth = 1.2 + Math.random() * 3.2;
+                    context.beginPath();
+                    context.moveTo(x, height);
+                    context.bezierCurveTo(x + (Math.random() - 0.5) * 10, height * 0.72, x + (Math.random() - 0.5) * 14, trunkTop, x + (Math.random() - 0.5) * 8, trunkTop);
+                    context.stroke();
+                }
+
+                const colors = ['#09271b', '#123a25', '#1b5531', '#0f3222', '#28663a'];
+                for (let i = 0; i < 130; i++) {
+                    context.globalAlpha = 0.2 + Math.random() * 0.36;
+                    context.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                    context.beginPath();
+                    context.ellipse(
+                        Math.random() * width,
+                        height * (0.1 + Math.random() * 0.52),
+                        12 + Math.random() * 42,
+                        8 + Math.random() * 28,
+                        Math.random() * Math.PI,
+                        0,
+                        Math.PI * 2
+                    );
+                    context.fill();
+                }
+                context.globalCompositeOperation = 'destination-in';
+                context.fillStyle = alphaMask;
+                context.fillRect(0, 0, width, height);
+                context.globalCompositeOperation = 'source-over';
+                context.globalAlpha = 1;
+            });
+
+            const material = new THREE.MeshLambertMaterial({
+                color: 0x9bb79d,
+                map: backdropTexture,
+                transparent: true,
+                opacity: 0.42,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const nearPlacements = [];
+            const farPlacements = [];
+
+            for (let z = startZ - 36; z > endZ; z -= 58) {
                 [-1, 1].forEach(side => {
-                    const localDensity = 0.72 + Math.max(0, rainforestNoise.noise2D(z * 0.006, side * 4.1)) * 0.28;
-                    const treeCount = 2 + (Math.random() < localDensity ? 1 : 0);
+                    const roadData = getLinearRoadDataAtZ(z);
+                    [
+                        { distance: halfRoadWidth + 36 + Math.random() * 8, list: nearPlacements, alphaScale: 1 },
+                        { distance: halfRoadWidth + 62 + Math.random() * 14, list: farPlacements, alphaScale: 0.8 }
+                    ].forEach(layer => {
+                        if (Math.random() < 0.24) {
+                            return;
+                        }
+                        const x = roadData.curve + side * layer.distance;
+                        const groundY = getTerrainHeightAt(x, z);
+                        layer.list.push({
+                            x,
+                            y: groundY + 6.2 + Math.random() * 2.2,
+                            z: z + (Math.random() - 0.5) * 18,
+                            rotationY: Math.PI / 2,
+                            scaleX: 28 + Math.random() * 18,
+                            scaleY: (11 + Math.random() * 7) * layer.alphaScale,
+                            scaleZ: 1
+                        });
+                    });
+                });
+            }
+
+            addInstanced('jungle-near-backdrop-tree-line', new THREE.PlaneGeometry(1, 1), material, nearPlacements, 'canopy');
+            addInstanced('jungle-far-backdrop-tree-line', new THREE.PlaneGeometry(1, 1), material.clone(), farPlacements, 'canopy');
+        }
+
+        function addRainforestCanopyClusters() {
+            const canopyClusters = [];
+            const canopyShadowClusters = [];
+            const canopyHighlightClusters = [];
+
+            for (let z = startZ - 8; z > endZ; z -= 54) {
+                [-1, 1].forEach(side => {
+                    const roadData = getLinearRoadDataAtZ(z);
+                    const density = 1 + Math.floor(Math.max(0, rainforestNoise.noise2D(z * 0.008, side * 22.1)) * 2);
+                    for (let i = 0; i < density; i++) {
+                        const offset = 5.6 + Math.pow(Math.random(), 0.7) * 38;
+                        const x = roadData.curve + side * (halfRoadWidth + offset);
+                        const groundY = getPropGroundY(x, z, 2);
+                        const placement = {
+                            x: x + (Math.random() - 0.5) * 5.5,
+                            y: groundY + 12.5 + Math.random() * 9.5,
+                            z: z + (Math.random() - 0.5) * 20,
+                            rotationX: Math.random() * Math.PI,
+                            rotationY: Math.random() * Math.PI * 2,
+                            rotationZ: Math.random() * Math.PI,
+                            scaleX: 3.6 + Math.random() * 4.8,
+                            scaleY: 1.15 + Math.random() * 1.8,
+                            scaleZ: 3.3 + Math.random() * 4.4
+                        };
+                        if (Math.random() < 0.48) {
+                            canopyShadowClusters.push(placement);
+                        } else if (Math.random() < 0.14) {
+                            canopyHighlightClusters.push(placement);
+                        } else {
+                            canopyClusters.push(placement);
+                        }
+                    }
+                });
+            }
+
+            addInstanced('jungle-overhead-canopy-clusters', new THREE.DodecahedronGeometry(1, 1), canopyMaterial, canopyClusters, 'canopy');
+            addInstanced('jungle-overhead-canopy-shadow-clusters', new THREE.DodecahedronGeometry(1, 1), canopyShadowMaterial, canopyShadowClusters, 'canopy');
+            addInstanced('jungle-overhead-canopy-highlight-clusters', new THREE.DodecahedronGeometry(1, 1), canopyHighlightMaterial, canopyHighlightClusters, 'canopy');
+        }
+
+        function addRoadsideEmergentTrees() {
+            const emergentTrunks = [];
+            const emergentCanopy = [];
+            const emergentShadowCanopy = [];
+            const emergentBranches = [];
+            const emergentVines = [];
+
+            for (let z = startZ - 24; z > endZ; z -= 74) {
+                [-1, 1].forEach(side => {
+                    const roadData = getLinearRoadDataAtZ(z);
+                    const treeCount = 1 + (Math.random() < 0.34 ? 1 : 0);
                     for (let i = 0; i < treeCount; i++) {
-                        const inOpeningCorridor = z > startZ - 1250;
-                        const offset = (inOpeningCorridor ? 8 : 14) + Math.random() * (inOpeningCorridor ? 68 : 96);
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 18, side, offset);
-                        if (getTerrainNormalAt(point.x, point.z, 2.6).y < 0.62) {
+                        const offset = 3.4 + Math.random() * 16;
+                        const x = roadData.curve + side * (halfRoadWidth + offset);
+                        const treeZ = z + (Math.random() - 0.5) * 36;
+                        if (getTerrainNormalAt(x, treeZ, 2.8).y < 0.5) {
                             continue;
                         }
-
-                        const height = 7.2 + Math.random() * 8.8;
-                        const trunkRadius = 0.23 + Math.random() * 0.22;
-                        trunks.push({
-                            x: point.x,
-                            y: point.y + height * 0.5,
-                            z: point.z,
+                        const y = getPropGroundY(x, treeZ, 2.2);
+                        const height = 16 + Math.random() * 12;
+                        const trunkRadius = 0.32 + Math.random() * 0.3;
+                        emergentTrunks.push({
+                            x,
+                            y: y + height * 0.5,
+                            z: treeZ,
                             rotationY: Math.random() * Math.PI * 2,
-                            rotationZ: (Math.random() - 0.5) * 0.11,
+                            rotationZ: -side * (0.06 + Math.random() * 0.07),
                             scaleX: trunkRadius,
                             scaleY: height,
                             scaleZ: trunkRadius
                         });
 
-                        const highLeafCount = 5 + Math.floor(Math.random() * 4);
+                        const crownY = y + height * (0.78 + Math.random() * 0.08);
+                        for (let crownIndex = 0; crownIndex < 4; crownIndex++) {
+                            const angle = Math.PI * 2 * (crownIndex / 4) + Math.random() * 0.45;
+                            const placement = {
+                                x: x + Math.cos(angle) * (1.8 + Math.random() * 3.2) - side * (Math.random() * 1.8),
+                                y: crownY + (Math.random() - 0.35) * 2.4,
+                                z: treeZ + Math.sin(angle) * (1.8 + Math.random() * 3.2),
+                                rotationX: Math.random() * Math.PI,
+                                rotationY: Math.random() * Math.PI * 2,
+                                rotationZ: Math.random() * Math.PI,
+                                scaleX: 4.2 + Math.random() * 3.6,
+                                scaleY: 1.5 + Math.random() * 1.3,
+                                scaleZ: 3.8 + Math.random() * 3.2
+                            };
+                            (crownIndex === 0 || Math.random() < 0.46 ? emergentShadowCanopy : emergentCanopy).push(placement);
+                        }
+
+                        for (let branchIndex = 0; branchIndex < 3; branchIndex++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            emergentBranches.push({
+                                x: x + Math.cos(angle) * 1.8,
+                                y: y + height * (0.58 + Math.random() * 0.22),
+                                z: treeZ + Math.sin(angle) * 1.8,
+                                rotationY: angle,
+                                rotationZ: Math.PI / 2 + (Math.random() - 0.5) * 0.36,
+                                scaleX: trunkRadius * 0.22,
+                                scaleY: 3.2 + Math.random() * 4.4,
+                                scaleZ: trunkRadius * 0.22
+                            });
+                        }
+
+                        for (let vineIndex = 0; vineIndex < 2; vineIndex++) {
+                            emergentVines.push({
+                                x: x + (Math.random() - 0.5) * 4.4,
+                                y: crownY - 2.2,
+                                z: treeZ + (Math.random() - 0.5) * 4.4,
+                                rotationZ: (Math.random() - 0.5) * 0.12,
+                                scaleX: 0.018 + Math.random() * 0.018,
+                                scaleY: 4.2 + Math.random() * 5.5,
+                                scaleZ: 0.018 + Math.random() * 0.018
+                            });
+                        }
+                    }
+                });
+            }
+
+            addInstanced('jungle-emergent-trunks', new THREE.CylinderGeometry(1, 1.35, 1, 8), trunkMaterial, emergentTrunks, 'trees');
+            addInstanced('jungle-emergent-branches', new THREE.CylinderGeometry(1, 1, 1, 6), trunkDarkMaterial, emergentBranches, 'trees');
+            addInstanced('jungle-emergent-canopy', new THREE.DodecahedronGeometry(1, 1), canopyMaterial, emergentCanopy, 'trees');
+            addInstanced('jungle-emergent-shadow-canopy', new THREE.DodecahedronGeometry(1, 1), canopyShadowMaterial, emergentShadowCanopy, 'trees');
+            addInstanced('jungle-emergent-vines', new THREE.CylinderGeometry(1, 1, 1, 5), vineMaterial, emergentVines, 'junglePlants');
+        }
+
+        function collectDenseForest() {
+            const trunks = [];
+            const darkTrunks = [];
+            const branches = [];
+            const buttressRoots = [];
+            const canopyBlobs = [];
+            const canopyShadowBlobs = [];
+            const canopyHighlightBlobs = [];
+            const highLeaves = [];
+            const highDarkLeaves = [];
+            const broadleafCards = [];
+            const ferns = [];
+            const vines = [];
+
+            for (let z = startZ; z > endZ; z -= 38) {
+                [-1, 1].forEach(side => {
+                    const inOpeningCorridor = z > startZ - 1220;
+                    const localDensity = 0.72 + Math.max(0, rainforestNoise.noise2D(z * 0.006, side * 4.1)) * 0.34;
+                    const treeCount = (inOpeningCorridor ? 2 : 3) + (Math.random() < localDensity ? 1 : 0);
+                    for (let i = 0; i < treeCount; i++) {
+                        const offset = (inOpeningCorridor ? 6.6 : 12) + Math.pow(Math.random(), 0.78) * (inOpeningCorridor ? 74 : 110);
+                        const point = getJunglePoint(z + (Math.random() - 0.5) * 18, side, offset);
+                        if (getTerrainNormalAt(point.x, point.z, 2.6).y < 0.62) {
+                            continue;
+                        }
+
+                        const height = 13.5 + Math.random() * 12.5;
+                        const trunkRadius = 0.22 + Math.random() * 0.32;
+                        const trunk = {
+                            x: point.x,
+                            y: point.y + height * 0.5,
+                            z: point.z,
+                            rotationY: Math.random() * Math.PI * 2,
+                            rotationZ: (Math.random() - 0.5) * 0.08 + side * 0.015,
+                            scaleX: trunkRadius,
+                            scaleY: height,
+                            scaleZ: trunkRadius
+                        };
+                        (Math.random() < 0.34 ? darkTrunks : trunks).push(trunk);
+
+                        const branchCount = 2 + Math.floor(Math.random() * 3);
+                        for (let branchIndex = 0; branchIndex < branchCount; branchIndex++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const branchLength = 1.8 + Math.random() * 4.4;
+                            branches.push({
+                                x: point.x + Math.cos(angle) * branchLength * 0.42,
+                                y: point.y + height * (0.54 + Math.random() * 0.27),
+                                z: point.z + Math.sin(angle) * branchLength * 0.42,
+                                rotationY: angle,
+                                rotationZ: Math.PI / 2 + (Math.random() - 0.5) * 0.38,
+                                scaleX: trunkRadius * (0.22 + Math.random() * 0.18),
+                                scaleY: branchLength,
+                                scaleZ: trunkRadius * (0.22 + Math.random() * 0.18)
+                            });
+                        }
+
+                        const rootCount = 2 + Math.floor(Math.random() * 3);
+                        for (let rootIndex = 0; rootIndex < rootCount; rootIndex++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            buttressRoots.push({
+                                x: point.x + Math.cos(angle) * trunkRadius * 1.4,
+                                y: point.y + 0.12,
+                                z: point.z + Math.sin(angle) * trunkRadius * 1.4,
+                                rotationY: angle,
+                                rotationZ: (Math.random() - 0.5) * 0.08,
+                                scaleX: trunkRadius * (0.85 + Math.random() * 0.7),
+                                scaleY: 0.16 + Math.random() * 0.1,
+                                scaleZ: 1.4 + Math.random() * 1.9
+                            });
+                        }
+
+                        const canopyY = point.y + height * (0.76 + Math.random() * 0.13);
+                        const canopyCount = 4 + Math.floor(Math.random() * 4);
+                        for (let canopyIndex = 0; canopyIndex < canopyCount; canopyIndex++) {
+                            const angle = (canopyIndex / canopyCount) * Math.PI * 2 + Math.random() * 0.5;
+                            const radius = 0.9 + Math.random() * 3.8;
+                            const blob = {
+                                x: point.x + Math.cos(angle) * radius,
+                                y: canopyY + (Math.random() - 0.45) * 2.0,
+                                z: point.z + Math.sin(angle) * radius,
+                                rotationX: Math.random() * Math.PI,
+                                rotationY: Math.random() * Math.PI * 2,
+                                rotationZ: Math.random() * Math.PI,
+                                scaleX: 3.1 + Math.random() * 3.5,
+                                scaleY: 1.2 + Math.random() * 1.55,
+                                scaleZ: 2.9 + Math.random() * 3.2
+                            };
+                            if (canopyIndex === 0 || Math.random() < 0.42) {
+                                canopyShadowBlobs.push({
+                                    ...blob,
+                                    y: blob.y - 0.52,
+                                    scaleX: blob.scaleX * 1.05,
+                                    scaleY: blob.scaleY * 0.88,
+                                    scaleZ: blob.scaleZ * 1.05
+                                });
+                            } else if (Math.random() < 0.22) {
+                                canopyHighlightBlobs.push(blob);
+                            } else {
+                                canopyBlobs.push(blob);
+                            }
+                        }
+
+                        const vineCount = Math.random() < 0.72 ? 1 + Math.floor(Math.random() * 3) : 0;
+                        for (let vineIndex = 0; vineIndex < vineCount; vineIndex++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const vineLength = 2.6 + Math.random() * 6.4;
+                            vines.push({
+                                x: point.x + Math.cos(angle) * (0.35 + Math.random() * 1.8),
+                                y: point.y + height * 0.55,
+                                z: point.z + Math.sin(angle) * (0.35 + Math.random() * 1.8),
+                                rotationZ: (Math.random() - 0.5) * 0.12,
+                                scaleX: 0.018 + Math.random() * 0.026,
+                                scaleY: vineLength,
+                                scaleZ: 0.018 + Math.random() * 0.026
+                            });
+                        }
+
+                        const highLeafCount = 1 + Math.floor(Math.random() * 3);
                         for (let leafIndex = 0; leafIndex < highLeafCount; leafIndex++) {
                             const angle = (leafIndex / highLeafCount) * Math.PI * 2 + Math.random() * 0.24;
-                            const leafLength = 3.2 + Math.random() * 3.9;
+                            const leafLength = 4.2 + Math.random() * 4.8;
                             const highLeaf = {
                                 x: point.x + Math.cos(angle) * (0.65 + Math.random() * 0.85),
                                 y: point.y + height * (0.76 + Math.random() * 0.16),
@@ -3248,10 +3876,11 @@ function generateRoadAndTerrain(scene, game, environment) {
                         }
                     }
 
-                    for (let i = 0; i < 6; i++) {
-                        const offset = 2.4 + Math.random() * 22;
+                    const broadleafCount = inOpeningCorridor ? 6 : 4;
+                    for (let i = 0; i < broadleafCount; i++) {
+                        const offset = 2.2 + Math.random() * 18;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 28, side, offset);
-                        const height = 1.7 + Math.random() * 2.4;
+                        const height = 1.35 + Math.random() * 2.2;
                         broadleafCards.push({
                             x: point.x,
                             y: point.y + height * 0.48,
@@ -3264,7 +3893,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         });
                     }
 
-                    for (let i = 0; i < 8; i++) {
+                    for (let i = 0; i < 6; i++) {
                         const offset = 2.2 + Math.random() * 18;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 30, side, offset);
                         const height = 0.9 + Math.random() * 1.45;
@@ -3282,35 +3911,46 @@ function generateRoadAndTerrain(scene, game, environment) {
                 });
             }
 
-            addInstanced('jungle-instanced-trunks', new THREE.CylinderGeometry(1, 1.32, 1, 7), trunkMaterial, trunks, 'trees');
-            addInstanced('jungle-high-broadleaf-crowns', createLeafBladeGeometry(1.0, 1.0), tropicalLeafMaterial, highLeaves, 'trees');
-            addInstanced('jungle-high-dark-broadleaf-crowns', createLeafBladeGeometry(0.9, 1.0), tropicalLeafDarkMaterial, highDarkLeaves, 'trees');
+            addInstanced('jungle-instanced-trunks', new THREE.CylinderGeometry(1, 1.28, 1, 8), trunkMaterial, trunks, 'trees');
+            addInstanced('jungle-instanced-shadow-trunks', new THREE.CylinderGeometry(1, 1.22, 1, 7), trunkDarkMaterial, darkTrunks, 'trees');
+            addInstanced('jungle-upper-branches', new THREE.CylinderGeometry(1, 1, 1, 6), trunkDarkMaterial, branches, 'trees');
+            addInstanced('jungle-buttress-roots', new THREE.BoxGeometry(1, 1, 1), rootMaterial, buttressRoots, 'trees');
+            addInstanced('jungle-canopy-volume', new THREE.DodecahedronGeometry(1, 1), canopyMaterial, canopyBlobs, 'trees');
+            addInstanced('jungle-canopy-shadow-volume', new THREE.DodecahedronGeometry(1, 1), canopyShadowMaterial, canopyShadowBlobs, 'trees');
+            addInstanced('jungle-canopy-highlight-volume', new THREE.DodecahedronGeometry(1, 1), canopyHighlightMaterial, canopyHighlightBlobs, 'trees');
+            addInstanced('jungle-hanging-vines', new THREE.CylinderGeometry(1, 1, 1, 5), vineMaterial, vines, 'junglePlants');
+            addInstanced('jungle-high-broadleaf-crowns', createLeafBladeGeometry(0.9, 1.0), tropicalLeafMaterial, highLeaves, 'trees');
+            addInstanced('jungle-high-dark-broadleaf-crowns', createLeafBladeGeometry(0.82, 1.0), tropicalLeafDarkMaterial, highDarkLeaves, 'trees');
             addInstanced('jungle-broadleaf-cards', createLeafBladeGeometry(1, 1), leafCardMaterial, broadleafCards, 'junglePlants');
             addInstanced('jungle-fern-cards', createLeafBladeGeometry(0.72, 1), fernMaterial, ferns, 'junglePlants');
         }
 
         function addRoadsideTropicalWall() {
             const trunks = [];
+            const shadowTrunks = [];
+            const understoryBlobs = [];
+            const understoryDarkBlobs = [];
             const crownLeaves = [];
             const darkLeaves = [];
             const floorLeaves = [];
+            const roadsideVines = [];
 
-            for (let z = startZ - 16; z > endZ; z -= 52) {
+            for (let z = startZ - 16; z > endZ; z -= 54) {
                 [-1, 1].forEach(side => {
                     const inOpeningCorridor = z > startZ - 1050;
                     const groveCount = inOpeningCorridor
                         ? 3
-                        : 1 + (Math.random() < 0.54 ? 1 : 0);
+                        : 2 + (Math.random() < 0.45 ? 1 : 0);
                     for (let i = 0; i < groveCount; i++) {
-                        const offset = (inOpeningCorridor ? 2.2 : 3.8) + Math.random() * (inOpeningCorridor ? 13 : 24);
+                        const offset = (inOpeningCorridor ? 1.4 : 2.2) + Math.random() * (inOpeningCorridor ? 15 : 28);
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset);
                         if (getTerrainNormalAt(point.x, point.z, 2.4).y < 0.5) {
                             continue;
                         }
 
-                        const height = 3.2 + Math.random() * 5.6;
-                        const trunkRadius = 0.12 + Math.random() * 0.18;
-                        trunks.push({
+                        const height = 7.8 + Math.random() * 8.8;
+                        const trunkRadius = 0.16 + Math.random() * 0.24;
+                        const trunk = {
                             x: point.x,
                             y: point.y + height * 0.5,
                             z: point.z,
@@ -3319,12 +3959,43 @@ function generateRoadAndTerrain(scene, game, environment) {
                             scaleX: trunkRadius,
                             scaleY: height,
                             scaleZ: trunkRadius
-                        });
+                        };
+                        (Math.random() < 0.28 ? shadowTrunks : trunks).push(trunk);
 
-                        const leafCount = 7 + Math.floor(Math.random() * 4);
+                        const blobCount = 3 + Math.floor(Math.random() * 3);
+                        for (let blobIndex = 0; blobIndex < blobCount; blobIndex++) {
+                            const angle = (blobIndex / blobCount) * Math.PI * 2 + Math.random() * 0.34;
+                            const blob = {
+                                x: point.x + Math.cos(angle) * (0.5 + Math.random() * 1.2),
+                                y: point.y + height * (0.66 + Math.random() * 0.23),
+                                z: point.z + Math.sin(angle) * (0.5 + Math.random() * 1.2),
+                                rotationX: Math.random() * Math.PI,
+                                rotationY: Math.random() * Math.PI * 2,
+                                rotationZ: Math.random() * Math.PI,
+                                scaleX: 1.8 + Math.random() * 2.6,
+                                scaleY: 0.95 + Math.random() * 1.4,
+                                scaleZ: 1.7 + Math.random() * 2.5
+                            };
+                            (Math.random() < 0.38 ? understoryDarkBlobs : understoryBlobs).push(blob);
+                        }
+
+                        if (Math.random() < 0.58) {
+                            const vineLength = 1.8 + Math.random() * 3.4;
+                            roadsideVines.push({
+                                x: point.x + (Math.random() - 0.5) * 1.6,
+                                y: point.y + height * 0.55,
+                                z: point.z + (Math.random() - 0.5) * 1.6,
+                                rotationZ: (Math.random() - 0.5) * 0.18,
+                                scaleX: 0.018 + Math.random() * 0.02,
+                                scaleY: vineLength,
+                                scaleZ: 0.018 + Math.random() * 0.02
+                            });
+                        }
+
+                        const leafCount = 3 + Math.floor(Math.random() * 3);
                         for (let leafIndex = 0; leafIndex < leafCount; leafIndex++) {
                             const angle = (leafIndex / leafCount) * Math.PI * 2 + Math.random() * 0.22;
-                            const leafLength = 2.4 + Math.random() * 3.8;
+                            const leafLength = 2.0 + Math.random() * 2.8;
                             const placement = {
                                 x: point.x + Math.cos(angle) * (0.42 + Math.random() * 0.38),
                                 y: point.y + height * (0.72 + Math.random() * 0.18),
@@ -3340,11 +4011,11 @@ function generateRoadAndTerrain(scene, game, environment) {
                         }
                     }
 
-                    const undergrowthCount = inOpeningCorridor ? 12 : 7;
+                    const undergrowthCount = inOpeningCorridor ? 10 : 7;
                     for (let i = 0; i < undergrowthCount; i++) {
                         const offset = 0.85 + Math.random() * (inOpeningCorridor ? 9 : 13);
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 40, side, offset);
-                        const leafLength = 2.0 + Math.random() * 3.8;
+                        const leafLength = 1.2 + Math.random() * 2.4;
                         floorLeaves.push({
                             x: point.x,
                             y: point.y + leafLength * 0.42,
@@ -3360,22 +4031,26 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
 
             addInstanced('jungle-roadside-tropical-trunks', new THREE.CylinderGeometry(1, 0.75, 1, 7), trunkMaterial, trunks, 'trees');
-            addInstanced('jungle-roadside-banana-leaves', createLeafBladeGeometry(1.0, 1.0), tropicalLeafMaterial, crownLeaves, 'junglePlants');
-            addInstanced('jungle-roadside-dark-leaves', createLeafBladeGeometry(0.92, 1.0), tropicalLeafDarkMaterial, darkLeaves, 'junglePlants');
-            addInstanced('jungle-roadside-floor-leaves', createLeafBladeGeometry(0.72, 1.0), fernMaterial, floorLeaves, 'junglePlants');
+            addInstanced('jungle-roadside-shadow-trunks', new THREE.CylinderGeometry(1, 0.78, 1, 7), trunkDarkMaterial, shadowTrunks, 'trees');
+            addInstanced('jungle-roadside-understory-volume', new THREE.DodecahedronGeometry(1, 1), canopyMaterial, understoryBlobs, 'junglePlants');
+            addInstanced('jungle-roadside-understory-shadow-volume', new THREE.DodecahedronGeometry(1, 1), canopyShadowMaterial, understoryDarkBlobs, 'junglePlants');
+            addInstanced('jungle-roadside-vines', new THREE.CylinderGeometry(1, 1, 1, 5), vineMaterial, roadsideVines, 'junglePlants');
+            addInstanced('jungle-roadside-banana-leaves', createLeafBladeGeometry(0.9, 1.0), tropicalLeafMaterial, crownLeaves, 'junglePlants');
+            addInstanced('jungle-roadside-dark-leaves', createLeafBladeGeometry(0.82, 1.0), tropicalLeafDarkMaterial, darkLeaves, 'junglePlants');
+            addInstanced('jungle-roadside-floor-leaves', createLeafBladeGeometry(0.62, 1.0), fernMaterial, floorLeaves, 'junglePlants');
         }
 
         function placeOpeningAssetGrove() {
             const openingEnd = Math.max(endZ, startZ - 1280);
-            for (let z = startZ - 36; z > openingEnd; z -= 42) {
+            for (let z = startZ - 36; z > openingEnd; z -= 92) {
                 [-1, 1].forEach(side => {
-                    const palmsThisStep = 1 + (Math.random() < 0.68 ? 1 : 0);
+                    const palmsThisStep = Math.random() < 0.58 ? 1 : 0;
                     for (let i = 0; i < palmsThisStep; i++) {
                         const asset = pickAsset(palmAssets);
                         const offset = 6 + Math.random() * 26;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 26, side, offset);
                         const palm = asset
-                            ? createJungleAssetClone(asset, 10.5 + Math.random() * 6.5, 8.4)
+                            ? createJungleAssetClone(asset, 14.5 + Math.random() * 8.5, 9.4)
                             : createRainforestPalm(0.96 + Math.random() * 0.34);
                         if (!palm || getTerrainNormalAt(point.x, point.z, 2.4).y < 0.5) {
                             continue;
@@ -3387,7 +4062,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         stageDecorStats.palms += 1;
                     }
 
-                    for (let i = 0; i < 4; i++) {
+                    for (let i = 0; i < 2; i++) {
                         const asset = pickAsset(plantAssets);
                         if (!asset) {
                             continue;
@@ -3408,11 +4083,11 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function placeDownloadedPlants() {
-            for (let z = startZ - 12; z > endZ; z -= 96) {
+            for (let z = startZ - 12; z > endZ; z -= 190) {
                 [-1, 1].forEach(side => {
                     const roadCurve = Math.abs(getLinearRoadDataAtZ(z).curve);
-                    const clusterExtra = roadCurve > 22 && Math.random() < 0.38 ? 1 : 0;
-                    const palmsThisStep = (Math.random() < 0.68 ? 1 : 0) + clusterExtra;
+                    const clusterExtra = roadCurve > 22 && Math.random() < 0.22 ? 1 : 0;
+                    const palmsThisStep = (Math.random() < 0.34 ? 1 : 0) + clusterExtra;
                     for (let i = 0; i < palmsThisStep; i++) {
                         const asset = pickAsset(palmAssets);
                         if (!asset) {
@@ -3420,7 +4095,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         }
                         const offset = 5.2 + Math.random() * 30;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset);
-                        const targetHeight = 8.0 + Math.random() * 7.0;
+                        const targetHeight = 12.0 + Math.random() * 9.5;
                         const palm = createJungleAssetClone(asset, targetHeight, 7.4);
                         if (!palm) {
                             continue;
@@ -3432,7 +4107,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         stageDecorStats.palms += 1;
                     }
 
-                    const plantCount = 2 + Math.floor(Math.random() * 2);
+                    const plantCount = 1 + (Math.random() < 0.28 ? 1 : 0);
                     for (let i = 0; i < plantCount; i++) {
                         const asset = pickAsset(plantAssets);
                         if (!asset) {
@@ -3450,7 +4125,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         addDecorGroup(decor, plant, 'junglePlants');
                     }
 
-                    if (Math.random() < 0.22) {
+                    if (Math.random() < 0.14) {
                         const asset = pickAsset(detailAssets);
                         if (!asset) {
                             return;
@@ -3473,7 +4148,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         function createRainforestPalm(scale = 1) {
             const palm = new THREE.Group();
             palm.name = 'jungle-rainforest-palm';
-            const trunkHeight = (7.2 + Math.random() * 4.6) * scale;
+            const trunkHeight = (10.5 + Math.random() * 6.8) * scale;
             const trunk = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.18 * scale, 0.38 * scale, trunkHeight, 8),
                 trunkMaterial
@@ -3516,16 +4191,16 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function placeProceduralPalms() {
-            for (let z = startZ - 35; z > endZ; z -= 86) {
+            for (let z = startZ - 35; z > endZ; z -= 112) {
                 [-1, 1].forEach(side => {
-                    const count = 1 + (Math.random() < 0.28 ? 1 : 0);
+                    const count = 1 + (Math.random() < 0.38 ? 1 : 0);
                     for (let i = 0; i < count; i++) {
-                        const offset = 3.2 + Math.random() * 15;
+                        const offset = 2.4 + Math.random() * 18;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 38, side, offset);
                         if (getTerrainNormalAt(point.x, point.z, 2.2).y < 0.58) {
                             continue;
                         }
-                        const palm = createRainforestPalm(0.72 + Math.random() * 0.42);
+                        const palm = createRainforestPalm(0.92 + Math.random() * 0.56);
                         palm.position.set(point.x, point.y, point.z);
                         palm.rotation.y = Math.random() * Math.PI * 2;
                         addDecorGroup(decor, palm, 'trees');
@@ -3536,23 +4211,46 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function addCanopyTunnels() {
-            const vineMaterial = new THREE.MeshPhongMaterial({ color: 0x2d4f28, shininess: 6 });
-            const drippingLeafMaterial = new THREE.MeshPhongMaterial({ color: 0x1f6938, shininess: 10, side: THREE.DoubleSide });
-            for (let z = startZ - 120; z > endZ; z -= 310) {
+            const drippingLeafMaterial = new THREE.MeshPhongMaterial({ color: 0x1f6938, map: leafTexture, bumpMap: leafTexture, bumpScale: 0.025, shininess: 8, side: THREE.DoubleSide });
+            const branchMaterial = new THREE.MeshPhongMaterial({ color: 0x3a291a, map: barkTexture, normalMap: barkNormalTexture, shininess: 3 });
+            for (let z = startZ - 90; z > endZ; z -= 260) {
                 const roadData = getLinearRoadDataAtZ(z);
                 const roadPose = getRoadDataAtZ(z, game);
                 const arch = new THREE.Group();
                 arch.name = 'rainforest-canopy-tunnel';
                 [-1, 1].forEach(side => {
-                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.34, 8.4, 7), vineMaterial);
-                    trunk.position.set(side * (halfRoadWidth + 4.2), 4.1, 0);
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.58, 14.6, 8), trunkMaterial);
+                    trunk.position.set(side * (halfRoadWidth + 3.6), 7.15, 0);
                     trunk.rotation.z = -side * (0.22 + Math.random() * 0.1);
                     arch.add(trunk);
+
+                    const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.26, game.road.width * 0.78, 7), branchMaterial);
+                    branch.position.set(side * (halfRoadWidth * 0.28), 11.2 + Math.random() * 1.1, (Math.random() - 0.5) * 2.6);
+                    branch.rotation.z = Math.PI / 2 + side * (0.18 + Math.random() * 0.12);
+                    branch.rotation.y = (Math.random() - 0.5) * 0.32;
+                    arch.add(branch);
                 });
-                for (let i = 0; i < 7; i++) {
-                    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1.2 + Math.random() * 1.5, 3.2 + Math.random() * 2.2), drippingLeafMaterial);
-                    leaf.position.set((Math.random() - 0.5) * (game.road.width + 7), 7.2 + Math.random() * 1.7, (Math.random() - 0.5) * 6);
-                    leaf.rotation.set(Math.PI / 2 + 0.4 + Math.random() * 0.5, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.4);
+                for (let i = 0; i < 12; i++) {
+                    const canopy = new THREE.Mesh(
+                        new THREE.DodecahedronGeometry(1, 1),
+                        i % 3 === 0 ? canopyShadowMaterial : i % 5 === 0 ? canopyHighlightMaterial : canopyMaterial
+                    );
+                    canopy.position.set((Math.random() - 0.5) * (game.road.width + 16), 10.2 + Math.random() * 4.4, (Math.random() - 0.5) * 10);
+                    canopy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI * 2, Math.random() * Math.PI);
+                    canopy.scale.set(2.2 + Math.random() * 3.8, 0.95 + Math.random() * 1.7, 2.0 + Math.random() * 3.2);
+                    arch.add(canopy);
+                }
+                for (let i = 0; i < 8; i++) {
+                    const vineLength = 3.2 + Math.random() * 6.2;
+                    const vine = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.03, vineLength, 5), vineMaterial);
+                    vine.position.set((Math.random() - 0.5) * (game.road.width + 10), 9.4 + Math.random() * 2.6, (Math.random() - 0.5) * 8);
+                    vine.rotation.z = (Math.random() - 0.5) * 0.14;
+                    arch.add(vine);
+                }
+                for (let i = 0; i < 4; i++) {
+                    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1.0 + Math.random() * 1.4, 3.2 + Math.random() * 2.2), drippingLeafMaterial);
+                    leaf.position.set((Math.random() - 0.5) * (game.road.width + 9), 8.7 + Math.random() * 2.0, (Math.random() - 0.5) * 8);
+                    leaf.rotation.set(Math.PI / 2 + 0.35 + Math.random() * 0.45, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.4);
                     arch.add(leaf);
                 }
                 arch.position.set(roadData.curve, roadData.y, z);
@@ -3561,10 +4259,10 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
         }
 
-        addUnderstoryRibbons();
-        addMudPuddles();
+        addRainforestCanopyClusters();
         addRainField();
         addRoadsideTropicalWall();
+        addRoadsideEmergentTrees();
         placeOpeningAssetGrove();
         collectDenseForest();
         placeProceduralPalms();

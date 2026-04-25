@@ -127,22 +127,25 @@ const environments = {
         terrainStyle: 'rainforest',
         roadStyle: 'mud-road',
         shoulderStyle: 'jungle-mud',
-        roadWidth: 17.8,
+        roadWidth: 14.2,
+        shoulderWidth: 0,
+        roadTextureMetersPerTile: 14.2,
+        roadTextureBrightness: 1.24,
         terrainColor: 0x174326,
         terrainTint: 0x4d7c43,
         treeDensity: 0,
         treeColor: 0x155b33,
         trunkColor: 0x4a2f20,
-        maxMountainHeight: 28,
-        mountainHeightRange: 42,
-        mountainHeightPower: 1.42,
-        mountainNoiseScale: 0.008,
-        mountainNoiseGain: 0.26,
-        mountainRoadsideDelay: 0.2,
-        mountainRoadsidePower: 1.35,
+        maxMountainHeight: 74,
+        mountainHeightRange: 104,
+        mountainHeightPower: 1.08,
+        mountainNoiseScale: 0.0085,
+        mountainNoiseGain: 0.34,
+        mountainRoadsideDelay: 0.05,
+        mountainRoadsidePower: 0.95,
         roadElevationAmplitude: 5.2,
-        fogColor: 0x8cb4ac,
-        fogDensity: 0.00158,
+        fogColor: 0x6f8780,
+        fogDensity: 0.00188,
         nightRace: false
     },
     coastal: {
@@ -656,15 +659,24 @@ class GameManager {
         return labels[stageId] || stageId || 'Stage';
     }
 
-    getBestTimesKey(stageId = this.currentStageId, difficultyId = this.difficultyLevel) {
-        return `${stageId || 'scotland'}:${this.getDifficultyProfile(difficultyId).id}`;
+    getBestTimesKey(stageId = this.currentStageId, difficultyId = this.difficultyLevel, assistId = this.drivingAssistLevel) {
+        return `${stageId || 'scotland'}:${this.getDifficultyProfile(difficultyId).id}:${this.getDrivingAssistProfile(assistId).id}`;
     }
 
     loadBestTimes() {
         try {
             const stored = JSON.parse(localStorage.getItem(this.bestTimesStorageKey) || '{}');
             if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
-                return stored;
+                return Object.entries(stored).reduce((bestTimes, [key, times]) => {
+                    const keyParts = key.split(':');
+                    const normalizedKey = keyParts.length === 2 ? `${key}:full` : key;
+                    const normalizedTimes = Array.isArray(times) ? times.filter(Number.isFinite) : [];
+                    bestTimes[normalizedKey] = [
+                        ...(bestTimes[normalizedKey] || []),
+                        ...normalizedTimes
+                    ].sort((a, b) => a - b).slice(0, 5);
+                    return bestTimes;
+                }, {});
             }
         } catch (error) {
             localStorage.removeItem(this.bestTimesStorageKey);
@@ -674,7 +686,7 @@ class GameManager {
             const legacyTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
             if (Array.isArray(legacyTimes) && legacyTimes.length > 0) {
                 return {
-                    [this.getBestTimesKey('scotland', 'pro')]: legacyTimes
+                    [this.getBestTimesKey('scotland', 'pro', 'full')]: legacyTimes
                         .filter(Number.isFinite)
                         .sort((a, b) => a - b)
                         .slice(0, 5)
@@ -687,8 +699,8 @@ class GameManager {
         return {};
     }
 
-    getBestTimesFor(stageId = this.currentStageId, difficultyId = this.difficultyLevel) {
-        const key = this.getBestTimesKey(stageId, difficultyId);
+    getBestTimesFor(stageId = this.currentStageId, difficultyId = this.difficultyLevel, assistId = this.drivingAssistLevel) {
+        const key = this.getBestTimesKey(stageId, difficultyId, assistId);
         const times = this.bestTimes[key];
         return Array.isArray(times) ? times : [];
     }
@@ -896,14 +908,14 @@ class GameManager {
         const isRainforestStage = environment.id === 'jungle';
 
         const ambientLight = new THREE.AmbientLight(
-            this.nightRace ? 0x476c86 : isRainforestStage ? 0xb7d7c8 : 0xffffff,
-            this.nightRace ? 0.085 : isRainforestStage ? 0.18 : 0.035
+            this.nightRace ? 0x476c86 : isRainforestStage ? 0x8da99a : 0xffffff,
+            this.nightRace ? 0.085 : isRainforestStage ? 0.26 : 0.035
         );
         this.scene.add(ambientLight);
 
         this.directionalLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x8fb2ff : isRainforestStage ? 0xd7e7d8 : 0xffffff,
-            this.nightRace ? 0.42 : isRainforestStage ? 1.08 : 2.15
+            this.nightRace ? 0x8fb2ff : isRainforestStage ? 0xb8c7bb : 0xffffff,
+            this.nightRace ? 0.42 : isRainforestStage ? 0.58 : 2.15
         );
         this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
@@ -919,23 +931,23 @@ class GameManager {
         this.scene.add(this.directionalLight);
 
         this.fillLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x2c7f8f : isRainforestStage ? 0xa9d2bb : 0xddeeff,
-            this.nightRace ? 0.26 : isRainforestStage ? 0.34 : 0.14
+            this.nightRace ? 0x2c7f8f : isRainforestStage ? 0x8eb69f : 0xddeeff,
+            this.nightRace ? 0.26 : isRainforestStage ? 0.48 : 0.14
         );
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
         this.rimLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x66e0ff : isRainforestStage ? 0x86b69a : 0xbdeaff,
-            this.nightRace ? 0.9 : isRainforestStage ? 0.36 : 0.58
+            this.nightRace ? 0x66e0ff : isRainforestStage ? 0x6f9380 : 0xbdeaff,
+            this.nightRace ? 0.9 : isRainforestStage ? 0.22 : 0.58
         );
         this.rimLight.position.set(-24, 28, -42);
         this.scene.add(this.rimLight);
 
         const hemiLight = new THREE.HemisphereLight(
-            this.nightRace ? 0x18354e : isRainforestStage ? 0xa8c8bd : 0xcde7f2,
-            this.nightRace ? 0x061409 : isRainforestStage ? 0x1d3521 : 0x334029,
-            this.nightRace ? 0.52 : isRainforestStage ? 0.42 : 0.3
+            this.nightRace ? 0x18354e : isRainforestStage ? 0x7f918d : 0xcde7f2,
+            this.nightRace ? 0x061409 : isRainforestStage ? 0x102315 : 0x334029,
+            this.nightRace ? 0.52 : isRainforestStage ? 0.52 : 0.3
         );
         if (!this.nightRace && !isRainforestStage) {
             hemiLight.color.setHSL(0.58, 0.58, 0.62);
@@ -3750,8 +3762,9 @@ class GameManager {
         if (scoreboard) { // Check if the scoreboard element exists
             const stageLabel = this.game?.settings?.stageLabel || this.getStageLabel();
             const difficultyLabel = this.game?.settings?.difficultyLabel || this.getDifficultyProfile().label;
-            const times = this.getBestTimesFor(this.game?.settings?.stageId, this.game?.settings?.difficultyId);
-            scoreboard.innerHTML = `<h2>Best times - ${stageLabel} - ${difficultyLabel}</h2><ol></ol>`;
+            const assistLabel = this.game?.settings?.assistLabel || this.getDrivingAssistProfile().label;
+            const times = this.getBestTimesFor(this.game?.settings?.stageId, this.game?.settings?.difficultyId, this.game?.settings?.assistId);
+            scoreboard.innerHTML = `<h2>Best times - ${stageLabel} - ${difficultyLabel} - ${assistLabel}</h2><ol></ol>`;
             const list = scoreboard.querySelector('ol');
             times.forEach((t, i) => {
                 const item = document.createElement('li');
@@ -3774,7 +3787,7 @@ class GameManager {
     }
 
     updateBestTimes(time) {
-        const key = this.getBestTimesKey(this.game?.settings?.stageId, this.game?.settings?.difficultyId);
+        const key = this.getBestTimesKey(this.game?.settings?.stageId, this.game?.settings?.difficultyId, this.game?.settings?.assistId);
         const times = Array.isArray(this.bestTimes[key]) ? this.bestTimes[key] : [];
         times.push(time);
         times.sort((a, b) => a - b);
