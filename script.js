@@ -58,6 +58,8 @@
     let startRequestId = 0;
     let garagePreview = null;
     let cameraTunerEnabled = false;
+    const groundDebugEnabled = new URLSearchParams(window.location.search).has('groundDebug');
+    let debugCameraDrag = null;
 
     // Mobile button controls setup
     const accelerateButton = document.getElementById('accelerateButton');
@@ -94,7 +96,8 @@
             camera: gameManager.getCameraMode ? {
                 id: gameManager.getCameraMode().id,
                 label: gameManager.getCameraMode().label,
-                fov: (gameManager.getActiveCameraMode ? gameManager.getActiveCameraMode() : gameManager.getCameraMode()).fov
+                fov: (gameManager.getActiveCameraMode ? gameManager.getActiveCameraMode() : gameManager.getCameraMode()).fov,
+                debugFree: gameManager.getDebugFreeCameraState ? gameManager.getDebugFreeCameraState() : null
             } : null,
             countdown: countdownState,
             car: game ? {
@@ -139,8 +142,14 @@
                 x: Number(traffic.xOffset.toFixed(2)),
                 y: Number(traffic.mesh.position.y.toFixed(2)),
                 z: Number(traffic.mesh.position.z.toFixed(2)),
-                pitch: Number(traffic.mesh.rotation.x.toFixed(3))
+                pitch: Number(traffic.mesh.rotation.x.toFixed(3)),
+                groundContact: gameManager.getVehicleRoadContactDiagnostics
+                    ? gameManager.getVehicleRoadContactDiagnostics(traffic.mesh)
+                    : null
             })) : [],
+            groundContact: game && gameManager.getVehicleRoadContactDiagnostics ? {
+                player: gameManager.getVehicleRoadContactDiagnostics(gameManager.playerCar)
+            } : null,
             collision: gameManager.activeCollision ? {
                 type: gameManager.activeCollision.type,
                 progress: Number((gameManager.activeCollision.frame / gameManager.activeCollision.duration).toFixed(2)),
@@ -154,6 +163,25 @@
             } : null
         }, null, 2);
     };
+
+    if (groundDebugEnabled) {
+        window.setInterval(() => {
+            if (!gameManager.game || !gameManager.getVehicleRoadContactDiagnostics) {
+                return;
+            }
+
+            const state = JSON.parse(window.render_game_to_text());
+            console.info('ground-contact', JSON.stringify({
+                mode: state.mode,
+                speed: state.car?.speed,
+                player: state.groundContact?.player,
+                traffic: state.trafficPreview?.slice(0, 6).map(traffic => ({
+                    type: traffic.type,
+                    contact: traffic.groundContact
+                }))
+            }));
+        }, 1000);
+    }
 
     // Hide mobile controls on start and end screens
     function hideMobileControls() {
@@ -192,6 +220,10 @@
 
     function canDrive() {
         return isGameplayActive() && !gameManager.isPaused;
+    }
+
+    function isDebugFreeCameraActive() {
+        return Boolean(groundDebugEnabled && gameManager.isDebugFreeCameraActive?.());
     }
 
     function isDrivingKey(event) {
@@ -533,6 +565,7 @@
         settingsHud.style.display = 'none';
         setSettingsPanelOpen(false);
         cameraTunerEnabled = false;
+        gameManager.disableDebugFreeCamera?.();
         updateCameraTunerUi();
         hideMobileControls();
     }
@@ -669,6 +702,47 @@
         renderer.render(scene, camera);
     }
 
+    function enterGroundDebugCamera() {
+        if (!groundDebugEnabled || !isGameplayActive() || !gameManager.enableDebugFreeCamera) {
+            return false;
+        }
+
+        resetControls();
+        cameraTunerEnabled = false;
+        gameManager.pauseGame();
+        setSettingsPanelOpen(false);
+        gameManager.enableDebugFreeCamera();
+        updateCameraButtonUi();
+        updateCameraTunerUi();
+        showMobileControls();
+        renderer.render(scene, camera);
+        return true;
+    }
+
+    function exitGroundDebugCamera({ resume = true } = {}) {
+        if (!isDebugFreeCameraActive()) {
+            return false;
+        }
+
+        gameManager.disableDebugFreeCamera?.();
+        debugCameraDrag = null;
+        if (resume) {
+            gameManager.resumeGame();
+        }
+        updateCameraButtonUi();
+        showMobileControls();
+        renderer.render(scene, camera);
+        return true;
+    }
+
+    function toggleGroundDebugCamera() {
+        if (isDebugFreeCameraActive()) {
+            return exitGroundDebugCamera({ resume: true });
+        }
+
+        return enterGroundDebugCamera();
+    }
+
     function setPaused(isPaused) {
         if (!isGameplayActive()) {
             return;
@@ -679,6 +753,7 @@
             gameManager.pauseGame();
             setSettingsPanelOpen(true);
         } else {
+            gameManager.disableDebugFreeCamera?.();
             gameManager.resumeGame();
             setSettingsPanelOpen(false);
         }
@@ -789,6 +864,7 @@
         cancelAnimationFrame(gameManager.animationId);
         gameManager.animationId = null;
         resetControls();
+        gameManager.disableDebugFreeCamera?.();
         gameManager.resumeGame();
         gameManager.clearStartCountdown();
         hideGameplayChrome();
@@ -835,7 +911,18 @@
             return;
         }
 
+        if (e.key.toLowerCase() === 'g' && groundDebugEnabled && isGameplayActive()) {
+            e.preventDefault();
+            toggleGroundDebugCamera();
+            return;
+        }
+
         if (e.key.toLowerCase() === 'p' && isGameplayActive()) {
+            if (isDebugFreeCameraActive()) {
+                e.preventDefault();
+                exitGroundDebugCamera({ resume: true });
+                return;
+            }
             setPaused(!gameManager.isPaused);
             return;
         }
@@ -892,6 +979,80 @@
         if (controlChanged) {
             gameManager.setControls(controls);
         }
+    });
+
+    renderer.domElement.addEventListener('contextmenu', event => {
+        if (isDebugFreeCameraActive()) {
+            event.preventDefault();
+        }
+    });
+
+    renderer.domElement.addEventListener('pointerdown', event => {
+        if (!isDebugFreeCameraActive()) {
+            return;
+        }
+
+        event.preventDefault();
+        debugCameraDrag = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            moveTargetY: event.shiftKey || event.button === 1 || event.button === 2
+        };
+        renderer.domElement.setPointerCapture?.(event.pointerId);
+    });
+
+    renderer.domElement.addEventListener('pointermove', event => {
+        if (!debugCameraDrag || !isDebugFreeCameraActive() || debugCameraDrag.pointerId !== event.pointerId) {
+            return;
+        }
+
+        event.preventDefault();
+        const dx = event.clientX - debugCameraDrag.x;
+        const dy = event.clientY - debugCameraDrag.y;
+        debugCameraDrag.x = event.clientX;
+        debugCameraDrag.y = event.clientY;
+        if (debugCameraDrag.moveTargetY) {
+            gameManager.adjustDebugFreeCamera?.({ targetYDelta: -dy * 0.018 });
+        } else {
+            gameManager.adjustDebugFreeCamera?.({
+                yawDelta: -dx * 0.0055,
+                pitchDelta: -dy * 0.0055
+            });
+        }
+        renderer.render(scene, camera);
+    });
+
+    function endDebugCameraDrag(event) {
+        if (!debugCameraDrag || debugCameraDrag.pointerId !== event.pointerId) {
+            return;
+        }
+
+        renderer.domElement.releasePointerCapture?.(event.pointerId);
+        debugCameraDrag = null;
+    }
+
+    renderer.domElement.addEventListener('pointerup', endDebugCameraDrag);
+    renderer.domElement.addEventListener('pointercancel', endDebugCameraDrag);
+
+    renderer.domElement.addEventListener('wheel', event => {
+        if (!isDebugFreeCameraActive()) {
+            return;
+        }
+
+        event.preventDefault();
+        gameManager.adjustDebugFreeCamera?.({ distanceDelta: event.deltaY * 0.012 });
+        renderer.render(scene, camera);
+    }, { passive: false });
+
+    renderer.domElement.addEventListener('dblclick', event => {
+        if (!isDebugFreeCameraActive()) {
+            return;
+        }
+
+        event.preventDefault();
+        gameManager.enableDebugFreeCamera?.();
+        renderer.render(scene, camera);
     });
 
     function preventTouchDefault(event) {

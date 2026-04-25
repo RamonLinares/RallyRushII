@@ -49,10 +49,23 @@ function createCanvasTexture(width, height, repeatX, repeatY, draw) {
     return texture;
 }
 
-function loadImageIntoTexture(texture, url) {
+function loadImageIntoTexture(texture, url, options = {}) {
     const loader = new THREE.TextureLoader();
     loader.load(url, (loadedTexture) => {
-        texture.image = loadedTexture.image;
+        if (options.drawToCanvas) {
+            const canvas = document.createElement('canvas');
+            canvas.width = options.width || 1024;
+            canvas.height = options.height || canvas.width;
+            const context = canvas.getContext('2d');
+            context.drawImage(loadedTexture.image, 0, 0, canvas.width, canvas.height);
+            texture.image = canvas;
+            texture.generateMipmaps = true;
+            texture.minFilter = THREE.LinearMipMapLinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.anisotropy = options.anisotropy || texture.anisotropy;
+        } else {
+            texture.image = loadedTexture.image;
+        }
         texture.needsUpdate = true;
         loadedTexture.dispose();
     }, undefined, () => {
@@ -740,8 +753,11 @@ function createJungleMudNormalTexture(segmentCount, environment = {}) {
     return loadImageIntoTexture(texture, 'assets/textures/polyhaven/mud_forest_nor_gl_1k.jpg');
 }
 
-function createTerrainTexture(environment, segmentCount) {
-    const repeatY = Math.max(24, segmentCount / 7);
+function createTerrainTexture(environment, segmentCount, terrainWidth = 300) {
+    const approximateRoadLength = segmentCount * 10;
+    const repeatY = Number.isFinite(environment.terrainTextureMetersPerTile)
+        ? Math.max(1, approximateRoadLength / environment.terrainTextureMetersPerTile)
+        : Math.max(24, segmentCount / 7);
 
     if (environment.terrainStyle === 'sand') {
         return createCanvasTexture(512, 512, 7, repeatY, (context, width, height) => {
@@ -820,9 +836,13 @@ function createTerrainTexture(environment, segmentCount) {
 
     if (environment.terrainStyle === 'jungle-night' || environment.terrainStyle === 'rainforest') {
         const isRainforest = environment.terrainStyle === 'rainforest';
-        const terrainRepeatX = isRainforest ? 5 : 8;
-        const terrainRepeatY = isRainforest ? Math.max(14, segmentCount / 16) : repeatY;
-        return createCanvasTexture(512, 512, terrainRepeatX, terrainRepeatY, (context, width, height) => {
+        const terrainRepeatX = Number.isFinite(environment.terrainTextureRepeatX)
+            ? environment.terrainTextureRepeatX
+            : isRainforest && Number.isFinite(environment.terrainTextureLateralMetersPerTile)
+                ? Math.max(1, terrainWidth / environment.terrainTextureLateralMetersPerTile)
+                : isRainforest ? 5 : 8;
+        const terrainRepeatY = repeatY;
+        const texture = createCanvasTexture(512, 512, terrainRepeatX, terrainRepeatY, (context, width, height) => {
             context.fillStyle = isRainforest ? '#426d42' : '#082118';
             context.fillRect(0, 0, width, height);
             drawSpeckle(
@@ -844,6 +864,17 @@ function createTerrainTexture(environment, segmentCount) {
                 drawWavyLines(context, width, height, '#02090d', 26, 0.2);
             }
         });
+
+        if (isRainforest && environment.terrainTextureUrl) {
+            return loadImageIntoTexture(texture, environment.terrainTextureUrl, {
+                drawToCanvas: true,
+                width: 1024,
+                height: 1024,
+                anisotropy: 8
+            });
+        }
+
+        return texture;
     }
 
     if (environment.terrainStyle === 'mediterranean') {
@@ -1819,6 +1850,7 @@ function generateRoadAndTerrain(scene, game, environment) {
 
     const roadTexture = createRoadTexture(environment, game.road.segments.length);
     const isMudRoad = environment.roadStyle === 'mud-road';
+    const isRainforestMud = isMudRoad && environment.terrainStyle === 'rainforest';
     const roadNormalTexture = isMudRoad ? createJungleMudNormalTexture(game.road.segments.length, environment) : null;
     const roadBrightness = Number.isFinite(environment.roadTextureBrightness)
         ? environment.roadTextureBrightness
@@ -1826,16 +1858,19 @@ function generateRoadAndTerrain(scene, game, environment) {
     const road = new THREE.Mesh(roadGeometry, new THREE.MeshPhongMaterial({
         map: roadTexture,
         normalMap: roadNormalTexture,
-        emissive: isMudRoad && roadBrightness > 1 ? 0x302416 : 0x000000,
-        emissiveIntensity: isMudRoad ? Math.max(0, Math.min(0.18, (roadBrightness - 1) * 0.5)) : 0,
-        shininess: isMudRoad ? 7 : environment.roadStyle === 'wet-asphalt' ? 42 : environment.roadStyle === 'city-asphalt' ? 24 : 14,
-        specular: isMudRoad ? 0x18140f : environment.roadStyle === 'wet-asphalt' ? 0x446875 : 0x222222
+        emissive: isMudRoad && roadBrightness > 1 ? (isRainforestMud ? 0x3a2818 : 0x302416) : 0x000000,
+        emissiveIntensity: isMudRoad ? Math.max(0, Math.min(isRainforestMud ? 0.22 : 0.18, (roadBrightness - 1) * (isRainforestMud ? 0.62 : 0.5))) : 0,
+        shininess: isRainforestMud ? 12 : isMudRoad ? 7 : environment.roadStyle === 'wet-asphalt' ? 42 : environment.roadStyle === 'city-asphalt' ? 24 : 14,
+        specular: isRainforestMud ? 0x5a3b22 : isMudRoad ? 0x18140f : environment.roadStyle === 'wet-asphalt' ? 0x446875 : 0x222222
     }));
     road.receiveShadow = true;
 
-    const terrainTexture = createTerrainTexture(environment, game.road.segments.length);
+    const terrainTexture = createTerrainTexture(environment, game.road.segments.length, terrainWidth);
+    const terrainMaterialColor = environment.terrainTextureUrl && Number.isFinite(environment.terrainTextureTint)
+        ? environment.terrainTextureTint
+        : environment.terrainTint || 0xffffff;
     const terrainMaterial = new THREE.MeshPhongMaterial({
-        color: environment.terrainTint || 0xffffff,
+        color: terrainMaterialColor,
         map: terrainTexture,
         bumpMap: environment.terrainStyle === 'rainforest' ? null : terrainTexture,
         bumpScale: environment.terrainStyle === 'snow-rock' ? 0.18 : environment.terrainStyle === 'rainforest' ? 0 : 0.28,
@@ -3125,26 +3160,6 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function addJungleRoadsideDecor(decor) {
-        const jungleAssetCache = environment.assetCache || {};
-        const palmAssets = [
-            jungleAssetCache.palmDetailedTall,
-            jungleAssetCache.palmTall,
-            jungleAssetCache.palmBend,
-            jungleAssetCache.palmDetailedShort
-        ].filter(Boolean);
-        const plantAssets = [
-            jungleAssetCache.bushLargeTriangle,
-            jungleAssetCache.bushDetailed,
-            jungleAssetCache.plantFlatTall,
-            jungleAssetCache.grassLeafsLarge,
-            jungleAssetCache.grassLeafs
-        ].filter(Boolean);
-        const detailAssets = [
-            jungleAssetCache.logLarge,
-            jungleAssetCache.stumpOld,
-            jungleAssetCache.rockLarge,
-            jungleAssetCache.rockSmall
-        ].filter(Boolean);
         const rainforestNoise = new SimplexNoise();
         const barkTexture = loadImageIntoTexture(createJungleBarkTexture(256, 512, 1.1, 4), 'assets/textures/polyhaven/bark_willow_diff_1k.jpg');
         const barkNormalTexture = loadImageIntoTexture(createJungleBarkTexture(256, 512, 1.1, 4), 'assets/textures/polyhaven/bark_willow_nor_gl_1k.jpg');
@@ -3200,80 +3215,6 @@ function generateRoadAndTerrain(scene, game, environment) {
         const startZ = game.startLine - 70;
         const endZ = game.finishLine + 150;
 
-        function cloneJungleMaterial(material, assetName = '') {
-            if (!material) {
-                return material;
-            }
-
-            const cloned = material.clone();
-            cloned.userData.keepTextureMaps = true;
-            if ('roughness' in cloned) {
-                cloned.roughness = Math.max(cloned.roughness || 0.58, 0.78);
-            }
-            if ('metalness' in cloned) {
-                cloned.metalness = Math.min(cloned.metalness || 0, 0.06);
-            }
-            if (cloned.color) {
-                const normalizedAssetName = assetName.toLowerCase();
-                if (normalizedAssetName.includes('palm') || normalizedAssetName.includes('bush') || normalizedAssetName.includes('plant') || normalizedAssetName.includes('grass')) {
-                    cloned.color.lerp(new THREE.Color(0x1e6738), 0.58);
-                    cloned.color.offsetHSL(0.015, 0.04, -0.08);
-                } else if (normalizedAssetName.includes('log') || normalizedAssetName.includes('stump')) {
-                    cloned.color.lerp(new THREE.Color(0x4a2f20), 0.42);
-                    cloned.color.offsetHSL(0, -0.02, -0.04);
-                } else {
-                    cloned.color.offsetHSL(0.01, 0, -0.06);
-                }
-            }
-            cloned.needsUpdate = true;
-            return cloned;
-        }
-
-        function createJungleAssetClone(asset, targetHeight = 6, maxFootprint = 7) {
-            if (!asset?.scene) {
-                return null;
-            }
-
-            const wrapper = new THREE.Group();
-            wrapper.name = `jungle-asset-${asset.assetName || 'model'}`;
-            const clone = asset.scene.clone(true);
-            clone.traverse(child => {
-                if (!child.isMesh) {
-                    return;
-                }
-
-                child.castShadow = false;
-                child.receiveShadow = true;
-                child.userData.keepGeometry = true;
-                if (Array.isArray(child.material)) {
-                    child.material = child.material.map(material => cloneJungleMaterial(material, asset.assetName || asset.key || ''));
-                } else {
-                    child.material = cloneJungleMaterial(child.material, asset.assetName || asset.key || '');
-                }
-            });
-
-            const sourceBox = new THREE.Box3().setFromObject(clone);
-            const size = sourceBox.getSize(new THREE.Vector3());
-            const heightScale = targetHeight / Math.max(0.001, size.y);
-            const footprintScale = maxFootprint / Math.max(0.001, Math.max(size.x, size.z));
-            clone.scale.multiplyScalar(Math.min(heightScale, footprintScale));
-
-            const fittedBox = new THREE.Box3().setFromObject(clone);
-            const center = fittedBox.getCenter(new THREE.Vector3());
-            clone.position.x -= center.x;
-            clone.position.z -= center.z;
-            clone.position.y -= fittedBox.min.y;
-            wrapper.add(clone);
-            return wrapper;
-        }
-
-        function pickAsset(assets) {
-            if (!assets.length) {
-                return null;
-            }
-            return assets[Math.floor(Math.random() * assets.length)];
-        }
-
         function addInstanced(name, geometry, material, placements, statsKey = 'junglePlants') {
             if (!placements.length) {
                 geometry.dispose();
@@ -3318,9 +3259,19 @@ function generateRoadAndTerrain(scene, game, environment) {
             return geometry;
         }
 
-        function getJunglePoint(z, side, offset) {
+        function clampJungleXOutsideRoad(x, z, side, minClearance = 2.4) {
             const roadData = getLinearRoadDataAtZ(z);
-            const x = roadData.curve + side * (halfRoadWidth + shoulderWidth + offset);
+            const minDistanceFromCenter = halfRoadWidth + shoulderWidth + minClearance;
+            if (side < 0) {
+                return Math.min(x, roadData.curve - minDistanceFromCenter);
+            }
+            return Math.max(x, roadData.curve + minDistanceFromCenter);
+        }
+
+        function getJunglePoint(z, side, offset, minClearance = 2.4) {
+            const roadData = getLinearRoadDataAtZ(z);
+            const safeOffset = Math.max(offset, minClearance);
+            const x = roadData.curve + side * (halfRoadWidth + shoulderWidth + safeOffset);
             return {
                 x,
                 y: getPropGroundY(x, z, 1.6),
@@ -3622,16 +3573,17 @@ function generateRoadAndTerrain(scene, game, environment) {
 
             for (let z = startZ - 8; z > endZ; z -= 54) {
                 [-1, 1].forEach(side => {
-                    const roadData = getLinearRoadDataAtZ(z);
                     const density = 1 + Math.floor(Math.max(0, rainforestNoise.noise2D(z * 0.008, side * 22.1)) * 2);
                     for (let i = 0; i < density; i++) {
                         const offset = 5.6 + Math.pow(Math.random(), 0.7) * 38;
-                        const x = roadData.curve + side * (halfRoadWidth + offset);
-                        const groundY = getPropGroundY(x, z, 2);
+                        const clusterZ = z + (Math.random() - 0.5) * 20;
+                        const point = getJunglePoint(clusterZ, side, offset, 6.2);
+                        const clusterX = clampJungleXOutsideRoad(point.x + (Math.random() - 0.5) * 4.2, clusterZ, side, 6.2);
+                        const groundY = getPropGroundY(clusterX, clusterZ, 2);
                         const placement = {
-                            x: x + (Math.random() - 0.5) * 5.5,
+                            x: clusterX,
                             y: groundY + 12.5 + Math.random() * 9.5,
-                            z: z + (Math.random() - 0.5) * 20,
+                            z: clusterZ,
                             rotationX: Math.random() * Math.PI,
                             rotationY: Math.random() * Math.PI * 2,
                             rotationZ: Math.random() * Math.PI,
@@ -3664,16 +3616,16 @@ function generateRoadAndTerrain(scene, game, environment) {
 
             for (let z = startZ - 24; z > endZ; z -= 74) {
                 [-1, 1].forEach(side => {
-                    const roadData = getLinearRoadDataAtZ(z);
                     const treeCount = 1 + (Math.random() < 0.34 ? 1 : 0);
                     for (let i = 0; i < treeCount; i++) {
                         const offset = 3.4 + Math.random() * 16;
-                        const x = roadData.curve + side * (halfRoadWidth + offset);
                         const treeZ = z + (Math.random() - 0.5) * 36;
+                        const point = getJunglePoint(treeZ, side, offset, 5.2);
+                        const x = point.x;
                         if (getTerrainNormalAt(x, treeZ, 2.8).y < 0.5) {
                             continue;
                         }
-                        const y = getPropGroundY(x, treeZ, 2.2);
+                        const y = point.y;
                         const height = 16 + Math.random() * 12;
                         const trunkRadius = 0.32 + Math.random() * 0.3;
                         emergentTrunks.push({
@@ -3942,8 +3894,8 @@ function generateRoadAndTerrain(scene, game, environment) {
                         ? 3
                         : 2 + (Math.random() < 0.45 ? 1 : 0);
                     for (let i = 0; i < groveCount; i++) {
-                        const offset = (inOpeningCorridor ? 1.4 : 2.2) + Math.random() * (inOpeningCorridor ? 15 : 28);
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset);
+                        const offset = (inOpeningCorridor ? 2.8 : 3.6) + Math.random() * (inOpeningCorridor ? 15 : 28);
+                        const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset, 4.2);
                         if (getTerrainNormalAt(point.x, point.z, 2.4).y < 0.5) {
                             continue;
                         }
@@ -4013,8 +3965,8 @@ function generateRoadAndTerrain(scene, game, environment) {
 
                     const undergrowthCount = inOpeningCorridor ? 10 : 7;
                     for (let i = 0; i < undergrowthCount; i++) {
-                        const offset = 0.85 + Math.random() * (inOpeningCorridor ? 9 : 13);
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 40, side, offset);
+                        const offset = 1.8 + Math.random() * (inOpeningCorridor ? 9 : 13);
+                        const point = getJunglePoint(z + (Math.random() - 0.5) * 40, side, offset, 2.2);
                         const leafLength = 1.2 + Math.random() * 2.4;
                         floorLeaves.push({
                             x: point.x,
@@ -4040,106 +3992,23 @@ function generateRoadAndTerrain(scene, game, environment) {
             addInstanced('jungle-roadside-floor-leaves', createLeafBladeGeometry(0.62, 1.0), fernMaterial, floorLeaves, 'junglePlants');
         }
 
-        function placeOpeningAssetGrove() {
+        function placeOpeningProceduralGrove() {
             const openingEnd = Math.max(endZ, startZ - 1280);
             for (let z = startZ - 36; z > openingEnd; z -= 92) {
                 [-1, 1].forEach(side => {
                     const palmsThisStep = Math.random() < 0.58 ? 1 : 0;
                     for (let i = 0; i < palmsThisStep; i++) {
-                        const asset = pickAsset(palmAssets);
                         const offset = 6 + Math.random() * 26;
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 26, side, offset);
-                        const palm = asset
-                            ? createJungleAssetClone(asset, 14.5 + Math.random() * 8.5, 9.4)
-                            : createRainforestPalm(0.96 + Math.random() * 0.34);
+                        const point = getJunglePoint(z + (Math.random() - 0.5) * 26, side, offset, 4.2);
+                        const palm = createRainforestPalm(0.96 + Math.random() * 0.34);
                         if (!palm || getTerrainNormalAt(point.x, point.z, 2.4).y < 0.5) {
                             continue;
                         }
-                        palm.name = asset ? `jungle-opening-palm-${asset.assetName}` : 'jungle-opening-procedural-palm';
+                        palm.name = 'jungle-opening-procedural-palm';
                         palm.position.set(point.x, point.y, point.z);
                         palm.rotation.y = Math.random() * Math.PI * 2;
                         addDecorGroup(decor, palm, 'trees');
                         stageDecorStats.palms += 1;
-                    }
-
-                    for (let i = 0; i < 2; i++) {
-                        const asset = pickAsset(plantAssets);
-                        if (!asset) {
-                            continue;
-                        }
-                        const offset = 1.8 + Math.random() * 13;
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 32, side, offset);
-                        const plant = createJungleAssetClone(asset, 1.4 + Math.random() * 2.8, 4.6);
-                        if (!plant || getTerrainNormalAt(point.x, point.z, 2.0).y < 0.48) {
-                            continue;
-                        }
-                        plant.name = `jungle-opening-understory-${asset.assetName}`;
-                        plant.position.set(point.x, point.y + 0.025, point.z);
-                        plant.rotation.y = Math.random() * Math.PI * 2;
-                        addDecorGroup(decor, plant, 'junglePlants');
-                    }
-                });
-            }
-        }
-
-        function placeDownloadedPlants() {
-            for (let z = startZ - 12; z > endZ; z -= 190) {
-                [-1, 1].forEach(side => {
-                    const roadCurve = Math.abs(getLinearRoadDataAtZ(z).curve);
-                    const clusterExtra = roadCurve > 22 && Math.random() < 0.22 ? 1 : 0;
-                    const palmsThisStep = (Math.random() < 0.34 ? 1 : 0) + clusterExtra;
-                    for (let i = 0; i < palmsThisStep; i++) {
-                        const asset = pickAsset(palmAssets);
-                        if (!asset) {
-                            continue;
-                        }
-                        const offset = 5.2 + Math.random() * 30;
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset);
-                        const targetHeight = 12.0 + Math.random() * 9.5;
-                        const palm = createJungleAssetClone(asset, targetHeight, 7.4);
-                        if (!palm) {
-                            continue;
-                        }
-                        palm.name = `jungle-downloaded-palm-${asset.assetName}`;
-                        palm.position.set(point.x, point.y, point.z);
-                        palm.rotation.y = Math.random() * Math.PI * 2;
-                        addDecorGroup(decor, palm, 'trees');
-                        stageDecorStats.palms += 1;
-                    }
-
-                    const plantCount = 1 + (Math.random() < 0.28 ? 1 : 0);
-                    for (let i = 0; i < plantCount; i++) {
-                        const asset = pickAsset(plantAssets);
-                        if (!asset) {
-                            continue;
-                        }
-                        const offset = 2.8 + Math.random() * 20;
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset);
-                        const plant = createJungleAssetClone(asset, 0.9 + Math.random() * 2.4, 3.8);
-                        if (!plant) {
-                            continue;
-                        }
-                        plant.name = `jungle-downloaded-understory-${asset.assetName}`;
-                        plant.position.set(point.x, point.y + 0.02, point.z);
-                        plant.rotation.y = Math.random() * Math.PI * 2;
-                        addDecorGroup(decor, plant, 'junglePlants');
-                    }
-
-                    if (Math.random() < 0.14) {
-                        const asset = pickAsset(detailAssets);
-                        if (!asset) {
-                            return;
-                        }
-                        const offset = 8 + Math.random() * 36;
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 28, side, offset);
-                        const detail = createJungleAssetClone(asset, 0.8 + Math.random() * 1.8, 4.2);
-                        if (!detail) {
-                            return;
-                        }
-                        detail.name = `jungle-downloaded-ground-detail-${asset.assetName}`;
-                        detail.position.set(point.x, point.y + 0.025, point.z);
-                        detail.rotation.y = Math.random() * Math.PI * 2;
-                        addDecorGroup(decor, detail, asset.assetName?.includes('rock') ? 'rockClusters' : 'junglePlants');
                     }
                 });
             }
@@ -4195,8 +4064,8 @@ function generateRoadAndTerrain(scene, game, environment) {
                 [-1, 1].forEach(side => {
                     const count = 1 + (Math.random() < 0.38 ? 1 : 0);
                     for (let i = 0; i < count; i++) {
-                        const offset = 2.4 + Math.random() * 18;
-                        const point = getJunglePoint(z + (Math.random() - 0.5) * 38, side, offset);
+                        const offset = 3.6 + Math.random() * 18;
+                        const point = getJunglePoint(z + (Math.random() - 0.5) * 38, side, offset, 4.2);
                         if (getTerrainNormalAt(point.x, point.z, 2.2).y < 0.58) {
                             continue;
                         }
@@ -4220,7 +4089,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 arch.name = 'rainforest-canopy-tunnel';
                 [-1, 1].forEach(side => {
                     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.58, 14.6, 8), trunkMaterial);
-                    trunk.position.set(side * (halfRoadWidth + 3.6), 7.15, 0);
+                    trunk.position.set(side * (halfRoadWidth + 4.8), 7.15, 0);
                     trunk.rotation.z = -side * (0.22 + Math.random() * 0.1);
                     arch.add(trunk);
 
@@ -4243,13 +4112,15 @@ function generateRoadAndTerrain(scene, game, environment) {
                 for (let i = 0; i < 8; i++) {
                     const vineLength = 3.2 + Math.random() * 6.2;
                     const vine = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.03, vineLength, 5), vineMaterial);
-                    vine.position.set((Math.random() - 0.5) * (game.road.width + 10), 9.4 + Math.random() * 2.6, (Math.random() - 0.5) * 8);
+                    const side = Math.random() < 0.5 ? -1 : 1;
+                    vine.position.set(side * (halfRoadWidth + 1.7 + Math.random() * 3.8), 9.4 + Math.random() * 2.6, (Math.random() - 0.5) * 8);
                     vine.rotation.z = (Math.random() - 0.5) * 0.14;
                     arch.add(vine);
                 }
                 for (let i = 0; i < 4; i++) {
                     const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1.0 + Math.random() * 1.4, 3.2 + Math.random() * 2.2), drippingLeafMaterial);
-                    leaf.position.set((Math.random() - 0.5) * (game.road.width + 9), 8.7 + Math.random() * 2.0, (Math.random() - 0.5) * 8);
+                    const side = Math.random() < 0.5 ? -1 : 1;
+                    leaf.position.set(side * (halfRoadWidth + 1.4 + Math.random() * 3.4), 8.7 + Math.random() * 2.0, (Math.random() - 0.5) * 8);
                     leaf.rotation.set(Math.PI / 2 + 0.35 + Math.random() * 0.45, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.4);
                     arch.add(leaf);
                 }
@@ -4263,10 +4134,9 @@ function generateRoadAndTerrain(scene, game, environment) {
         addRainField();
         addRoadsideTropicalWall();
         addRoadsideEmergentTrees();
-        placeOpeningAssetGrove();
+        placeOpeningProceduralGrove();
         collectDenseForest();
         placeProceduralPalms();
-        placeDownloadedPlants();
         addCanopyTunnels();
     }
 
