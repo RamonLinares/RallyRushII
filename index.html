@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RallyRushII</title>
     <meta name="description" content="RallyRushII, a standalone continuation of RallyRush.">
-    <link rel="stylesheet" href="styles.css?v=20260423-controls-topdown">
+    <link rel="icon" href="assets/game_logo.jpeg">
+    <link rel="stylesheet" href="styles.css?v=20260423-expert-settings">
 </head>
 
 <body>
@@ -95,8 +96,16 @@
                         <option value="scotland">Scotland</option>
                         <option value="desert">Desert</option>
                         <option value="alpine">Alpine</option>
+                        <option value="city">City</option>
+                        <option value="lakes">Lakes</option>
+                        <option value="jungle">Rainforest Mud</option>
+                        <option value="coastal">Mediterranean Coast</option>
                     </select>
                 </div>
+                <label class="selectLabel" for="difficultySelect">Difficulty</label>
+                <div id="difficultySelect" class="modeSelect" role="radiogroup" aria-label="Difficulty"></div>
+                <label class="selectLabel" for="assistSelect">Assist</label>
+                <div id="assistSelect" class="modeSelect assistModeSelect" role="radiogroup" aria-label="Driving assist"></div>
                 <button id="startButton" class="primaryButton">Start race</button>
             </div>
             <div class="garageSelect" aria-label="Car selection">
@@ -181,9 +190,9 @@
     <script src="vendor/three.min.js"></script>
     <script src="vendor/GLTFLoader.js"></script>
     <script src="vendor/DRACOLoader.js"></script>
-    <script src="roadGenerator.js"></script>
-    <script src="gameManager.js?v=20260423-controls-topdown"></script>
-    <script src="script.js?v=20260423-controls-topdown"></script>
+    <script src="roadGenerator.js?v=20260424-jungle-rainforest-6"></script>
+    <script src="gameManager.js?v=20260424-jungle-rainforest-6"></script>
+    <script src="script.js?v=20260424-jungle-rainforest-6"></script>
 </body>
 
 </html>

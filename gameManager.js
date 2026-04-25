@@ -60,6 +60,119 @@ const environments = {
         mountainRoadsidePower: 0.95,
         fogColor: 0x7fc4d8,
         fogDensity: 0.0012
+    },
+    city: {
+        id: 'city',
+        terrainStyle: 'urban',
+        roadStyle: 'city-asphalt',
+        shoulderStyle: 'concrete',
+        roadWidth: 22,
+        terrainColor: 0x3f4951,
+        terrainTint: 0x8d9aa4,
+        treeDensity: 0.006,
+        treeColor: 0x2f5f42,
+        trunkColor: 0x5d4330,
+        maxMountainHeight: 4,
+        mountainHeightRange: 5,
+        mountainHeightPower: 1.8,
+        mountainNoiseScale: 0.006,
+        mountainNoiseGain: 0.2,
+        mountainRoadsideDelay: 0.55,
+        mountainRoadsidePower: 2.2,
+        fogColor: 0xa8bbc7,
+        fogDensity: 0.00115
+    },
+    lakes: {
+        id: 'lakes',
+        terrainStyle: 'lake-country',
+        roadStyle: 'country-asphalt',
+        shoulderStyle: 'grass-gravel',
+        roadWidth: 22,
+        terrainColor: 0x3f6141,
+        terrainTint: 0xb5c6ad,
+        treeDensity: 0,
+        treeColor: 0x275f3b,
+        trunkColor: 0x65432b,
+        roadElevationAmplitude: 3.4,
+        maxMountainHeight: 14,
+        mountainHeightRange: 22,
+        mountainHeightPower: 1.55,
+        mountainNoiseScale: 0.0052,
+        mountainNoiseGain: 0.2,
+        mountainRoadsideDelay: 0.48,
+        mountainRoadsidePower: 1.85,
+        fogColor: 0x9fc6cf,
+        fogDensity: 0.00102,
+        lakeBiome: {
+            waterLevelOffset: 1.08,
+            waterDepth: 1.75,
+            shoreWidth: 5.8,
+            minShoreDistance: 8.5,
+            maxShoreDistance: 36,
+            guardrailDistance: 23,
+            horizonWaterExtension: 150,
+            assetTextures: {
+                forestGround: 'assets/environment/lakes/forest_ground_04_diff_1k.jpg',
+                rockyShore: 'assets/environment/lakes/aerial_rocks_01_diff_1k.jpg'
+            },
+            causeways: [
+                { center: -920, width: 1180 },
+                { center: -3120, width: 1320 },
+                { center: -5040, width: 1040 }
+            ]
+        }
+    },
+    jungle: {
+        id: 'jungle',
+        terrainStyle: 'rainforest',
+        roadStyle: 'mud-road',
+        shoulderStyle: 'jungle-mud',
+        roadWidth: 17.8,
+        terrainColor: 0x174326,
+        terrainTint: 0x4d7c43,
+        treeDensity: 0,
+        treeColor: 0x155b33,
+        trunkColor: 0x4a2f20,
+        maxMountainHeight: 28,
+        mountainHeightRange: 42,
+        mountainHeightPower: 1.42,
+        mountainNoiseScale: 0.008,
+        mountainNoiseGain: 0.26,
+        mountainRoadsideDelay: 0.2,
+        mountainRoadsidePower: 1.35,
+        roadElevationAmplitude: 5.2,
+        fogColor: 0x8cb4ac,
+        fogDensity: 0.00158,
+        nightRace: false
+    },
+    coastal: {
+        id: 'coastal',
+        terrainStyle: 'mediterranean',
+        roadStyle: 'coastal-asphalt',
+        shoulderStyle: 'limestone-gravel',
+        roadWidth: 21.5,
+        terrainColor: 0x637f51,
+        terrainTint: 0xd3c487,
+        treeDensity: 0,
+        treeColor: 0x2d7448,
+        trunkColor: 0x8c6a3f,
+        maxMountainHeight: 58,
+        mountainHeightRange: 80,
+        mountainHeightPower: 1.18,
+        mountainNoiseScale: 0.0062,
+        mountainNoiseGain: 0.31,
+        mountainRoadsideDelay: 0.14,
+        mountainRoadsidePower: 1.12,
+        roadElevationAmplitude: 7.2,
+        coastalBiome: {
+            seaLevelOffset: 3.8,
+            shoreWidth: 7.4,
+            minShoreDistance: 10.5,
+            maxShoreDistance: 22.5,
+            horizonWaterExtension: 280
+        },
+        fogColor: 0x91c3d0,
+        fogDensity: 0.00068
     }
 };
 
@@ -82,7 +195,66 @@ class GameManager {
         this.pauseStartedAt = 0;
         this.pausedDuration = 0;
         this.startCountdown = null;
-        this.bestTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
+        this.difficultyStorageKey = 'rallyRushIIDifficultyLevel';
+        this.assistStorageKey = 'rallyRushIIDrivingAssistLevel';
+        this.bestTimesStorageKey = 'rallyRushIIBestTimesByStageDifficulty';
+        this.difficultyProfiles = {
+            rookie: {
+                id: 'rookie',
+                label: 'Rookie',
+                trafficCount: 7,
+                speedMultiplier: 0.84,
+                speedVariance: 0.18
+            },
+            pro: {
+                id: 'pro',
+                label: 'Pro',
+                trafficCount: 10,
+                speedMultiplier: 1,
+                speedVariance: 0.28
+            },
+            expert: {
+                id: 'expert',
+                label: 'Expert',
+                trafficCount: 14,
+                speedMultiplier: 1.18,
+                speedVariance: 0.36
+            }
+        };
+        this.drivingAssistProfiles = {
+            full: {
+                id: 'full',
+                label: 'Full',
+                roadFollow: 1,
+                headingRecovery: 1,
+                curveSlip: 1,
+                steeringResponse: 1
+            },
+            sport: {
+                id: 'sport',
+                label: 'Sport',
+                roadFollow: 0.56,
+                headingRecovery: 0.68,
+                curveSlip: 1.24,
+                steeringResponse: 1.06
+            },
+            manual: {
+                id: 'manual',
+                label: 'Manual',
+                roadFollow: 0.06,
+                headingRecovery: 0.28,
+                curveSlip: 1.48,
+                steeringResponse: 1.12
+            }
+        };
+        this.difficultyLevel = this.difficultyProfiles[localStorage.getItem(this.difficultyStorageKey)]
+            ? localStorage.getItem(this.difficultyStorageKey)
+            : 'pro';
+        this.drivingAssistLevel = this.drivingAssistProfiles[localStorage.getItem(this.assistStorageKey)]
+            ? localStorage.getItem(this.assistStorageKey)
+            : 'full';
+        this.currentStageId = 'scotland';
+        this.bestTimes = this.loadBestTimes();
         this.controls = { left: false, right: false, accelerate: false, brake: false, handbrake: false };
         this.cameraModes = [
             {
@@ -202,6 +374,150 @@ class GameManager {
             milkTruck: { url: 'assets/models/cesium_milk_truck.glb' },
             ferrariGt: { url: 'assets/models/ferrari_gt.glb' }
         };
+        this.environmentModelCache = {};
+        this.environmentModelLoadState = {};
+        this.environmentModelScenes = {};
+        this.environmentStageAssets = {
+            jungle: [
+                'junglePalmDetailedTall',
+                'junglePalmTall',
+                'junglePalmBend',
+                'junglePalmDetailedShort',
+                'jungleBushLargeTriangle',
+                'jungleBushDetailed',
+                'junglePlantFlatTall',
+                'jungleGrassLeafsLarge',
+                'jungleGrassLeafs',
+                'jungleLogLarge',
+                'jungleStumpOld',
+                'jungleRockLarge',
+                'jungleRockSmall'
+            ],
+            coastal: [
+                'coastalVillaD',
+                'coastalVillaE',
+                'coastalVillaN',
+                'coastalVillaT',
+                'coastalVillaU',
+                'coastalPlanter'
+            ]
+        };
+        this.environmentModelAssets = {
+            junglePalmDetailedTall: {
+                stage: 'jungle',
+                key: 'palmDetailedTall',
+                label: 'Rainforest tall detailed palm',
+                url: 'assets/environment/jungle/kenney-nature/tree_palmDetailedTall.glb'
+            },
+            junglePalmTall: {
+                stage: 'jungle',
+                key: 'palmTall',
+                label: 'Rainforest tall palm',
+                url: 'assets/environment/jungle/kenney-nature/tree_palmTall.glb'
+            },
+            junglePalmBend: {
+                stage: 'jungle',
+                key: 'palmBend',
+                label: 'Rainforest bent palm',
+                url: 'assets/environment/jungle/kenney-nature/tree_palmBend.glb'
+            },
+            junglePalmDetailedShort: {
+                stage: 'jungle',
+                key: 'palmDetailedShort',
+                label: 'Rainforest short detailed palm',
+                url: 'assets/environment/jungle/kenney-nature/tree_palmDetailedShort.glb'
+            },
+            jungleBushLargeTriangle: {
+                stage: 'jungle',
+                key: 'bushLargeTriangle',
+                label: 'Rainforest large bush',
+                url: 'assets/environment/jungle/kenney-nature/plant_bushLargeTriangle.glb'
+            },
+            jungleBushDetailed: {
+                stage: 'jungle',
+                key: 'bushDetailed',
+                label: 'Rainforest detailed bush',
+                url: 'assets/environment/jungle/kenney-nature/plant_bushDetailed.glb'
+            },
+            junglePlantFlatTall: {
+                stage: 'jungle',
+                key: 'plantFlatTall',
+                label: 'Rainforest broadleaf plant',
+                url: 'assets/environment/jungle/kenney-nature/plant_flatTall.glb'
+            },
+            jungleGrassLeafsLarge: {
+                stage: 'jungle',
+                key: 'grassLeafsLarge',
+                label: 'Rainforest large grass',
+                url: 'assets/environment/jungle/kenney-nature/grass_leafsLarge.glb'
+            },
+            jungleGrassLeafs: {
+                stage: 'jungle',
+                key: 'grassLeafs',
+                label: 'Rainforest grass',
+                url: 'assets/environment/jungle/kenney-nature/grass_leafs.glb'
+            },
+            jungleLogLarge: {
+                stage: 'jungle',
+                key: 'logLarge',
+                label: 'Rainforest fallen log',
+                url: 'assets/environment/jungle/kenney-nature/log_large.glb'
+            },
+            jungleStumpOld: {
+                stage: 'jungle',
+                key: 'stumpOld',
+                label: 'Rainforest old stump',
+                url: 'assets/environment/jungle/kenney-nature/stump_old.glb'
+            },
+            jungleRockLarge: {
+                stage: 'jungle',
+                key: 'rockLarge',
+                label: 'Rainforest large rock',
+                url: 'assets/environment/jungle/kenney-nature/rock_largeA.glb'
+            },
+            jungleRockSmall: {
+                stage: 'jungle',
+                key: 'rockSmall',
+                label: 'Rainforest small rock',
+                url: 'assets/environment/jungle/kenney-nature/rock_smallI.glb'
+            },
+            coastalVillaD: {
+                stage: 'coastal',
+                key: 'villaD',
+                label: 'Mediterranean villa D',
+                url: 'assets/environment/coastal/kenney-suburban/building-type-d.glb'
+            },
+            coastalVillaE: {
+                stage: 'coastal',
+                key: 'villaE',
+                label: 'Mediterranean villa E',
+                url: 'assets/environment/coastal/kenney-suburban/building-type-e.glb'
+            },
+            coastalVillaN: {
+                stage: 'coastal',
+                key: 'villaN',
+                label: 'Mediterranean villa N',
+                url: 'assets/environment/coastal/kenney-suburban/building-type-n.glb'
+            },
+            coastalVillaT: {
+                stage: 'coastal',
+                key: 'villaT',
+                label: 'Mediterranean villa T',
+                url: 'assets/environment/coastal/kenney-suburban/building-type-t.glb'
+            },
+            coastalVillaU: {
+                stage: 'coastal',
+                key: 'villaU',
+                label: 'Mediterranean villa U',
+                url: 'assets/environment/coastal/kenney-suburban/building-type-u.glb'
+            },
+            coastalPlanter: {
+                stage: 'coastal',
+                key: 'planter',
+                label: 'Coastal villa planter',
+                url: 'assets/environment/coastal/kenney-suburban/planter.glb'
+            }
+        };
         this.vehicleAssetSpecs = {
             rally: {
                 asset: 'carConcept',
@@ -274,6 +590,8 @@ class GameManager {
         this.cameraShakeDuration = 0;
         this.cameraShakeStrength = 0;
         this.lastCollisionType = null;
+        this.currentEnvironment = null;
+        this.nightRace = false;
         // Audio elements
         this.desertMusic = document.getElementById('desertMusic');
         this.alpineMusic = document.getElementById('alpineMusic');
@@ -284,6 +602,121 @@ class GameManager {
         this.applyMusicPreference();
         this.applyCameraModeSettings();
         // Initialize the game music when the page loads
+    }
+
+    getDifficultyOptions() {
+        return Object.values(this.difficultyProfiles);
+    }
+
+    getDifficultyProfile(id = this.difficultyLevel) {
+        return this.difficultyProfiles[id] || this.difficultyProfiles.pro;
+    }
+
+    getDifficultyLevel() {
+        return this.getDifficultyProfile(this.difficultyLevel).id;
+    }
+
+    setDifficultyLevel(id) {
+        const profile = this.getDifficultyProfile(id);
+        this.difficultyLevel = profile.id;
+        localStorage.setItem(this.difficultyStorageKey, profile.id);
+        return profile;
+    }
+
+    getDrivingAssistOptions() {
+        return Object.values(this.drivingAssistProfiles);
+    }
+
+    getDrivingAssistProfile(id = this.drivingAssistLevel) {
+        return this.drivingAssistProfiles[id] || this.drivingAssistProfiles.full;
+    }
+
+    getDrivingAssistLevel() {
+        return this.getDrivingAssistProfile(this.drivingAssistLevel).id;
+    }
+
+    setDrivingAssistLevel(id) {
+        const profile = this.getDrivingAssistProfile(id);
+        this.drivingAssistLevel = profile.id;
+        localStorage.setItem(this.assistStorageKey, profile.id);
+        return profile;
+    }
+
+    getStageLabel(stageId = this.currentStageId) {
+        const labels = {
+            scotland: 'Scotland',
+            desert: 'Desert',
+            alpine: 'Alpine',
+            city: 'City',
+            lakes: 'Lakes',
+            jungle: 'Rainforest Mud',
+            coastal: 'Mediterranean Coast'
+        };
+
+        return labels[stageId] || stageId || 'Stage';
+    }
+
+    getBestTimesKey(stageId = this.currentStageId, difficultyId = this.difficultyLevel) {
+        return `${stageId || 'scotland'}:${this.getDifficultyProfile(difficultyId).id}`;
+    }
+
+    loadBestTimes() {
+        try {
+            const stored = JSON.parse(localStorage.getItem(this.bestTimesStorageKey) || '{}');
+            if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+                return stored;
+            }
+        } catch (error) {
+            localStorage.removeItem(this.bestTimesStorageKey);
+        }
+
+        try {
+            const legacyTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
+            if (Array.isArray(legacyTimes) && legacyTimes.length > 0) {
+                return {
+                    [this.getBestTimesKey('scotland', 'pro')]: legacyTimes
+                        .filter(Number.isFinite)
+                        .sort((a, b) => a - b)
+                        .slice(0, 5)
+                };
+            }
+        } catch (error) {
+            localStorage.removeItem('bestTimes');
+        }
+
+        return {};
+    }
+
+    getBestTimesFor(stageId = this.currentStageId, difficultyId = this.difficultyLevel) {
+        const key = this.getBestTimesKey(stageId, difficultyId);
+        const times = this.bestTimes[key];
+        return Array.isArray(times) ? times : [];
+    }
+
+    saveBestTimes() {
+        localStorage.setItem(this.bestTimesStorageKey, JSON.stringify(this.bestTimes));
+    }
+
+    getTrafficTargetCount() {
+        const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
+        const stageId = this.game?.settings?.stageId || this.currentStageId;
+        const stageScale = {
+            scotland: 1,
+            desert: 1.12,
+            alpine: 0.86,
+            city: 1.18,
+            lakes: 0.94,
+            jungle: 0.9,
+            coastal: 1.02
+        };
+
+        return Math.max(4, Math.round(difficulty.trafficCount * (stageScale[stageId] || 1)));
+    }
+
+    getTrafficSpeed(vehicleType) {
+        const spec = this.getVehicleSpec(vehicleType);
+        const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
+        return (spec.speedBase + Math.random() * difficulty.speedVariance) * difficulty.speedMultiplier;
     }
 
     getCockpitTunerStorageKey() {
@@ -458,10 +891,20 @@ class GameManager {
         // Set up lighting with shadows (if needed)
         this.configureSceneEnvironment(environment);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.035);
+        this.currentEnvironment = environment;
+        this.nightRace = Boolean(environment.nightRace);
+        const isRainforestStage = environment.id === 'jungle';
+
+        const ambientLight = new THREE.AmbientLight(
+            this.nightRace ? 0x476c86 : isRainforestStage ? 0xb7d7c8 : 0xffffff,
+            this.nightRace ? 0.085 : isRainforestStage ? 0.18 : 0.035
+        );
         this.scene.add(ambientLight);
 
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 2.15);
+        this.directionalLight = new THREE.DirectionalLight(
+            this.nightRace ? 0x8fb2ff : isRainforestStage ? 0xd7e7d8 : 0xffffff,
+            this.nightRace ? 0.42 : isRainforestStage ? 1.08 : 2.15
+        );
         this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 2048;
@@ -475,24 +918,48 @@ class GameManager {
 
         this.scene.add(this.directionalLight);
 
-        this.fillLight = new THREE.DirectionalLight(0xddeeff, 0.14);
+        this.fillLight = new THREE.DirectionalLight(
+            this.nightRace ? 0x2c7f8f : isRainforestStage ? 0xa9d2bb : 0xddeeff,
+            this.nightRace ? 0.26 : isRainforestStage ? 0.34 : 0.14
+        );
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
-        this.rimLight = new THREE.DirectionalLight(0xbdeaff, 0.58);
+        this.rimLight = new THREE.DirectionalLight(
+            this.nightRace ? 0x66e0ff : isRainforestStage ? 0x86b69a : 0xbdeaff,
+            this.nightRace ? 0.9 : isRainforestStage ? 0.36 : 0.58
+        );
         this.rimLight.position.set(-24, 28, -42);
         this.scene.add(this.rimLight);
 
-        const hemiLight = new THREE.HemisphereLight(0xcde7f2, 0x334029, 0.3);
-        hemiLight.color.setHSL(0.58, 0.58, 0.62);
-        hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
+        const hemiLight = new THREE.HemisphereLight(
+            this.nightRace ? 0x18354e : isRainforestStage ? 0xa8c8bd : 0xcde7f2,
+            this.nightRace ? 0x061409 : isRainforestStage ? 0x1d3521 : 0x334029,
+            this.nightRace ? 0.52 : isRainforestStage ? 0.42 : 0.3
+        );
+        if (!this.nightRace && !isRainforestStage) {
+            hemiLight.color.setHSL(0.58, 0.58, 0.62);
+            hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
+        }
         this.scene.add(hemiLight);
 
+        this.currentStageId = environment.id || this.currentStageId || 'scotland';
+        environment.assetCache = this.getStageEnvironmentAssets(this.currentStageId);
+        const difficulty = this.getDifficultyProfile(this.difficultyLevel);
+        const drivingAssist = this.getDrivingAssistProfile(this.drivingAssistLevel);
         const playerVehicleType = this.playerVehicleType || 'rally';
         const playerSpec = this.getVehicleSpec(playerVehicleType);
 
         // Initialize the game object
         this.game = {
+            settings: {
+                stageId: this.currentStageId,
+                stageLabel: this.getStageLabel(this.currentStageId),
+                difficultyId: difficulty.id,
+                difficultyLabel: difficulty.label,
+                assistId: drivingAssist.id,
+                assistLabel: drivingAssist.label
+            },
             road: { length: 3000, width: environment.roadWidth || 25, segments: [] },
             car: {
                 vehicleType: playerVehicleType,
@@ -513,6 +980,7 @@ class GameManager {
                 driftSmokeCooldown: 0,
                 driveYaw: 0,
                 visualYaw: 0,
+                lastRoadYaw: 0,
                 bodyRoll: 0,
                 steeringAngle: 0,
                 maxSteeringAngle: playerSpec.maxSteeringAngle,
@@ -549,7 +1017,8 @@ class GameManager {
 
         const playerOption = this.getPlayerVehicleOption(playerVehicleType);
         this.playerCar = this.createCar(playerOption.color, playerVehicleType, {
-            palette: playerOption.palette
+            palette: playerOption.palette,
+            player: true
         });
         this.scene.add(this.playerCar);
         this.applyCameraModeSettings();
@@ -1305,6 +1774,7 @@ class GameManager {
         car.userData.assetVehicle = true;
         car.userData.assetReady = false;
         car.userData.assetName = assetSpec.asset;
+        this.addNightVehicleLights(car, type, Boolean(options.player));
 
         const proxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const proxy = new THREE.Mesh(
@@ -1359,6 +1829,66 @@ class GameManager {
             });
 
         return car;
+    }
+
+    addNightVehicleLights(car, type = 'rally', isPlayer = false) {
+        if (!this.nightRace || !this.game) {
+            return;
+        }
+
+        const dimensions = this.getVehicleDimensions(type);
+        const frontZ = -dimensions.length * 0.48;
+        const rearZ = dimensions.length * 0.48;
+        const sideX = Math.min(dimensions.width * 0.34, 1.05);
+        const lightY = Math.max(0.45, dimensions.height * 0.34);
+        const headlightMaterial = new THREE.MeshBasicMaterial({
+            color: 0xe9f7ff,
+            transparent: true,
+            opacity: 0.92,
+            depthWrite: false
+        });
+        const beamMaterial = new THREE.MeshBasicMaterial({
+            color: 0xaee9ff,
+            transparent: true,
+            opacity: 0.15,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const tailMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff2338,
+            transparent: true,
+            opacity: 0.86,
+            depthWrite: false
+        });
+
+        [-1, 1].forEach(side => {
+            const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), headlightMaterial);
+            headlight.name = 'night-headlight-glow';
+            headlight.position.set(sideX * side, lightY, frontZ);
+            car.add(headlight);
+
+            const beam = new THREE.Mesh(new THREE.ConeGeometry(0.62, 7.6, 18, 1, true), beamMaterial);
+            beam.name = 'night-headlight-beam';
+            beam.position.set(sideX * side, lightY - 0.02, frontZ - 3.9);
+            beam.rotation.x = -Math.PI / 2;
+            beam.scale.x = 0.55;
+            car.add(beam);
+
+            const tail = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 6), tailMaterial);
+            tail.name = 'night-taillight-glow';
+            tail.position.set(sideX * side, lightY * 0.86, rearZ);
+            car.add(tail);
+        });
+
+        if (isPlayer) {
+            const light = new THREE.PointLight(0xc8f2ff, 1.45, 30, 2.1);
+            light.name = 'night-vehicle-light';
+            light.position.set(0, lightY, frontZ - 3.2);
+            light.castShadow = false;
+            car.add(light);
+        }
+
+        car.userData.nightLights = true;
     }
 
     getRequiredVehicleAssetNames() {
@@ -1541,6 +2071,258 @@ class GameManager {
         });
 
         return this.vehicleModelCache[assetName];
+    }
+
+    getRequiredEnvironmentAssetNames(stageId = this.currentStageId) {
+        return [...new Set(this.environmentStageAssets[stageId] || [])];
+    }
+
+    getEnvironmentAssetLabel(assetName) {
+        return this.environmentModelAssets[assetName]?.label || assetName;
+    }
+
+    getEnvironmentModelLoadState(assetName) {
+        if (!this.environmentModelLoadState[assetName]) {
+            this.environmentModelLoadState[assetName] = {
+                loaded: 0,
+                total: 0,
+                started: false,
+                ready: false,
+                failed: false
+            };
+        }
+        return this.environmentModelLoadState[assetName];
+    }
+
+    getSingleEnvironmentLoadRatio(assetName) {
+        const state = this.getEnvironmentModelLoadState(assetName);
+        if (state.ready || state.failed) {
+            return 1;
+        }
+
+        if (state.total > 0) {
+            return Math.min(0.98, state.loaded / state.total);
+        }
+
+        return state.started ? 0.18 : 0;
+    }
+
+    getEnvironmentLoadProgress(assetNames = this.getRequiredEnvironmentAssetNames()) {
+        if (!assetNames.length || !this.gltfLoader) {
+            return {
+                progress: 1,
+                loaded: 0,
+                total: 0,
+                assetName: 'Stage scenery ready'
+            };
+        }
+
+        const completed = assetNames.filter(assetName => {
+            const state = this.getEnvironmentModelLoadState(assetName);
+            return state.ready || state.failed;
+        }).length;
+        const combinedProgress = assetNames.reduce((sum, assetName) => {
+            return sum + this.getSingleEnvironmentLoadRatio(assetName);
+        }, 0) / assetNames.length;
+        const activeAsset = assetNames.find(assetName => {
+            const state = this.getEnvironmentModelLoadState(assetName);
+            return state.started && !state.ready && !state.failed;
+        }) || assetNames.find(assetName => {
+            const state = this.getEnvironmentModelLoadState(assetName);
+            return !state.ready && !state.failed;
+        });
+
+        return {
+            progress: Math.min(1, combinedProgress),
+            loaded: completed,
+            total: assetNames.length,
+            assetName: activeAsset ? this.getEnvironmentAssetLabel(activeAsset) : 'Stage scenery ready'
+        };
+    }
+
+    preloadEnvironmentModels(stageId = this.currentStageId, onProgress = () => {}) {
+        const assetNames = this.getRequiredEnvironmentAssetNames(stageId);
+        const emitProgress = assetName => {
+            const progress = this.getEnvironmentLoadProgress(assetNames);
+            onProgress({
+                ...progress,
+                assetName: assetName ? this.getEnvironmentAssetLabel(assetName) : progress.assetName
+            });
+        };
+
+        emitProgress(null);
+
+        if (!this.gltfLoader || !assetNames.length) {
+            onProgress({
+                progress: 1,
+                loaded: assetNames.length,
+                total: assetNames.length,
+                assetName: 'Stage scenery ready'
+            });
+            return Promise.resolve([]);
+        }
+
+        return Promise.allSettled(assetNames.map(assetName => {
+            return this.loadEnvironmentModel(assetName, () => emitProgress(assetName));
+        })).then(results => {
+            onProgress({
+                progress: 1,
+                loaded: assetNames.length,
+                total: assetNames.length,
+                assetName: 'Stage scenery ready'
+            });
+            return results;
+        });
+    }
+
+    preloadRaceAssets(stageId = this.currentStageId, onProgress = () => {}) {
+        const hasStageAssets = this.getRequiredEnvironmentAssetNames(stageId).length > 0;
+        const vehicleWeight = hasStageAssets ? 0.68 : 1;
+        const stageWeight = hasStageAssets ? 0.32 : 0;
+
+        return this.preloadVehicleModels(details => {
+            onProgress({
+                ...details,
+                progress: details.progress * vehicleWeight
+            });
+        }).then(vehicleResults => {
+            if (!hasStageAssets) {
+                onProgress({
+                    progress: 1,
+                    assetName: 'Grid ready'
+                });
+                return vehicleResults;
+            }
+
+            return this.preloadEnvironmentModels(stageId, details => {
+                onProgress({
+                    ...details,
+                    progress: vehicleWeight + details.progress * stageWeight
+                });
+            }).then(environmentResults => [...vehicleResults, ...environmentResults]);
+        }).then(results => {
+            onProgress({
+                progress: 1,
+                assetName: 'Grid ready'
+            });
+            return results;
+        });
+    }
+
+    loadEnvironmentModel(assetName, onProgress = () => {}) {
+        const asset = this.environmentModelAssets[assetName];
+        if (!asset) {
+            return Promise.reject(new Error(`Unknown environment model: ${assetName}`));
+        }
+
+        if (!this.gltfLoader) {
+            return Promise.reject(new Error('GLTFLoader is not available.'));
+        }
+
+        const state = this.getEnvironmentModelLoadState(assetName);
+
+        if (this.environmentModelCache[assetName]) {
+            onProgress({
+                assetName: this.getEnvironmentAssetLabel(assetName),
+                progress: this.getSingleEnvironmentLoadRatio(assetName),
+                loaded: state.loaded,
+                total: state.total
+            });
+            return this.environmentModelCache[assetName];
+        }
+
+        this.environmentModelCache[assetName] = new Promise((resolve, reject) => {
+            state.started = true;
+            state.failed = false;
+            onProgress({
+                assetName: this.getEnvironmentAssetLabel(assetName),
+                progress: this.getSingleEnvironmentLoadRatio(assetName),
+                loaded: state.loaded,
+                total: state.total
+            });
+
+            this.gltfLoader.load(
+                asset.url,
+                gltf => {
+                    state.ready = true;
+                    state.loaded = state.total || state.loaded || 1;
+                    state.total = state.total || state.loaded;
+                    this.prepareEnvironmentModel(gltf.scene, assetName);
+                    this.environmentModelScenes[assetName] = gltf.scene;
+                    onProgress({
+                        assetName: this.getEnvironmentAssetLabel(assetName),
+                        progress: 1,
+                        loaded: state.loaded,
+                        total: state.total
+                    });
+                    resolve(gltf.scene);
+                },
+                event => {
+                    state.started = true;
+                    state.loaded = event.loaded || state.loaded;
+                    state.total = event.total || state.total;
+                    onProgress({
+                        assetName: this.getEnvironmentAssetLabel(assetName),
+                        progress: this.getSingleEnvironmentLoadRatio(assetName),
+                        loaded: state.loaded,
+                        total: state.total
+                    });
+                },
+                error => {
+                    state.failed = true;
+                    onProgress({
+                        assetName: this.getEnvironmentAssetLabel(assetName),
+                        progress: 1,
+                        loaded: state.loaded,
+                        total: state.total
+                    });
+                    reject(error);
+                }
+            );
+        });
+
+        return this.environmentModelCache[assetName];
+    }
+
+    prepareEnvironmentModel(model, assetName) {
+        model.name = `${assetName}-source`;
+        model.traverse(child => {
+            if (!child.isMesh) {
+                return;
+            }
+
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.userData.keepGeometry = true;
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach(material => {
+                if (material) {
+                    material.userData.keepTextureMaps = true;
+                    if ('roughness' in material) {
+                        material.roughness = Math.max(material.roughness || 0.5, 0.72);
+                    }
+                    if ('metalness' in material) {
+                        material.metalness = Math.min(material.metalness || 0, 0.08);
+                    }
+                }
+            });
+        });
+    }
+
+    getStageEnvironmentAssets(stageId = this.currentStageId) {
+        const collection = {};
+        this.getRequiredEnvironmentAssetNames(stageId).forEach(assetName => {
+            const scene = this.environmentModelScenes[assetName];
+            const asset = this.environmentModelAssets[assetName];
+            if (scene && asset) {
+                collection[asset.key || assetName] = {
+                    scene,
+                    assetName,
+                    label: asset.label
+                };
+            }
+        });
+        return collection;
     }
 
     prepareAssetVehicleModel(model, type, palette, assetSpec) {
@@ -2083,6 +2865,7 @@ class GameManager {
         car.userData.wheels = [];
 
         this.populateProceduralCar(car, spec, materials, type);
+        this.addNightVehicleLights(car, type, Boolean(options.player));
         this.cacheVehicleWheelContactPoints(car);
 
         return car;
@@ -2237,7 +3020,7 @@ class GameManager {
 
 
     createInitialTrafficCars() {
-        for (let i = 0; i < this.maxTrafficCars; i++) {
+        for (let i = 0; i < this.getTrafficTargetCount(); i++) {
             this.createTrafficCar();
         }
     }
@@ -2314,13 +3097,12 @@ class GameManager {
         const vehicleType = this.getRandomTrafficType();
         const paint = this.getRandomTrafficPaint();
         const trafficCar = this.createCar(paint.body, vehicleType, { palette: paint });
-        const spec = this.getVehicleSpec(vehicleType);
         const lastSegment = this.game.road.segments[this.game.road.segments.length - 1];
         const spawnPose = this.getTrafficSpawnPose(lastSegment.z + 120, this.game.startLine - 260, vehicleType);
         const trafficState = {
             mesh: trafficCar,
-            speed: spec.speedBase + Math.random() * 0.28,
-            baseSpeed: spec.speedBase,
+            speed: this.getTrafficSpeed(vehicleType),
+            baseSpeed: this.getVehicleSpec(vehicleType).speedBase,
             xOffset: spawnPose.xOffset,
             vehicleType
         };
@@ -2345,6 +3127,7 @@ class GameManager {
         this.game.car.angularVelocity = 0;
         this.game.car.driveYaw = roadFrame.yaw;
         this.game.car.visualYaw = roadFrame.yaw;
+        this.game.car.lastRoadYaw = roadFrame.yaw;
         this.game.car.bodyRoll = 0;
         this.game.car.steeringAngle = 0;
         this.game.car.jumpQueued = false;
@@ -2807,6 +3590,7 @@ class GameManager {
 
         const selectedCircuit = document.getElementById('circuitSelect').value;
         const environment = environments[selectedCircuit]; // Use the selected environment
+        this.currentStageId = selectedCircuit;
         this.isPaused = false;
         this.pauseStartedAt = 0;
         this.pausedDuration = 0;
@@ -2820,6 +3604,8 @@ class GameManager {
             this.playMusicElement(this.alpineMusic);
         } else if (selectedCircuit === 'scotland') {
             this.playMusicElement(this.scotlandMusic);
+        } else {
+            this.playMusicElement(this.gameMusic);
         }
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('ui').style.display = 'block';
@@ -2962,13 +3748,21 @@ class GameManager {
 
         const scoreboard = document.getElementById('scoreboard');
         if (scoreboard) { // Check if the scoreboard element exists
-            scoreboard.innerHTML = '<h2>Best times</h2><ol></ol>';
+            const stageLabel = this.game?.settings?.stageLabel || this.getStageLabel();
+            const difficultyLabel = this.game?.settings?.difficultyLabel || this.getDifficultyProfile().label;
+            const times = this.getBestTimesFor(this.game?.settings?.stageId, this.game?.settings?.difficultyId);
+            scoreboard.innerHTML = `<h2>Best times - ${stageLabel} - ${difficultyLabel}</h2><ol></ol>`;
             const list = scoreboard.querySelector('ol');
-            this.bestTimes.forEach((t, i) => {
+            times.forEach((t, i) => {
                 const item = document.createElement('li');
                 item.innerHTML = `<span>P${i + 1}</span><strong>${t.toFixed(2)} s</strong>`;
                 list.appendChild(item);
             });
+            if (times.length === 0) {
+                const item = document.createElement('li');
+                item.innerHTML = '<span>P1</span><strong>--.-- s</strong>';
+                list.appendChild(item);
+            }
         }
 
     }
@@ -2980,10 +3774,12 @@ class GameManager {
     }
 
     updateBestTimes(time) {
-        this.bestTimes.push(time);
-        this.bestTimes.sort((a, b) => a - b);
-        this.bestTimes.splice(5); // Keep only top 5 times
-        localStorage.setItem('bestTimes', JSON.stringify(this.bestTimes));
+        const key = this.getBestTimesKey(this.game?.settings?.stageId, this.game?.settings?.difficultyId);
+        const times = Array.isArray(this.bestTimes[key]) ? this.bestTimes[key] : [];
+        times.push(time);
+        times.sort((a, b) => a - b);
+        this.bestTimes[key] = times.slice(0, 5);
+        this.saveBestTimes();
     }
 
     updateVehicleDashboardDisplays() {
@@ -3269,6 +4065,7 @@ class GameManager {
         const steeringStrength = Math.abs(steeringInput);
         const playerType = this.getPlayerVehicleType();
         const currentRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, playerType);
+        const assistProfile = this.getDrivingAssistProfile(this.game.settings?.assistId || this.drivingAssistLevel);
         const curveProbeDistance = THREE.MathUtils.lerp(18, 42, speedRatio);
         const futureRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z - curveProbeDistance, -1, playerType);
         const roadBend = this.getAngleDelta(currentRoadFrame.yaw, futureRoadFrame.yaw);
@@ -3319,7 +4116,7 @@ class GameManager {
         this.game.car.driftAmount = driftAmount;
 
         // Update steering
-        const targetSteeringAngle = steeringInput * this.game.car.maxSteeringAngle;
+        const targetSteeringAngle = steeringInput * this.game.car.maxSteeringAngle * assistProfile.steeringResponse;
         this.game.car.steeringAngle += (targetSteeringAngle - this.game.car.steeringAngle) * this.game.car.steeringSpeed;
 
         // Update car angle based on steering and speed
@@ -3328,13 +4125,13 @@ class GameManager {
         this.game.car.angle += driftDirection * driftAmount * speedRatio * 0.026;
         this.game.car.angle += driftDirection * entryDriftKick * 0.032;
         const headingRecoveryBase = driftDemand === 0 ? 0.035 + speedRatio * 0.025 : 0.01 + speedRatio * 0.008;
-        const headingRecovery = headingRecoveryBase * (this.game.car.headingRecovery || 1) * (1 - driftAmount * 0.68);
+        const headingRecovery = headingRecoveryBase * (this.game.car.headingRecovery || 1) * assistProfile.headingRecovery * (1 - driftAmount * 0.68);
         this.game.car.angle += (0 - this.game.car.angle) * headingRecovery;
         const maxBodySlip = THREE.MathUtils.lerp(Math.PI / 5, Math.PI / 3.8, driftAmount);
         this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -maxBodySlip, maxBodySlip);
 
         const steeringIntoCurve = steeringInput !== 0 && Math.sign(steeringInput) === Math.sign(roadBend);
-        const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14) * (this.game.car.curveSlip || 1);
+        const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.055 : 0.14) * (this.game.car.curveSlip || 1) * assistProfile.curveSlip;
         this.game.car.lateralVelocity += curveSlip;
         if (canHandbrakeDrift) {
             this.game.car.lateralVelocity += -driftDirection * driftAmount * speedRatio * 0.048;
@@ -3399,6 +4196,9 @@ class GameManager {
 
         const updatedRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, playerType);
         const updatedRoadData = updatedRoadFrame.roadData;
+        const roadYawDelta = this.getAngleDelta(currentRoadFrame.yaw, updatedRoadFrame.yaw);
+        this.game.car.angle -= roadYawDelta * (1 - assistProfile.roadFollow);
+        this.game.car.angle = THREE.MathUtils.clamp(this.game.car.angle, -maxBodySlip, maxBodySlip);
         const { jumpOffset, landed, landingImpact } = this.updatePlayerJumpState(speedRatio);
 
         // Update car's position and rotation
@@ -3435,6 +4235,7 @@ class GameManager {
         if (!this.game.car.airborne) {
             this.alignVehicleToRoadSurface(this.playerCar);
         }
+        this.game.car.lastRoadYaw = updatedRoadFrame.yaw;
         this.carPosition.copy(this.playerCar.position);
         this.game.car.position.copy(this.carPosition);
         const counterSteer = -driftDirection * driftAmount * speedRatio * 0.16;
@@ -3731,21 +4532,22 @@ class GameManager {
             this.game.car.landingDriftAmount = 0;
             this.game.car.lastLandingSpeedLoss = 0;
             this.playerCar.position.copy(collision.playerEnd);
-            this.applyVehicleRoadPose(this.playerCar, this.getVehicleRoadFrame(collision.playerEnd.z, -1, this.getPlayerVehicleType()));
+            const recoveryRoadFrame = this.getVehicleRoadFrame(collision.playerEnd.z, -1, this.getPlayerVehicleType());
+            this.game.car.lastRoadYaw = recoveryRoadFrame.yaw;
+            this.applyVehicleRoadPose(this.playerCar, recoveryRoadFrame);
             this.alignVehicleToRoadSurface(this.playerCar);
             this.carPosition.copy(this.playerCar.position);
             this.game.car.position.copy(this.carPosition);
             this.animateVehicleSteeringWheel(this.playerCar, 0, this.game.car.maxSteeringAngle);
 
-            const trafficSpec = this.getVehicleSpec(collision.trafficCar.vehicleType);
             const spawnPose = this.getTrafficSpawnPose(
                 this.game.car.position.z - 1450,
                 this.game.car.position.z - 850,
                 collision.trafficCar.vehicleType,
                 collision.trafficCar
             );
-            collision.trafficCar.speed = trafficSpec.speedBase + Math.random() * 0.28;
-            collision.trafficCar.baseSpeed = trafficSpec.speedBase;
+            collision.trafficCar.speed = this.getTrafficSpeed(collision.trafficCar.vehicleType);
+            collision.trafficCar.baseSpeed = this.getVehicleSpec(collision.trafficCar.vehicleType).speedBase;
             this.placeTrafficCar(collision.trafficCar, spawnPose.z, spawnPose.xOffset);
             this.activeCollision = null;
         }
@@ -3896,15 +4698,14 @@ class GameManager {
 
             // If car is behind the player, move it to the back of the visible road
             if (trafficCar.mesh.position.z > this.game.car.position.z + 100) {
-                const spec = this.getVehicleSpec(trafficCar.vehicleType);
                 const spawnPose = this.getTrafficSpawnPose(
                     this.game.car.position.z - 1450,
                     this.game.car.position.z - 850,
                     trafficCar.vehicleType,
                     trafficCar
                 );
-                trafficCar.speed = spec.speedBase + Math.random() * 0.28;
-                trafficCar.baseSpeed = spec.speedBase;
+                trafficCar.speed = this.getTrafficSpeed(trafficCar.vehicleType);
+                trafficCar.baseSpeed = this.getVehicleSpec(trafficCar.vehicleType).speedBase;
                 this.placeTrafficCar(trafficCar, spawnPose.z, spawnPose.xOffset);
             }
 

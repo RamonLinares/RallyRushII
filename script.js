@@ -26,6 +26,8 @@
     const endScreen = document.getElementById('endScreen');
     const loadingScreen = document.getElementById('loadingScreen');
     const circuitSelect = document.getElementById('circuitSelect');
+    const difficultySelect = document.getElementById('difficultySelect');
+    const assistSelect = document.getElementById('assistSelect');
     const startButton = document.getElementById('startButton');
     const restartButton = document.getElementById('restartButton');
     const changeCircuitButton = document.getElementById('changeCircuitButton');
@@ -81,6 +83,8 @@
         return JSON.stringify({
             mode,
             stage: circuitSelect.value,
+            difficulty: gameManager.getDifficultyProfile ? gameManager.getDifficultyProfile(gameManager.getDifficultyLevel()).label : null,
+            drivingAssist: gameManager.getDrivingAssistProfile ? gameManager.getDrivingAssistProfile(gameManager.getDrivingAssistLevel()).label : null,
             paused: Boolean(gameManager.isPaused),
             musicEnabled: Boolean(gameManager.musicEnabled),
             settingsOpen: settingsPanel.style.display !== 'none',
@@ -120,6 +124,12 @@
                 width: game.road.width,
                 playerLimit: Number(gameManager.getPlayerRoadLimit().toFixed(2)),
                 segments: game.road.segments.length
+            } : null,
+            raceSettings: game ? game.settings : null,
+            traffic: game ? {
+                count: gameManager.trafficCars.length,
+                targetCount: gameManager.getTrafficTargetCount ? gameManager.getTrafficTargetCount() : gameManager.trafficCars.length,
+                speeds: gameManager.trafficCars.slice(0, 6).map(traffic => Number(traffic.speed.toFixed(2)))
             } : null,
             stageDecor: game ? game.stageDecor : null,
             trafficTypes: game ? gameManager.trafficCars.slice(0, 6).map(traffic => traffic.vehicleType) : [],
@@ -201,6 +211,49 @@
 
         stat.append(labelNode, track);
         return stat;
+    }
+
+    function renderModeSelect(container, options, selectedId, onSelect) {
+        if (!container || !options) {
+            return;
+        }
+
+        container.innerHTML = '';
+        options.forEach(option => {
+            const button = document.createElement('button');
+            const isSelected = option.id === selectedId;
+            button.className = `modeOption${isSelected ? ' isSelected' : ''}`;
+            button.type = 'button';
+            button.setAttribute('role', 'radio');
+            button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+            button.dataset.optionId = option.id;
+            button.textContent = option.label;
+            button.addEventListener('click', () => {
+                onSelect(option.id);
+                updateRaceSetupUi();
+            });
+            container.appendChild(button);
+        });
+    }
+
+    function updateRaceSetupUi() {
+        if (gameManager.getDifficultyOptions) {
+            renderModeSelect(
+                difficultySelect,
+                gameManager.getDifficultyOptions(),
+                gameManager.getDifficultyLevel(),
+                id => gameManager.setDifficultyLevel(id)
+            );
+        }
+
+        if (gameManager.getDrivingAssistOptions) {
+            renderModeSelect(
+                assistSelect,
+                gameManager.getDrivingAssistOptions(),
+                gameManager.getDrivingAssistLevel(),
+                id => gameManager.setDrivingAssistLevel(id)
+            );
+        }
     }
 
     function disposeObject3d(object) {
@@ -645,7 +698,7 @@
         const percent = Math.round(progress * 100);
         loadingProgressBar.style.width = `${percent}%`;
         loadingPercent.textContent = `${percent}%`;
-        loadingStatus.textContent = progress >= 1 ? 'Final systems check' : 'Loading vehicle models';
+        loadingStatus.textContent = progress >= 1 ? 'Final systems check' : 'Loading race assets';
         loadingAssetName.textContent = details.assetName || 'Vehicle telemetry sync';
     }
 
@@ -684,7 +737,7 @@
 
         try {
             await waitForNextFrame();
-            await gameManager.preloadVehicleModels(updateLoadingProgress);
+            await gameManager.preloadRaceAssets(circuitSelect.value, updateLoadingProgress);
             if (requestId !== startRequestId) {
                 return;
             }
@@ -746,6 +799,7 @@
     function showGarageMenu() {
         resetRaceSessionForMenu();
         startScreen.style.display = 'grid';
+        updateRaceSetupUi();
         renderGarageOptions();
         garagePreview?.resume();
         renderer.render(scene, camera);
@@ -923,6 +977,7 @@
     // Ensure mobile controls are hidden initially and on end screen
     hideMobileControls();
     garagePreview = createGaragePreview();
+    updateRaceSetupUi();
     renderGarageOptions();
 
     // Override the end game logic to hide controls

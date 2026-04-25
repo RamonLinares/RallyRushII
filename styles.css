@@ -568,6 +568,60 @@ button:focus-visible {
     outline-offset: 3px;
 }
 
+.modeSelect {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.modeOption {
+    position: relative;
+    min-height: 48px;
+    padding: 0 10px;
+    overflow: hidden;
+    color: var(--ui-muted);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    transition: transform 140ms ease, color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.modeOption::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(120deg, rgba(95, 226, 255, 0.16), transparent 48%, rgba(255, 212, 71, 0.12));
+    opacity: 0;
+    transition: opacity 140ms ease;
+}
+
+.modeOption:hover,
+.modeOption.isSelected {
+    color: var(--ui-text);
+    border-color: rgba(95, 226, 255, 0.64);
+    background: rgba(95, 226, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+.modeOption.isSelected {
+    color: #061016;
+    background: linear-gradient(135deg, var(--ui-accent), var(--ui-green));
+    box-shadow: 0 10px 24px rgba(95, 226, 255, 0.22);
+}
+
+.modeOption.isSelected::before {
+    opacity: 1;
+}
+
 .garageSelect {
     display: grid;
     align-content: start;
@@ -1287,6 +1341,16 @@ button:focus-visible {
         min-height: 66px;
         gap: 10px;
         padding: 10px 12px;
+    }
+
+    .modeSelect {
+        gap: 6px;
+    }
+
+    .modeOption {
+        min-height: 44px;
+        padding: 0 6px;
+        font-size: 11px;
     }
 
     .garageTelemetry {
