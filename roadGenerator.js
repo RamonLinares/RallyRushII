@@ -460,19 +460,6 @@ function createJungleSkyTexture() {
     }
     context.restore();
 
-    context.globalAlpha = 0.2;
-    context.strokeStyle = '#e2f3ef';
-    context.lineWidth = 1.2;
-    for (let i = 0; i < 340; i++) {
-        const x = Math.random() * canvas.width;
-        const y = 85 + Math.random() * canvas.height * 0.78;
-        context.beginPath();
-        context.moveTo(x, y);
-        context.lineTo(x - 20 - Math.random() * 18, y + 58 + Math.random() * 40);
-        context.stroke();
-    }
-    context.globalAlpha = 1;
-
     const canopyHaze = context.createLinearGradient(0, canvas.height * 0.44, 0, canvas.height);
     canopyHaze.addColorStop(0, 'rgba(116,143,133,0)');
     canopyHaze.addColorStop(0.45, 'rgba(112,141,120,0.34)');
@@ -3347,51 +3334,76 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function addRainField() {
-            const streakCount = 760;
-            const positions = new Float32Array(streakCount * 6);
-            const seeds = [];
-            for (let i = 0; i < streakCount; i++) {
-                seeds.push({
-                    x: (Math.random() - 0.5) * 155,
-                    z: (Math.random() - 0.5) * 235,
-                    y: Math.random() * 42,
-                    speed: 21 + Math.random() * 18,
-                    length: 4.8 + Math.random() * 4.2,
-                    slant: 1.0 + Math.random() * 1.8
-                });
-            }
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.LineBasicMaterial({
+            const texture = createCanvasTexture(512, 1024, 1.8, 3.6, (context, width, height) => {
+                context.clearRect(0, 0, width, height);
+                context.lineCap = 'round';
+                for (let i = 0; i < 360; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const length = 34 + Math.random() * 72;
+                    const slant = 8 + Math.random() * 18;
+                    const alpha = 0.08 + Math.random() * 0.2;
+                    context.strokeStyle = `rgba(216,241,238,${alpha})`;
+                    context.lineWidth = 0.8 + Math.random() * 1.2;
+                    context.beginPath();
+                    context.moveTo(x, y);
+                    context.lineTo(x - slant, y + length);
+                    context.stroke();
+                }
+            });
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.anisotropy = 4;
+
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
                 color: 0xd8f1ee,
                 transparent: true,
-                opacity: 0.38,
-                depthWrite: false
+                opacity: 0.34,
+                depthWrite: false,
+                depthTest: true,
+                fog: true,
+                side: THREE.DoubleSide
             });
-            const rain = new THREE.LineSegments(geometry, material);
-            rain.name = 'jungle-rain-streaks';
-            rain.frustumCulled = false;
-            rain.renderOrder = 20;
-            rain.onBeforeRender = (renderer, activeScene, camera) => {
-                const t = performance.now() * 0.001;
-                const playerZ = game?.car?.position?.z || camera.position.z;
-                for (let i = 0; i < streakCount; i++) {
-                    const seed = seeds[i];
-                    const base = i * 6;
-                    const wrappedY = 26 - ((seed.y + t * seed.speed) % 42);
-                    const wrappedX = camera.position.x + seed.x + Math.sin(t * 0.7 + seed.z) * 2.2;
-                    const wrappedZ = playerZ + seed.z;
-                    positions[base] = wrappedX;
-                    positions[base + 1] = camera.position.y + wrappedY;
-                    positions[base + 2] = wrappedZ;
-                    positions[base + 3] = wrappedX - seed.slant;
-                    positions[base + 4] = camera.position.y + wrappedY - seed.length;
-                    positions[base + 5] = wrappedZ + seed.slant * 0.35;
-                }
-                geometry.attributes.position.needsUpdate = true;
-            };
+            const geometry = new THREE.PlaneGeometry(245, 76);
+            const rain = new THREE.Group();
+            rain.name = 'jungle-world-rain-curtains';
+
+            let curtainCount = 0;
+            for (let i = 8; i < game.road.segments.length - 8; i += 14) {
+                const segment = game.road.segments[i];
+                const prev = game.road.segments[Math.max(0, i - 2)];
+                const next = game.road.segments[Math.min(game.road.segments.length - 1, i + 2)];
+                const yaw = Math.atan2(next.curve - prev.curve, next.z - prev.z);
+                const curtain = new THREE.Mesh(geometry, material);
+                curtain.name = 'jungle-rain-curtain';
+                curtain.position.set(
+                    segment.curve + (Math.random() - 0.5) * 18,
+                    segment.y + 34 + Math.random() * 10,
+                    segment.z + (Math.random() - 0.5) * 26
+                );
+                curtain.rotation.y = yaw + (Math.random() - 0.5) * 0.08;
+                curtain.frustumCulled = true;
+                curtain.renderOrder = 8;
+                rain.add(curtain);
+                curtainCount += 1;
+            }
+
             decor.add(rain);
-            stageDecorStats.rainStreaks += streakCount;
+            game.stageEffects = game.stageEffects || [];
+            material.userData.baseOpacity = material.opacity;
+            game.stageEffects.push({
+                type: 'rain',
+                update(deltaSeconds) {
+                    texture.offset.x = (texture.offset.x + deltaSeconds * 0.08) % 1;
+                    texture.offset.y = (texture.offset.y - deltaSeconds * 1.85) % 1;
+                },
+                setIntensity(value) {
+                    material.opacity = THREE.MathUtils.clamp(value, 0, 1);
+                    rain.visible = material.opacity > 0.01;
+                }
+            });
+            stageDecorStats.rainStreaks += curtainCount;
         }
 
         function addDistantRainforestWall() {
