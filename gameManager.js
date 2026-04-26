@@ -131,6 +131,10 @@ const environments = {
         shoulderWidth: 0,
         roadTextureMetersPerTile: 14.2,
         roadTextureBrightness: 1.24,
+        terrainTextureUrl: 'assets/textures/jungle_road_side_custom.png',
+        terrainTextureMetersPerTile: 32,
+        terrainTextureLateralMetersPerTile: 32,
+        terrainTextureTint: 0xffffff,
         terrainColor: 0x174326,
         terrainTint: 0x4d7c43,
         treeDensity: 0,
@@ -144,8 +148,8 @@ const environments = {
         mountainRoadsideDelay: 0.05,
         mountainRoadsidePower: 0.95,
         roadElevationAmplitude: 5.2,
-        fogColor: 0x6f8780,
-        fogDensity: 0.00188,
+        fogColor: 0x5f7770,
+        fogDensity: 0.0032,
         nightRace: false
     },
     coastal: {
@@ -272,6 +276,19 @@ class GameManager {
                 occlusion: true
             },
             {
+                id: 'heightCheck',
+                label: 'Height Check',
+                type: 'chase',
+                fov: 68,
+                distance: 6.6,
+                distanceDirection: -1,
+                lateral: 2.2,
+                height: 1.15,
+                lookAhead: 3.8,
+                lookHeight: 0.08,
+                occlusion: false
+            },
+            {
                 id: 'cockpit',
                 label: 'Cockpit',
                 type: 'cockpit',
@@ -323,6 +340,13 @@ class GameManager {
         ];
         this.cameraModeIndex = 0;
         this.cameraMode = this.cameraModes[this.cameraModeIndex];
+        this.debugFreeCamera = {
+            active: false,
+            targetYOffset: 0.65,
+            yaw: 0,
+            pitch: 0.22,
+            distance: 7.5
+        };
         this.cockpitTunerStorageVersion = 2;
         this.cockpitInteriorRigs = {
             rally: {
@@ -356,12 +380,18 @@ class GameManager {
         this.directionalLight = null;
         this.fillLight = null;
         this.rimLight = null;
+        this.ambientLight = null;
+        this.hemiLight = null;
+        this.rainforestPlayerLightRig = null;
         this.vehicleEnvironmentMap = null;
+        this.lastStageEffectUpdateAt = performance.now();
+        this.rainforestCarLightStrength = 3;
         // Enable shadow rendering with improved settings
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.trafficCars = [];
         this.maxTrafficCars = 10; // Maximum number of traffic cars
+        this.maxActiveRainforestTrafficHeadlights = 2;
         this.trafficVehicleTypes = ['muscle', 'suv', 'hatchback', 'pickup', 'supercar'];
         this.gltfLoader = THREE.GLTFLoader ? new THREE.GLTFLoader() : null;
         this.dracoLoader = null;
@@ -371,6 +401,7 @@ class GameManager {
             this.gltfLoader.setDRACOLoader(this.dracoLoader);
         }
         this.vehicleModelCache = {};
+        this.vehicleModelScenes = {};
         this.vehicleModelLoadState = {};
         this.vehicleModelAssets = {
             carConcept: { url: 'assets/models/car_concept.glb' },
@@ -381,21 +412,7 @@ class GameManager {
         this.environmentModelLoadState = {};
         this.environmentModelScenes = {};
         this.environmentStageAssets = {
-            jungle: [
-                'junglePalmDetailedTall',
-                'junglePalmTall',
-                'junglePalmBend',
-                'junglePalmDetailedShort',
-                'jungleBushLargeTriangle',
-                'jungleBushDetailed',
-                'junglePlantFlatTall',
-                'jungleGrassLeafsLarge',
-                'jungleGrassLeafs',
-                'jungleLogLarge',
-                'jungleStumpOld',
-                'jungleRockLarge',
-                'jungleRockSmall'
-            ],
+            jungle: [],
             coastal: [
                 'coastalVillaD',
                 'coastalVillaE',
@@ -528,7 +545,8 @@ class GameManager {
                 length: 6.02,
                 height: 1.66,
                 yaw: Math.PI,
-                groundOffset: -0.2
+                groundOffset: -0.2,
+                contactPointYOffset: 0.06
             },
             apexGt: {
                 asset: 'ferrariGt',
@@ -544,7 +562,8 @@ class GameManager {
                 length: 6.12,
                 height: 1.58,
                 yaw: Math.PI,
-                groundOffset: -0.2
+                groundOffset: -0.2,
+                contactPointYOffset: 0.06
             },
             muscle: {
                 asset: 'carConcept',
@@ -552,7 +571,8 @@ class GameManager {
                 length: 6.12,
                 height: 1.7,
                 yaw: Math.PI,
-                groundOffset: -0.2
+                groundOffset: -0.2,
+                contactPointYOffset: 0.06
             },
             hatchback: {
                 asset: 'carConcept',
@@ -560,7 +580,8 @@ class GameManager {
                 length: 5.52,
                 height: 1.7,
                 yaw: Math.PI,
-                groundOffset: -0.2
+                groundOffset: -0.2,
+                contactPointYOffset: 0.06
             },
             suv: {
                 asset: 'milkTruck',
@@ -899,6 +920,7 @@ class GameManager {
 
         // Clear the traffic cars array to remove references to old traffic cars
         this.trafficCars = [];
+        this.rainforestPlayerLightRig = null;
 
         // Set up lighting with shadows (if needed)
         this.configureSceneEnvironment(environment);
@@ -907,15 +929,15 @@ class GameManager {
         this.nightRace = Boolean(environment.nightRace);
         const isRainforestStage = environment.id === 'jungle';
 
-        const ambientLight = new THREE.AmbientLight(
-            this.nightRace ? 0x476c86 : isRainforestStage ? 0x8da99a : 0xffffff,
-            this.nightRace ? 0.085 : isRainforestStage ? 0.26 : 0.035
+        this.ambientLight = new THREE.AmbientLight(
+            this.nightRace ? 0x476c86 : isRainforestStage ? 0x8fa69b : 0xffffff,
+            this.nightRace ? 0.085 : isRainforestStage ? 0.06 : 0.035
         );
-        this.scene.add(ambientLight);
+        this.scene.add(this.ambientLight);
 
         this.directionalLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x8fb2ff : isRainforestStage ? 0xb8c7bb : 0xffffff,
-            this.nightRace ? 0.42 : isRainforestStage ? 0.58 : 2.15
+            this.nightRace ? 0x8fb2ff : isRainforestStage ? 0xb8c7bf : 0xffffff,
+            this.nightRace ? 0.42 : isRainforestStage ? 0.32 : 2.15
         );
         this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
@@ -931,29 +953,29 @@ class GameManager {
         this.scene.add(this.directionalLight);
 
         this.fillLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x2c7f8f : isRainforestStage ? 0x8eb69f : 0xddeeff,
-            this.nightRace ? 0.26 : isRainforestStage ? 0.48 : 0.14
+            this.nightRace ? 0x2c7f8f : isRainforestStage ? 0x8ba999 : 0xddeeff,
+            this.nightRace ? 0.26 : isRainforestStage ? 0.18 : 0.14
         );
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
         this.rimLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x66e0ff : isRainforestStage ? 0x6f9380 : 0xbdeaff,
-            this.nightRace ? 0.9 : isRainforestStage ? 0.22 : 0.58
+            this.nightRace ? 0x66e0ff : isRainforestStage ? 0xd8caa5 : 0xbdeaff,
+            this.nightRace ? 0.9 : isRainforestStage ? 0.18 : 0.58
         );
         this.rimLight.position.set(-24, 28, -42);
         this.scene.add(this.rimLight);
 
-        const hemiLight = new THREE.HemisphereLight(
-            this.nightRace ? 0x18354e : isRainforestStage ? 0x7f918d : 0xcde7f2,
-            this.nightRace ? 0x061409 : isRainforestStage ? 0x102315 : 0x334029,
-            this.nightRace ? 0.52 : isRainforestStage ? 0.52 : 0.3
+        this.hemiLight = new THREE.HemisphereLight(
+            this.nightRace ? 0x18354e : isRainforestStage ? 0x8faaa5 : 0xcde7f2,
+            this.nightRace ? 0x061409 : isRainforestStage ? 0x102014 : 0x334029,
+            this.nightRace ? 0.52 : isRainforestStage ? 0.168 : 0.3
         );
         if (!this.nightRace && !isRainforestStage) {
-            hemiLight.color.setHSL(0.58, 0.58, 0.62);
-            hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
+            this.hemiLight.color.setHSL(0.58, 0.58, 0.62);
+            this.hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
         }
-        this.scene.add(hemiLight);
+        this.scene.add(this.hemiLight);
 
         this.currentStageId = environment.id || this.currentStageId || 'scotland';
         environment.assetCache = this.getStageEnvironmentAssets(this.currentStageId);
@@ -1033,6 +1055,7 @@ class GameManager {
             player: true
         });
         this.scene.add(this.playerCar);
+        this.setupStageVehicleLighting(this.playerCar, { player: true });
         this.applyCameraModeSettings();
 
         this.createInitialTrafficCars();
@@ -1797,50 +1820,63 @@ class GameManager {
         proxy.name = 'vehicle-collision-proxy';
         car.add(proxy);
 
-        this.loadVehicleModel(assetSpec.asset)
-            .then(source => {
-                if (car.userData.disposed) {
-                    return;
-                }
+        const cachedSource = this.vehicleModelScenes[assetSpec.asset];
+        if (cachedSource) {
+            this.attachAssetVehicleModel(car, cachedSource, type, palette, assetSpec, spec);
+        } else {
+            this.loadVehicleModel(assetSpec.asset)
+                .then(source => {
+                    if (car.userData.disposed) {
+                        return;
+                    }
 
-                const model = source.clone(true);
-                this.prepareAssetVehicleModel(model, type, palette, assetSpec);
-                model.traverse(child => {
-                    if (child.userData.assetWheel) {
-                        car.userData.wheels.push(child);
+                    this.attachAssetVehicleModel(car, source, type, palette, assetSpec, spec);
+                })
+                .catch(error => {
+                    console.warn(`Falling back to procedural ${type} vehicle.`, error);
+                    if (car.userData.disposed) {
+                        return;
                     }
-                    if (child.userData.assetSteeringWheel) {
-                        car.userData.steeringWheels.push(child);
-                    }
-                    if (child.userData.assetDashboardDisplay) {
-                        car.userData.dashboardDisplays.push(child.userData.assetDashboardDisplay);
-                    }
+
+                    const materials = this.createVehicleMaterials(palette);
+                    this.populateProceduralCar(car, spec, materials, type);
+                    this.cacheVehicleWheelContactPoints(car);
+                    car.userData.assetReady = false;
+                    car.userData.assetFallback = true;
                 });
-                car.add(model);
-                this.cacheVehicleWheelContactPoints(car);
-                car.userData.assetReady = true;
-                if (car === this.playerCar) {
-                    this.applyCameraModeSettings();
-                    if (this.game?.car) {
-                        this.animateVehicleSteeringWheel(car, this.game.car.steeringAngle || 0, this.game.car.maxSteeringAngle || spec.maxSteeringAngle);
-                        this.updateVehicleDashboardDisplays();
-                    }
-                }
-            })
-            .catch(error => {
-                console.warn(`Falling back to procedural ${type} vehicle.`, error);
-                if (car.userData.disposed) {
-                    return;
-                }
-
-                const materials = this.createVehicleMaterials(palette);
-                this.populateProceduralCar(car, spec, materials, type);
-                this.cacheVehicleWheelContactPoints(car);
-                car.userData.assetReady = false;
-                car.userData.assetFallback = true;
-            });
+        }
 
         return car;
+    }
+
+    attachAssetVehicleModel(car, source, type, palette, assetSpec, spec) {
+        const model = source.clone(true);
+        model.visible = false;
+        this.prepareAssetVehicleModel(model, type, palette, assetSpec);
+        model.traverse(child => {
+            if (child.userData.assetWheel) {
+                car.userData.wheels.push(child);
+            }
+            if (child.userData.assetSteeringWheel) {
+                car.userData.steeringWheels.push(child);
+            }
+            if (child.userData.assetDashboardDisplay) {
+                car.userData.dashboardDisplays.push(child.userData.assetDashboardDisplay);
+            }
+        });
+        car.add(model);
+        this.cacheVehicleWheelContactPoints(car);
+        this.settleVehicleRoadContact(car, 6);
+        model.visible = true;
+        car.userData.assetReady = true;
+        this.updateRainforestVehicleLightRigAnchors(car);
+        if (car === this.playerCar) {
+            this.applyCameraModeSettings();
+            if (this.game?.car) {
+                this.animateVehicleSteeringWheel(car, this.game.car.steeringAngle || 0, this.game.car.maxSteeringAngle || spec.maxSteeringAngle);
+                this.updateVehicleDashboardDisplays();
+            }
+        }
     }
 
     addNightVehicleLights(car, type = 'rally', isPlayer = false) {
@@ -1901,6 +1937,216 @@ class GameManager {
         }
 
         car.userData.nightLights = true;
+    }
+
+    setupStageVehicleLighting(car = this.playerCar, options = {}) {
+        if (!car || this.currentEnvironment?.id !== 'jungle' || car.userData.rainforestLightRig) {
+            return;
+        }
+
+        const isPlayer = Boolean(options.player);
+        const type = car.userData.vehicleType || (isPlayer ? this.game?.car?.vehicleType || this.playerVehicleType : 'rally') || 'rally';
+        const dimensions = this.getVehicleDimensions(type);
+        const frontZ = -dimensions.length * 0.48;
+        const rearZ = dimensions.length * 0.48;
+        const lightY = Math.max(0.58, dimensions.height * 0.42);
+        const sideX = Math.min(dimensions.width * 0.25, 0.72);
+        const rig = new THREE.Group();
+        rig.name = isPlayer ? 'rainforest-player-light-rig' : 'rainforest-traffic-light-rig';
+        rig.userData.rainforestVehicleLightRig = true;
+        rig.userData.rainforestLightRigPlayer = isPlayer;
+
+        [-1, 1].forEach(side => {
+            const target = new THREE.Object3D();
+            target.name = 'rainforest-headlight-target';
+            target.position.set(sideX * side * 0.45, Math.max(0.16, lightY - 0.36), frontZ - 18);
+            target.userData.rainforestHeadlightTarget = true;
+            target.userData.rainforestLightSide = side;
+            rig.add(target);
+
+            const headlight = new THREE.SpotLight(
+                0xffdfad,
+                (isPlayer ? 5.8 : 2.4) * this.rainforestCarLightStrength,
+                isPlayer ? 66 : 46,
+                isPlayer ? 0.2 : 0.23,
+                0.74,
+                1.75
+            );
+            headlight.name = 'rainforest-headlight-spot';
+            headlight.position.set(sideX * side, lightY, frontZ - 0.1);
+            headlight.target = target;
+            headlight.castShadow = false;
+            headlight.userData.rainforestHeadlightSpot = true;
+            headlight.userData.rainforestLightSide = side;
+            headlight.userData.rainforestBaseIntensity = isPlayer ? 5.8 : 2.4;
+            rig.add(headlight);
+        });
+
+        const roadFocusLight = new THREE.PointLight(0xffd08a, (isPlayer ? 0.16 : 0.08) * this.rainforestCarLightStrength, isPlayer ? 12 : 8, 2.45);
+        roadFocusLight.name = 'rainforest-road-focus-light';
+        roadFocusLight.position.set(0, Math.max(0.42, lightY * 0.72), frontZ - 4.2);
+        roadFocusLight.castShadow = false;
+        roadFocusLight.userData.rainforestRoadFocusLight = true;
+        roadFocusLight.userData.rainforestBaseIntensity = isPlayer ? 0.16 : 0.08;
+        if (isPlayer) {
+            rig.add(roadFocusLight);
+        }
+
+        if (isPlayer) {
+            const carContrastLight = new THREE.PointLight(0xcfe3d8, 0.025, 4.2, 2.6);
+            carContrastLight.name = 'rainforest-car-roof-fill';
+            carContrastLight.position.set(-0.18, dimensions.height + 0.85, rearZ * 0.15);
+            carContrastLight.castShadow = false;
+            rig.add(carContrastLight);
+        }
+
+        car.add(rig);
+        car.userData.rainforestLightRig = rig;
+        if (isPlayer) {
+            this.rainforestPlayerLightRig = rig;
+        }
+        this.updateRainforestVehicleLightRigAnchors(car);
+    }
+
+    updateRainforestVehicleLightRigAnchors(car = this.playerCar) {
+        const rig = car?.userData?.rainforestLightRig;
+        if (!car || !rig || this.currentEnvironment?.id !== 'jungle') {
+            return;
+        }
+
+        const type = car.userData.vehicleType || (car === this.playerCar ? this.game?.car?.vehicleType || this.playerVehicleType : 'rally') || 'rally';
+        const dimensions = this.getVehicleDimensions(type);
+        const anchors = this.getVehicleHeadlightAnchors(car, dimensions);
+        const spots = [];
+        const targets = [];
+        let roadFocusLight = null;
+
+        rig.traverse(child => {
+            if (child.userData.rainforestHeadlightSpot) {
+                spots.push(child);
+            } else if (child.userData.rainforestHeadlightTarget) {
+                targets.push(child);
+            } else if (child.userData.rainforestRoadFocusLight) {
+                roadFocusLight = child;
+            }
+        });
+
+        anchors.forEach(anchor => {
+            const spot = spots.find(light => light.userData.rainforestLightSide === anchor.side);
+            const target = targets.find(object => object.userData.rainforestLightSide === anchor.side);
+            if (!spot || !target) {
+                return;
+            }
+
+            spot.position.copy(anchor.position);
+            target.position.set(
+                anchor.position.x * 0.58,
+                Math.max(0.14, anchor.position.y - 0.36),
+                anchor.position.z - 26
+            );
+            spot.target = target;
+        });
+
+        if (roadFocusLight && anchors.length) {
+            const average = anchors.reduce((sum, anchor) => sum.add(anchor.position), new THREE.Vector3()).multiplyScalar(1 / anchors.length);
+            roadFocusLight.position.set(0, Math.max(0.34, average.y - 0.2), average.z - 6.4);
+        }
+    }
+
+    getVehicleHeadlightAnchors(car, dimensions) {
+        const detected = [];
+        car.updateMatrixWorld(true);
+
+        car.traverse(child => {
+            if (!child.isMesh || child.name === 'vehicle-collision-proxy' || child.userData.rainforestHeadlightSpot) {
+                return;
+            }
+
+            const materialNames = (Array.isArray(child.material) ? child.material : [child.material])
+                .map(material => material?.name || '')
+                .join(' ');
+            const name = `${child.name || ''} ${materialNames}`;
+            if (!this.isAssetHeadlightName(name)) {
+                return;
+            }
+
+            const box = new THREE.Box3().setFromObject(child);
+            if (box.isEmpty()) {
+                return;
+            }
+
+            const localBox = this.getObjectBoxInVehicleSpace(box, car);
+            const local = localBox.getCenter(new THREE.Vector3());
+            if (local.z > dimensions.length * 0.08) {
+                return;
+            }
+
+            detected.push({
+                position: local,
+                side: local.x < 0 ? -1 : 1,
+                box: localBox
+            });
+        });
+
+        const anchors = [-1, 1].map(side => {
+            const candidates = detected
+                .filter(candidate => candidate.side === side)
+                .sort((a, b) => a.position.z - b.position.z);
+            return candidates[0] || null;
+        });
+
+        if (anchors.every(Boolean)) {
+            return anchors;
+        }
+
+        const splitCandidate = detected
+            .filter(candidate => candidate.box)
+            .sort((a, b) => a.position.z - b.position.z)[0];
+        if (splitCandidate && (splitCandidate.box.max.x - splitCandidate.box.min.x) > 0.44) {
+            const center = splitCandidate.box.getCenter(new THREE.Vector3());
+            const inset = Math.min(0.18, Math.max(0.04, (splitCandidate.box.max.x - splitCandidate.box.min.x) * 0.12));
+            return [-1, 1].map(side => ({
+                side,
+                position: new THREE.Vector3(
+                    side < 0 ? splitCandidate.box.min.x + inset : splitCandidate.box.max.x - inset,
+                    center.y,
+                    splitCandidate.box.min.z - 0.02
+                )
+            }));
+        }
+
+        const frontZ = -dimensions.length * 0.48;
+        const sideX = Math.min(dimensions.width * 0.25, 0.72);
+        const lightY = Math.max(0.58, dimensions.height * 0.42);
+        return [-1, 1].map(side => ({
+            side,
+            position: new THREE.Vector3(sideX * side, lightY, frontZ - 0.1)
+        }));
+    }
+
+    getObjectBoxInVehicleSpace(worldBox, car) {
+        const localBox = new THREE.Box3();
+        const min = worldBox.min;
+        const max = worldBox.max;
+        [
+            new THREE.Vector3(min.x, min.y, min.z),
+            new THREE.Vector3(min.x, min.y, max.z),
+            new THREE.Vector3(min.x, max.y, min.z),
+            new THREE.Vector3(min.x, max.y, max.z),
+            new THREE.Vector3(max.x, min.y, min.z),
+            new THREE.Vector3(max.x, min.y, max.z),
+            new THREE.Vector3(max.x, max.y, min.z),
+            new THREE.Vector3(max.x, max.y, max.z)
+        ].forEach(point => {
+            localBox.expandByPoint(car.worldToLocal(point));
+        });
+        return localBox;
+    }
+
+    isAssetHeadlightName(name = '') {
+        const normalized = this.normalizeAssetName(name);
+        return /head\s*light|headlight|front\s*light|(^|\s)lights?(?=\s|$)/.test(normalized)
+            && !/tail|brake|rear|signal|indicator|interior|red|steering/.test(normalized);
     }
 
     getRequiredVehicleAssetNames() {
@@ -2047,6 +2293,7 @@ class GameManager {
             this.gltfLoader.load(
                 asset.url,
                 gltf => {
+                    this.vehicleModelScenes[assetName] = gltf.scene;
                     state.ready = true;
                     state.loaded = state.total || state.loaded || 1;
                     state.total = state.total || state.loaded;
@@ -2342,8 +2589,8 @@ class GameManager {
         model.rotation.y = assetSpec.yaw || 0;
 
         model.traverse(child => {
-            if (/^WheelFront[LR]$/i.test(child.name || '')) {
-                child.rotation.y = 0;
+            if (assetSpec.asset === 'carConcept' && /^WheelFront[LR]$/i.test(child.name || '')) {
+                child.rotation.set(0, 0, 0);
             }
 
             if (this.isAssetSteeringWheelTarget(child.name || '')) {
@@ -2405,6 +2652,8 @@ class GameManager {
         return !/(^|\s)steering(?=\s|$)/.test(normalized)
             && (
                 this.hasAssetNameToken(normalized, ['wheel', 'tire', 'tyre', 'rim'])
+                || /(^|\s)tire\s*tread(?=\s|$|\d)/.test(normalized)
+                || /(^|\s)tiretread(?=\s|$|\d)/.test(normalized)
                 || /(^|\s)(front|rear|back)\s*wheels?(?=\s|$|\d)/.test(normalized)
             );
     }
@@ -2940,11 +3189,17 @@ class GameManager {
         const materialNames = materials.map(material => material?.name || '').join(' ');
         const meshName = this.normalizeAssetName(mesh.name || '');
         const fullName = this.normalizeAssetName(`${mesh.name || ''} ${materialNames}`);
-        if (/(^|\s)tireside(?=\s|$|\d)/.test(fullName)) {
+        const hasTread = /(^|\s)tire\s*tread(?=\s|$|\d)/.test(fullName)
+            || /(^|\s)tiretread(?=\s|$|\d)/.test(fullName)
+            || /(^|\s)tread(?=\s|$|\d)/.test(fullName);
+        if (/(^|\s)tire\s*side(?=\s|$|\d)/.test(fullName) && !hasTread) {
             return false;
         }
 
-        return /(^|\s)(tire|tyre|tread|tiretread|rubber)(?=\s|$|\d)/.test(fullName)
+        return (
+            hasTread
+            || /(^|\s)(tire|tyre|rubber)(?=\s|$|\d)/.test(fullName)
+        )
             && !/(^|\s)(grill|grille|wiper|steering|interior|trim)(?=\s|$|\d)/.test(meshName);
     }
 
@@ -2992,10 +3247,95 @@ class GameManager {
         }
 
         vehicle.userData.wheelContactPoints = contactPoints;
+        const assetSpec = this.vehicleAssetSpecs[vehicle.userData.vehicleType];
+        const contactPointYOffset = assetSpec?.contactPointYOffset || 0;
+        if (contactPointYOffset) {
+            vehicle.userData.wheelContactPoints.forEach(point => {
+                point.y += contactPointYOffset;
+            });
+        }
+        this.cacheVehicleGroundProbePoints(vehicle);
         return contactPoints;
     }
 
-    alignVehicleToRoadSurface(vehicle, contactPadding = 0.018) {
+    cacheVehicleGroundProbePoints(vehicle) {
+        if (!vehicle) {
+            return [];
+        }
+
+        vehicle.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(vehicle);
+        if (box.isEmpty()) {
+            vehicle.userData.groundProbePoints = vehicle.userData.wheelContactPoints || [];
+            return vehicle.userData.groundProbePoints;
+        }
+
+        const inverseVehicleMatrix = vehicle.matrixWorld.clone().invert();
+        const xs = [box.min.x, (box.min.x + box.max.x) * 0.5, box.max.x];
+        const ys = [box.min.y, box.max.y];
+        const zs = [box.min.z, (box.min.z + box.max.z) * 0.5, box.max.z];
+        const probePoints = [];
+        xs.forEach(x => {
+            ys.forEach(y => {
+                zs.forEach(z => {
+                    probePoints.push(new THREE.Vector3(x, y, z).applyMatrix4(inverseVehicleMatrix));
+                });
+            });
+        });
+
+        vehicle.userData.groundProbePoints = [
+            ...(vehicle.userData.wheelContactPoints || []),
+            ...probePoints
+        ];
+        return vehicle.userData.groundProbePoints;
+    }
+
+    keepVehicleAboveRoadSurface(vehicle, padding = 0.028, maxLift = 4) {
+        if (!vehicle || !this.game?.road) {
+            return 0;
+        }
+
+        if (!vehicle.userData.groundProbePoints?.length) {
+            this.cacheVehicleWheelContactPoints(vehicle);
+        }
+
+        const probePoints = vehicle.userData.groundProbePoints || vehicle.userData.wheelContactPoints || [];
+        if (!probePoints.length) {
+            return 0;
+        }
+
+        vehicle.updateMatrixWorld(true);
+        const liftNeeded = probePoints.reduce((highestLift, localPoint) => {
+            const worldPoint = vehicle.localToWorld(localPoint.clone());
+            const roadData = getRoadDataAtZ(worldPoint.z, this.game);
+            return Math.max(highestLift, (roadData.y + padding) - worldPoint.y);
+        }, 0);
+        const lift = THREE.MathUtils.clamp(liftNeeded, 0, maxLift);
+        if (lift > 0) {
+            vehicle.position.y += lift;
+            vehicle.updateMatrixWorld(true);
+        }
+        vehicle.userData.lastGroundLift = lift;
+        return lift;
+    }
+
+    settleVehicleRoadContact(vehicle, iterations = 4) {
+        if (!vehicle || !this.game?.road) {
+            return 0;
+        }
+
+        let totalCorrection = 0;
+        for (let i = 0; i < iterations; i++) {
+            const correction = this.alignVehicleToRoadSurface(vehicle);
+            totalCorrection += correction;
+            if (Math.abs(correction) < 0.002) {
+                break;
+            }
+        }
+        return totalCorrection;
+    }
+
+    alignVehicleToRoadSurface(vehicle, contactPadding = -0.018) {
         if (!vehicle || !this.game?.road) {
             return 0;
         }
@@ -3010,16 +3350,57 @@ class GameManager {
         }
 
         vehicle.updateMatrixWorld(true);
-        const correction = contactPoints.reduce((sum, localPoint) => {
+        const corrections = contactPoints.map(localPoint => {
             const worldPoint = vehicle.localToWorld(localPoint.clone());
             const roadData = getRoadDataAtZ(worldPoint.z, this.game);
-            return sum + ((roadData.y + contactPadding) - worldPoint.y);
-        }, 0) / contactPoints.length;
+            return (roadData.y + contactPadding) - worldPoint.y;
+        });
+        const averageCorrection = corrections.reduce((sum, correction) => sum + correction, 0) / corrections.length;
+        const antiFloatCorrection = Math.min(...corrections);
+        const correction = Math.min(averageCorrection, antiFloatCorrection);
         const clampedCorrection = THREE.MathUtils.clamp(correction, -0.16, 0.16);
         vehicle.position.y += clampedCorrection;
         vehicle.updateMatrixWorld(true);
         vehicle.userData.lastGroundCorrection = clampedCorrection;
         return clampedCorrection;
+    }
+
+    getVehicleRoadContactDiagnostics(vehicle) {
+        if (!vehicle || !this.game?.road) {
+            return null;
+        }
+
+        if (!vehicle.userData.wheelContactPoints?.length) {
+            this.cacheVehicleWheelContactPoints(vehicle);
+        }
+
+        const contactPoints = vehicle.userData.wheelContactPoints || [];
+        if (!contactPoints.length) {
+            return {
+                count: 0,
+                min: null,
+                max: null,
+                avg: null,
+                lastCorrection: Number((vehicle.userData.lastGroundCorrection || 0).toFixed(4))
+            };
+        }
+
+        vehicle.updateMatrixWorld(true);
+        const gaps = contactPoints.map(localPoint => {
+            const worldPoint = vehicle.localToWorld(localPoint.clone());
+            const roadData = getRoadDataAtZ(worldPoint.z, this.game);
+            return worldPoint.y - roadData.y;
+        });
+        const min = Math.min(...gaps);
+        const max = Math.max(...gaps);
+        const avg = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+        return {
+            count: gaps.length,
+            min: Number(min.toFixed(4)),
+            max: Number(max.toFixed(4)),
+            avg: Number(avg.toFixed(4)),
+            lastCorrection: Number((vehicle.userData.lastGroundCorrection || 0).toFixed(4))
+        };
     }
 
     getRandomTrafficType() {
@@ -3121,6 +3502,8 @@ class GameManager {
 
         this.placeTrafficCar(trafficState, spawnPose.z, spawnPose.xOffset);
         this.scene.add(trafficCar);
+        this.setupStageVehicleLighting(trafficCar, { player: false });
+        this.setRainforestVehicleLightRigEnabled(trafficCar, false);
         this.trafficCars.push(trafficState);
     }
     resetCarPosition() {
@@ -4003,6 +4386,7 @@ class GameManager {
 
     animate() {
         this.animationId = requestAnimationFrame(this.animate.bind(this));
+        this.updateStageEffects();
 
         if (this.isPaused) {
             this.updateUI();
@@ -4051,6 +4435,21 @@ class GameManager {
 
         this.updateUI();
         this.renderer.render(this.scene, this.camera);
+    }
+
+    updateStageEffects() {
+        const now = performance.now();
+        const deltaSeconds = Math.min(0.05, Math.max(0, (now - (this.lastStageEffectUpdateAt || now)) / 1000));
+        this.lastStageEffectUpdateAt = now;
+        if (!this.game?.stageEffects?.length) {
+            return;
+        }
+
+        this.game.stageEffects.forEach(effect => {
+            if (typeof effect.update === 'function') {
+                effect.update(deltaSeconds, this.game, this.camera);
+            }
+        });
     }
 
 
@@ -4506,6 +4905,7 @@ class GameManager {
                 THREE.MathUtils.lerp(collision.playerRotPeak.z, collision.playerRotEnd.z, settleEase)
             );
         }
+        this.keepVehicleAboveRoadSurface(this.playerCar, 0.045, 5.5);
 
         collision.trafficCar.mesh.position.lerpVectors(collision.trafficStart, collision.trafficEnd, eased);
         collision.trafficCar.mesh.position.y += lift * collision.trafficLift;
@@ -4514,6 +4914,7 @@ class GameManager {
             THREE.MathUtils.lerp(collision.trafficRotStart.y, collision.trafficRotEnd.y, eased),
             THREE.MathUtils.lerp(collision.trafficRotStart.z, collision.trafficRotEnd.z, eased)
         );
+        this.keepVehicleAboveRoadSurface(collision.trafficCar.mesh, 0.045, 4.5);
         this.animateVehicleWheels(this.playerCar, 0.18 * (1 - t), 0);
         this.animateVehicleWheels(collision.trafficCar.mesh, 0.2 * (1 - t), 0);
 
@@ -4726,6 +5127,7 @@ class GameManager {
             this.animateVehicleWheels(trafficCar.mesh, trafficCar.speed * 0.72, 0);
         });
 
+        this.updateRainforestTrafficLightBudget();
         this.resolveTrafficSpacing();
 
         this.trafficCars.forEach(trafficCar => {
@@ -4735,6 +5137,41 @@ class GameManager {
 
             if (!this.activeCollision && this.isPlayerCollidingWithTraffic(trafficCar) && this.game.car.trafficCollisionCooldown === 0) {
                 this.triggerTrafficCollision(trafficCar);
+            }
+        });
+    }
+
+    updateRainforestTrafficLightBudget() {
+        if (this.currentEnvironment?.id !== 'jungle' || !this.playerCar) {
+            return;
+        }
+
+        const active = this.trafficCars
+            .filter(trafficCar => trafficCar.mesh?.userData?.rainforestLightRig)
+            .map(trafficCar => ({
+                trafficCar,
+                distance: Math.abs(trafficCar.mesh.position.z - this.game.car.position.z)
+                    + Math.abs(trafficCar.mesh.position.x - this.playerCar.position.x) * 0.3
+            }))
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, this.maxActiveRainforestTrafficHeadlights)
+            .map(entry => entry.trafficCar);
+
+        this.trafficCars.forEach(trafficCar => {
+            this.setRainforestVehicleLightRigEnabled(trafficCar.mesh, active.includes(trafficCar));
+        });
+    }
+
+    setRainforestVehicleLightRigEnabled(car, enabled) {
+        const rig = car?.userData?.rainforestLightRig;
+        if (!rig || rig.userData.rainforestLightRigPlayer) {
+            return;
+        }
+
+        rig.traverse(child => {
+            if (child.isLight) {
+                child.visible = enabled;
+                child.intensity = enabled ? (child.userData.rainforestBaseIntensity ?? child.intensity) * this.rainforestCarLightStrength : 0;
             }
         });
     }
@@ -4830,6 +5267,7 @@ class GameManager {
     }
 
     cycleCameraMode() {
+        this.disableDebugFreeCamera();
         return this.setCameraMode(this.cameraModeIndex + 1);
     }
 
@@ -5013,8 +5451,10 @@ class GameManager {
             };
         }
 
+        const cameraDistanceDirection = mode.distanceDirection || -1;
         const cameraPosition = this.carPosition.clone()
-            .add(carDirection.clone().multiplyScalar(-mode.distance))
+            .add(carRight.clone().multiplyScalar(mode.lateral || 0))
+            .add(carDirection.clone().multiplyScalar(cameraDistanceDirection * mode.distance))
             .add(new THREE.Vector3(0, mode.height, 0));
         return {
             mode,
@@ -5026,7 +5466,104 @@ class GameManager {
         };
     }
 
+    enableDebugFreeCamera() {
+        if (!this.game || !this.playerCar) {
+            return null;
+        }
+
+        this.setCameraMode('heightCheck');
+        const target = this.carPosition.clone().add(new THREE.Vector3(0, this.debugFreeCamera.targetYOffset, 0));
+        const offset = this.camera.position.clone().sub(target);
+        const distance = THREE.MathUtils.clamp(offset.length() || 7.5, 2.2, 45);
+        this.debugFreeCamera = {
+            ...this.debugFreeCamera,
+            active: true,
+            yaw: Math.atan2(offset.x, offset.z),
+            pitch: Math.asin(THREE.MathUtils.clamp(offset.y / distance, -0.85, 0.85)),
+            distance
+        };
+        this.updateDebugFreeCameraPosition();
+        return this.getDebugFreeCameraState();
+    }
+
+    disableDebugFreeCamera() {
+        if (!this.debugFreeCamera?.active) {
+            return;
+        }
+
+        this.debugFreeCamera.active = false;
+        if (this.game) {
+            this.updateCameraPosition();
+        }
+    }
+
+    isDebugFreeCameraActive() {
+        return Boolean(this.debugFreeCamera?.active);
+    }
+
+    adjustDebugFreeCamera({ yawDelta = 0, pitchDelta = 0, distanceDelta = 0, targetYDelta = 0 } = {}) {
+        if (!this.debugFreeCamera?.active) {
+            return null;
+        }
+
+        this.debugFreeCamera.yaw += yawDelta;
+        this.debugFreeCamera.pitch = THREE.MathUtils.clamp(
+            this.debugFreeCamera.pitch + pitchDelta,
+            -0.12,
+            1.18
+        );
+        this.debugFreeCamera.distance = THREE.MathUtils.clamp(
+            this.debugFreeCamera.distance + distanceDelta,
+            2.2,
+            45
+        );
+        this.debugFreeCamera.targetYOffset = THREE.MathUtils.clamp(
+            this.debugFreeCamera.targetYOffset + targetYDelta,
+            -1.6,
+            8
+        );
+        this.updateDebugFreeCameraPosition();
+        return this.getDebugFreeCameraState();
+    }
+
+    updateDebugFreeCameraPosition() {
+        if (!this.debugFreeCamera?.active || !this.game) {
+            return;
+        }
+
+        const { yaw, pitch, distance, targetYOffset } = this.debugFreeCamera;
+        const target = this.carPosition.clone().add(new THREE.Vector3(0, targetYOffset, 0));
+        const horizontalDistance = Math.cos(pitch) * distance;
+        const cameraPosition = target.clone().add(new THREE.Vector3(
+            Math.sin(yaw) * horizontalDistance,
+            Math.sin(pitch) * distance,
+            Math.cos(yaw) * horizontalDistance
+        ));
+        this.camera.up.set(0, 1, 0);
+        this.camera.position.copy(cameraPosition);
+        this.camera.lookAt(target);
+    }
+
+    getDebugFreeCameraState() {
+        if (!this.debugFreeCamera) {
+            return null;
+        }
+
+        return {
+            active: Boolean(this.debugFreeCamera.active),
+            yaw: Number(this.debugFreeCamera.yaw.toFixed(3)),
+            pitch: Number(this.debugFreeCamera.pitch.toFixed(3)),
+            distance: Number(this.debugFreeCamera.distance.toFixed(2)),
+            targetYOffset: Number(this.debugFreeCamera.targetYOffset.toFixed(2))
+        };
+    }
+
     updateCameraPosition() {
+        if (this.debugFreeCamera?.active) {
+            this.updateDebugFreeCameraPosition();
+            return;
+        }
+
         const { mode, carDirection, cameraPosition, lookAtPosition, cameraUp } = this.getCameraFrame();
 
         if (this.cameraShakeFrames > 0) {
