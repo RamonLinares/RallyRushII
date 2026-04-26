@@ -5456,6 +5456,10 @@ function generateRoadAndTerrain(scene, game, environment) {
     
         // Get the road data at the specified zPosition
         const roadData = getRoadDataAtZ(zPosition, game);
+        const structureGroup = new THREE.Group();
+        structureGroup.name = isFinishLine ? 'finish-rally-structure' : 'start-rally-structure';
+        structureGroup.position.set(roadData.curve, roadData.y, zPosition);
+        structureGroup.rotation.y = -roadData.curvatureAngle;
     
         // Create poles
         const poleGeometry = new THREE.BoxGeometry(poleWidth, poleHeight, poleDepth);
@@ -5464,8 +5468,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         const rightPole = new THREE.Mesh(poleGeometry, poleMaterial);
     
         // Position poles
-        leftPole.position.set(roadData.curve - bannerWidth / 2, roadData.y + poleHeight / 2, zPosition);
-        rightPole.position.set(roadData.curve + bannerWidth / 2, roadData.y + poleHeight / 2, zPosition);
+        leftPole.position.set(-bannerWidth / 2, poleHeight / 2, 0);
+        rightPole.position.set(bannerWidth / 2, poleHeight / 2, 0);
     
         const bannerTexture = createBannerTexture(isFinishLine ? 'FINISH' : 'START');
     
@@ -5473,13 +5477,13 @@ function generateRoadAndTerrain(scene, game, environment) {
         const bannerGeometry = new THREE.PlaneGeometry(bannerWidth, bannerHeight);
         const bannerMaterial = new THREE.MeshBasicMaterial({ map: bannerTexture, side: THREE.DoubleSide });
         const banner = new THREE.Mesh(bannerGeometry, bannerMaterial);
-        banner.position.set(roadData.curve, roadData.y + poleHeight - bannerHeight / 2, zPosition);
+        banner.position.set(0, poleHeight - bannerHeight / 2, 0);
     
         // Ensure the banner is facing the correct direction
         banner.rotation.y = Math.PI; // Rotate the banner to face the player
     
         // Add to scene
-        scene.add(leftPole, rightPole, banner);
+        structureGroup.add(leftPole, rightPole, banner);
     
         if (isFinishLine) {
             // Add a finish line tape on the ground
@@ -5487,9 +5491,11 @@ function generateRoadAndTerrain(scene, game, environment) {
             const lineMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
             const finishLine = new THREE.Mesh(lineGeometry, lineMaterial);
             finishLine.rotation.x = -Math.PI / 2;
-            finishLine.position.set(roadData.curve, roadData.y + 0.1, zPosition);
-            scene.add(finishLine);
+            finishLine.position.set(0, 0.1, 0);
+            structureGroup.add(finishLine);
         }
+
+        scene.add(structureGroup);
     }
     
     createRallyStructure(scene, game, game.finishLine, true); // Place at the finish line
