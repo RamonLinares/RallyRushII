@@ -67,11 +67,12 @@ const environments = {
         roadStyle: 'city-asphalt',
         shoulderStyle: 'concrete',
         roadWidth: 22,
-        terrainColor: 0x3f4951,
-        terrainTint: 0x8d9aa4,
+        terrainColor: 0x323c45,
+        terrainTint: 0x7d8b96,
         treeDensity: 0.006,
         treeColor: 0x2f5f42,
         trunkColor: 0x5d4330,
+        roadElevationAmplitude: 2.4,
         maxMountainHeight: 4,
         mountainHeightRange: 5,
         mountainHeightPower: 1.8,
@@ -79,8 +80,9 @@ const environments = {
         mountainNoiseGain: 0.2,
         mountainRoadsideDelay: 0.55,
         mountainRoadsidePower: 2.2,
-        fogColor: 0xa8bbc7,
-        fogDensity: 0.00115
+        fogColor: 0x90a4b2,
+        fogDensity: 0.00135,
+        decorativeLightLimit: 14
     },
     lakes: {
         id: 'lakes',
@@ -711,7 +713,7 @@ class GameManager {
             scotland: 'Scotland',
             desert: 'Desert',
             alpine: 'Alpine',
-            city: 'City',
+            city: 'Tokyo',
             lakes: 'Lakes',
             jungle: 'Rainforest Mud',
             coastal: 'Mediterranean Coast'

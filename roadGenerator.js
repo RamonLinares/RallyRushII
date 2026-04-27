@@ -52,12 +52,31 @@ function createCanvasTexture(width, height, repeatX, repeatY, draw) {
 function loadImageIntoTexture(texture, url, options = {}) {
     const loader = new THREE.TextureLoader();
     loader.load(url, (loadedTexture) => {
-        if (options.drawToCanvas) {
-            const canvas = document.createElement('canvas');
+        if (options.drawToCanvas || typeof options.afterDraw === 'function') {
+            const canvas = options.reuseTextureCanvas && texture.image?.getContext
+                ? texture.image
+                : document.createElement('canvas');
             canvas.width = options.width || 1024;
             canvas.height = options.height || canvas.width;
             const context = canvas.getContext('2d');
-            context.drawImage(loadedTexture.image, 0, 0, canvas.width, canvas.height);
+            if (options.smoothDownscale) {
+                const scale = THREE.MathUtils.clamp(options.downscaleFactor || 0.5, 0.15, 0.9);
+                const scratch = document.createElement('canvas');
+                scratch.width = Math.max(16, Math.round(canvas.width * scale));
+                scratch.height = Math.max(16, Math.round(canvas.height * scale));
+                const scratchContext = scratch.getContext('2d');
+                scratchContext.imageSmoothingEnabled = true;
+                scratchContext.imageSmoothingQuality = 'high';
+                scratchContext.drawImage(loadedTexture.image, 0, 0, scratch.width, scratch.height);
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+                context.drawImage(scratch, 0, 0, canvas.width, canvas.height);
+            } else {
+                context.drawImage(loadedTexture.image, 0, 0, canvas.width, canvas.height);
+            }
+            if (typeof options.afterDraw === 'function') {
+                options.afterDraw(context, canvas.width, canvas.height, loadedTexture.image);
+            }
             texture.image = canvas;
             texture.generateMipmaps = true;
             texture.minFilter = THREE.LinearMipMapLinearFilter;
@@ -499,6 +518,233 @@ function createJungleSkyTexture(environment = {}) {
     return texture;
 }
 
+function createTokyoSkyTexture(environment = {}) {
+    const isNight = Boolean(environment.nightRace);
+    const isRainy = !environment.disableRain;
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 1024;
+    const context = canvas.getContext('2d');
+    const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    if (isNight) {
+        skyGradient.addColorStop(0, '#07101d');
+        skyGradient.addColorStop(0.32, '#17253a');
+        skyGradient.addColorStop(0.62, '#2e4052');
+        skyGradient.addColorStop(1, '#111923');
+    } else if (isRainy) {
+        skyGradient.addColorStop(0, '#647681');
+        skyGradient.addColorStop(0.38, '#87949b');
+        skyGradient.addColorStop(0.68, '#a0a7a8');
+        skyGradient.addColorStop(1, '#5e6870');
+    } else {
+        skyGradient.addColorStop(0, '#5da3d4');
+        skyGradient.addColorStop(0.36, '#91bdd5');
+        skyGradient.addColorStop(0.68, '#c0c8c7');
+        skyGradient.addColorStop(1, '#727f88');
+    }
+    context.fillStyle = skyGradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const glow = context.createRadialGradient(
+        canvas.width * (isNight ? 0.72 : 0.22),
+        canvas.height * (isNight ? 0.22 : 0.18),
+        0,
+        canvas.width * (isNight ? 0.72 : 0.22),
+        canvas.height * (isNight ? 0.22 : 0.18),
+        isNight ? 420 : 520
+    );
+    glow.addColorStop(0, isNight ? 'rgba(154,206,255,0.36)' : 'rgba(255,229,166,0.46)');
+    glow.addColorStop(0.35, isNight ? 'rgba(66,124,202,0.16)' : 'rgba(255,211,135,0.16)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    context.fillStyle = glow;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.save();
+    context.filter = isRainy ? 'blur(18px)' : 'blur(11px)';
+    for (let i = 0; i < (isRainy ? 28 : 16); i++) {
+        const x = -220 + i * 120 + Math.sin(i * 1.77) * 82;
+        const y = 85 + Math.cos(i * 0.91) * 58 + (isRainy ? 54 : 0);
+        const cloud = context.createRadialGradient(x, y, 0, x, y, 240 + (i % 5) * 32);
+        cloud.addColorStop(0, isRainy
+            ? `rgba(74,86,94,${0.18 + (i % 4) * 0.035})`
+            : `rgba(245,248,244,${0.08 + (i % 3) * 0.025})`);
+        cloud.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = cloud;
+        context.beginPath();
+        context.ellipse(x, y, 300 + (i % 7) * 36, 46 + (i % 5) * 14, Math.sin(i) * 0.08, 0, Math.PI * 2);
+        context.fill();
+    }
+    context.restore();
+
+    const drawSkyline = (baseY, color, litAlpha, heightScale, seedOffset) => {
+        let x = -40;
+        while (x < canvas.width + 40) {
+            const seed = Math.sin((x + seedOffset) * 0.071) * 0.5 + 0.5;
+            const width = 26 + seed * 82;
+            const height = (96 + (Math.sin((x + seedOffset) * 0.029) * 0.5 + 0.5) * 310) * heightScale;
+            context.fillStyle = color;
+            context.fillRect(x, baseY - height, width, height);
+
+            if (width > 46) {
+                context.fillRect(x + width * 0.18, baseY - height - 18, width * 0.18, 20);
+                context.fillRect(x + width * 0.64, baseY - height - 11, width * 0.12, 14);
+            }
+
+            context.globalAlpha = litAlpha;
+            context.fillStyle = isNight ? '#ffe59a' : '#d7eef7';
+            for (let wx = x + 7; wx < x + width - 5; wx += 13) {
+                for (let wy = baseY - height + 14; wy < baseY - 16; wy += 23) {
+                    const lit = Math.sin(wx * 0.23 + wy * 0.19 + seedOffset) > (isNight ? -0.24 : 0.48);
+                    if (lit) {
+                        context.fillRect(wx, wy, 4, 7);
+                    }
+                }
+            }
+            context.globalAlpha = 1;
+            x += width + 5 + seed * 10;
+        }
+    };
+
+    drawSkyline(canvas.height * 0.72, isNight ? '#101927' : '#4e616d', isNight ? 0.52 : 0.18, 0.74, 12);
+    drawSkyline(canvas.height * 0.82, isNight ? '#07101a' : '#334650', isNight ? 0.74 : 0.12, 1.0, 74);
+
+    const haze = context.createLinearGradient(0, canvas.height * 0.48, 0, canvas.height);
+    haze.addColorStop(0, 'rgba(255,255,255,0)');
+    haze.addColorStop(0.48, isNight ? 'rgba(51,82,112,0.22)' : 'rgba(207,218,214,0.24)');
+    haze.addColorStop(1, isNight ? 'rgba(8,14,21,0.42)' : 'rgba(104,116,122,0.32)');
+    context.fillStyle = haze;
+    context.fillRect(0, canvas.height * 0.48, canvas.width, canvas.height * 0.52);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.anisotropy = 4;
+    if (THREE.sRGBEncoding) {
+        texture.encoding = THREE.sRGBEncoding;
+    }
+    return texture;
+}
+
+function createTokyoFacadeTexture(variant = 0, environment = {}) {
+    const isNight = Boolean(environment.nightRace);
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 1024;
+    const context = canvas.getContext('2d');
+    const basePalettes = [
+        ['#1d2932', '#52626b'],
+        ['#25272d', '#5f6269'],
+        ['#182635', '#48627a'],
+        ['#302c32', '#74656b'],
+        ['#202b2d', '#566a67'],
+        ['#2a3039', '#68737f']
+    ];
+    const palette = basePalettes[variant % basePalettes.length];
+    const base = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+    base.addColorStop(0, palette[1]);
+    base.addColorStop(0.42, palette[0]);
+    base.addColorStop(1, '#111820');
+    context.fillStyle = base;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.globalAlpha = 0.22;
+    context.fillStyle = '#d7eef5';
+    for (let x = 24; x < canvas.width; x += 54) {
+        context.fillRect(x, 0, 2, canvas.height);
+    }
+    for (let y = 42; y < canvas.height; y += 78) {
+        context.fillRect(0, y, canvas.width, 2);
+    }
+    context.globalAlpha = 1;
+
+    const windowColors = isNight
+        ? ['#ffe19a', '#99efff', '#ff8fd1', '#d7f3ff', '#f6f0cb']
+        : ['#bad8e8', '#d8edf4', '#9bb7c4', '#f0ead0'];
+    for (let y = 48; y < canvas.height - 38; y += 52) {
+        for (let x = 34; x < canvas.width - 30; x += 44) {
+            const lit = Math.sin((x + 17) * 0.19 + (y + variant * 23) * 0.11) > (isNight ? -0.26 : 0.34);
+            context.globalAlpha = lit ? (isNight ? 0.82 : 0.48) : 0.13;
+            context.fillStyle = lit
+                ? windowColors[(Math.floor(x / 44) + Math.floor(y / 52) + variant) % windowColors.length]
+                : '#14202a';
+            context.fillRect(x, y, 15 + ((x + y + variant) % 3) * 4, 18);
+        }
+    }
+    context.globalAlpha = 1;
+
+    if (variant % 2 === 0) {
+        const accent = ['#ff4ea1', '#34d5ff', '#ffe15c', '#ff5b49'][variant % 4];
+        context.fillStyle = accent;
+        context.globalAlpha = isNight ? 0.8 : 0.42;
+        context.fillRect(canvas.width * 0.68, 0, 18, canvas.height);
+        context.globalAlpha = 1;
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 4;
+    if (THREE.sRGBEncoding) {
+        texture.encoding = THREE.sRGBEncoding;
+    }
+    return texture;
+}
+
+function createTokyoSkylineTexture(variant = 0, environment = {}) {
+    const isNight = Boolean(environment.nightRace);
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 512;
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    const skylineColor = isNight
+        ? ['rgba(5,10,18,0.96)', 'rgba(11,19,30,0.9)', 'rgba(18,29,42,0.82)'][variant % 3]
+        : ['rgba(52,65,73,0.9)', 'rgba(70,83,91,0.82)', 'rgba(91,105,111,0.72)'][variant % 3];
+    let x = -30;
+    while (x < canvas.width + 40) {
+        const seed = Math.sin((x + 31 * variant) * 0.083) * 0.5 + 0.5;
+        const width = 28 + seed * 82;
+        const height = 95 + (Math.cos((x + variant * 47) * 0.037) * 0.5 + 0.5) * (variant % 2 ? 270 : 390);
+        context.fillStyle = skylineColor;
+        context.fillRect(x, canvas.height - height, width, height);
+        if (width > 58) {
+            context.fillRect(x + width * 0.18, canvas.height - height - 18, width * 0.2, 20);
+            context.fillRect(x + width * 0.62, canvas.height - height - 26, width * 0.12, 30);
+        }
+
+        context.globalAlpha = isNight ? 0.54 : 0.16;
+        context.fillStyle = isNight
+            ? ['#ffe08c', '#71e9ff', '#ff7ac5'][Math.floor(seed * 9) % 3]
+            : '#d8edf3';
+        for (let wx = x + 8; wx < x + width - 8; wx += 16) {
+            for (let wy = canvas.height - height + 18; wy < canvas.height - 16; wy += 27) {
+                if (Math.sin(wx * 0.17 + wy * 0.13 + variant * 2.1) > (isNight ? -0.18 : 0.42)) {
+                    context.fillRect(wx, wy, 5, 8);
+                }
+            }
+        }
+        context.globalAlpha = 1;
+        x += width + 5 + seed * 8;
+    }
+
+    const fade = context.createLinearGradient(0, 0, 0, canvas.height);
+    fade.addColorStop(0, 'rgba(255,255,255,0)');
+    fade.addColorStop(0.72, isNight ? 'rgba(33,57,82,0.12)' : 'rgba(170,190,196,0.1)');
+    fade.addColorStop(1, isNight ? 'rgba(1,4,8,0.26)' : 'rgba(63,72,76,0.18)');
+    context.fillStyle = fade;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.anisotropy = 4;
+    if (THREE.sRGBEncoding) {
+        texture.encoding = THREE.sRGBEncoding;
+    }
+    return texture;
+}
+
 function createRoadTexture(environment, segmentCount) {
     const approximateRoadLength = segmentCount * 10;
     const repeatY = Number.isFinite(environment.roadTextureRepeatY)
@@ -556,6 +802,70 @@ function createRoadTexture(environment, segmentCount) {
         flecks: ['#667073', '#343b3d', '#7a8585'],
         line: '#f2f2e8',
         edge: '#f7f8ef'
+    };
+
+    const drawRoadMarkings = (context, width, height) => {
+        if (palette.edge) {
+            context.fillStyle = palette.edge;
+            context.fillRect(34, 0, 10, height);
+            context.fillRect(width - 44, 0, 10, height);
+        }
+
+        if (!palette.line) {
+            return;
+        }
+
+        context.fillStyle = palette.line;
+        const dashHeight = environment.roadStyle === 'city-asphalt' ? 74 : 86;
+        const dashGap = environment.roadStyle === 'city-asphalt' ? 74 : 86;
+        const dashWidth = environment.roadStyle === 'city-asphalt' ? 8 : 10;
+        for (let y = 24; y < height; y += dashHeight + dashGap) {
+            context.fillRect(width / 2 - dashWidth / 2, y, dashWidth, dashHeight);
+        }
+
+        if (environment.roadStyle === 'city-asphalt') {
+            context.fillStyle = 'rgba(248,248,242,0.78)';
+            [width * 0.33, width * 0.67].forEach(laneX => {
+                for (let y = 38; y < height; y += 108) {
+                    context.fillRect(laneX - 2, y, 4, 52);
+                }
+            });
+        }
+    };
+
+    const finishCityAsphalt = (context, width, height) => {
+        context.save();
+        context.globalCompositeOperation = 'source-over';
+        context.fillStyle = 'rgba(24, 29, 34, 0.46)';
+        context.fillRect(0, 0, width, height);
+
+        const centerWear = context.createLinearGradient(0, 0, width, 0);
+        centerWear.addColorStop(0, 'rgba(0,0,0,0)');
+        centerWear.addColorStop(0.18, 'rgba(8,11,14,0.32)');
+        centerWear.addColorStop(0.5, 'rgba(60,67,72,0.1)');
+        centerWear.addColorStop(0.82, 'rgba(8,11,14,0.32)');
+        centerWear.addColorStop(1, 'rgba(0,0,0,0)');
+        context.fillStyle = centerWear;
+        context.fillRect(0, 0, width, height);
+
+        context.globalAlpha = 0.2;
+        context.strokeStyle = '#10151a';
+        context.lineWidth = 18;
+        [width * 0.28, width * 0.72].forEach((tireX, index) => {
+            context.beginPath();
+            for (let y = -24; y <= height + 24; y += 42) {
+                const wobble = Math.sin(y * 0.011 + index * 2.3) * 4.5;
+                if (y <= -24) {
+                    context.moveTo(tireX + wobble, y);
+                } else {
+                    context.lineTo(tireX + wobble, y);
+                }
+            }
+            context.stroke();
+        });
+        context.globalAlpha = 1;
+        drawRoadMarkings(context, width, height);
+        context.restore();
     };
 
     const texture = createCanvasTexture(512, 1024, 1, repeatY, (context, width, height) => {
@@ -688,7 +998,11 @@ function createRoadTexture(environment, segmentCount) {
             return;
         }
 
-        drawSpeckle(context, width, height, palette.flecks, 5500, 1, 4, 0.75);
+        if (environment.roadStyle === 'city-asphalt') {
+            drawSpeckle(context, width, height, palette.flecks, 1600, 1, 2, 0.22);
+        } else {
+            drawSpeckle(context, width, height, palette.flecks, 5500, 1, 4, 0.75);
+        }
 
         context.globalAlpha = 0.2;
         context.strokeStyle = '#151719';
@@ -703,20 +1017,7 @@ function createRoadTexture(environment, segmentCount) {
         }
         context.globalAlpha = 1;
 
-        if (palette.edge) {
-            context.fillStyle = palette.edge;
-            context.fillRect(34, 0, 10, height);
-            context.fillRect(width - 44, 0, 10, height);
-        }
-
-        if (palette.line) {
-            context.fillStyle = palette.line;
-            const dashHeight = 86;
-            const dashGap = 86;
-            for (let y = 24; y < height; y += dashHeight + dashGap) {
-                context.fillRect(width / 2 - 5, y, 10, dashHeight);
-            }
-        }
+        drawRoadMarkings(context, width, height);
 
     });
 
@@ -725,6 +1026,18 @@ function createRoadTexture(environment, segmentCount) {
             ? 'assets/textures/jungle_road_mud_custom.png'
             : 'assets/textures/polyhaven/mud_forest_diff_1k.jpg';
         return loadImageIntoTexture(texture, mudTextureUrl);
+    }
+
+    if (environment.roadStyle === 'city-asphalt') {
+        return loadImageIntoTexture(texture, 'assets/textures/tokyo_asphalt_texture.png', {
+            drawToCanvas: true,
+            reuseTextureCanvas: true,
+            width: 512,
+            height: 1024,
+            smoothDownscale: true,
+            downscaleFactor: 0.42,
+            afterDraw: finishCityAsphalt
+        });
     }
 
     return texture;
@@ -799,12 +1112,19 @@ function createTerrainTexture(environment, segmentCount, terrainWidth = 300) {
 
     if (environment.terrainStyle === 'urban') {
         return createCanvasTexture(512, 512, 6, repeatY, (context, width, height) => {
-            context.fillStyle = '#59636b';
+            context.fillStyle = '#46525b';
             context.fillRect(0, 0, width, height);
-            drawSpeckle(context, width, height, ['#909aa1', '#3d474f', '#242b31', '#aeb7bd'], 7600, 1, 5, 0.68);
-            context.globalAlpha = 0.22;
-            context.strokeStyle = '#1d252b';
-            context.lineWidth = 2;
+            drawSpeckle(context, width, height, ['#7d8b92', '#313b43', '#222a31', '#9da8ad', '#59656d'], 8600, 1, 5, 0.7);
+            context.globalAlpha = 0.2;
+            context.fillStyle = '#273139';
+            for (let i = 0; i < 42; i++) {
+                const blockX = Math.floor(Math.random() * 10) * 52 + Math.random() * 10;
+                const blockY = Math.floor(Math.random() * 9) * 58 + Math.random() * 10;
+                context.fillRect(blockX, blockY, 28 + Math.random() * 42, 20 + Math.random() * 34);
+            }
+            context.globalAlpha = 0.28;
+            context.strokeStyle = '#151d23';
+            context.lineWidth = 2.2;
             for (let x = 0; x < width; x += 46) {
                 context.beginPath();
                 context.moveTo(x, 0);
@@ -815,6 +1135,17 @@ function createTerrainTexture(environment, segmentCount, terrainWidth = 300) {
                 context.beginPath();
                 context.moveTo(0, y);
                 context.lineTo(width, y);
+                context.stroke();
+            }
+            context.globalAlpha = 0.16;
+            context.strokeStyle = '#d5dde0';
+            context.lineWidth = 1;
+            for (let i = 0; i < 34; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                context.beginPath();
+                context.moveTo(x, y);
+                context.lineTo(x + 18 + Math.random() * 52, y + (Math.random() - 0.5) * 12);
                 context.stroke();
             }
             context.globalAlpha = 1;
@@ -1498,6 +1829,39 @@ function generateRoadAndTerrain(scene, game, environment) {
         return roadNoise.noise2D(z * 0.002, 0) * 40 * curveScale;
     }
 
+    const cityHighwaySections = environment.id === 'city'
+        ? [
+            { start: 760, topStart: 1040, topEnd: 2480, end: 2820, height: 30 },
+            { start: 3260, topStart: 3500, topEnd: 4620, end: 4940, height: 24 },
+            { start: 5120, topStart: 5360, topEnd: 6200, end: 6600, height: 20 }
+        ]
+        : [];
+
+    function ease01(value) {
+        const t = THREE.MathUtils.clamp(value, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    function getCityHighwayElevation(z) {
+        if (cityHighwaySections.length === 0) {
+            return 0;
+        }
+
+        const distance = Math.abs(z);
+        return cityHighwaySections.reduce((height, section) => {
+            if (distance < section.start || distance > section.end) {
+                return height;
+            }
+            if (distance < section.topStart) {
+                return Math.max(height, section.height * ease01((distance - section.start) / (section.topStart - section.start)));
+            }
+            if (distance <= section.topEnd) {
+                return Math.max(height, section.height);
+            }
+            return Math.max(height, section.height * (1 - ease01((distance - section.topEnd) / (section.end - section.topEnd))));
+        }, 0);
+    }
+
     const segmentLength = 10;
     const extraSegmentsAfterFinish = 100;
     const totalSegments = Math.ceil(Math.abs(game.finishLine) / segmentLength) + extraSegmentsAfterFinish;
@@ -1522,7 +1886,8 @@ function generateRoadAndTerrain(scene, game, environment) {
     function createRoadSegment(index) {
         const z = -index * segmentLength;
         const curve = generateRoadCurve(z);
-        const y = Math.sin(z * 0.01) * roadElevationAmplitude; // Gentle road elevation changes
+        const highwayElevation = getCityHighwayElevation(z);
+        const y = Math.sin(z * 0.01) * roadElevationAmplitude + highwayElevation; // Gentle road elevation changes
         
         const nextZ = -(index + 1) * segmentLength;
         const nextCurve = generateRoadCurve(nextZ);
@@ -1530,7 +1895,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         const dz = segmentLength;
         const curvatureAngle = Math.atan2(dx, dz);
         
-        return { z, y, curve, curvatureAngle };
+        return { z, y, curve, curvatureAngle, highwayElevation };
     }
 
     for (let i = 0; i < totalSegments; i++) {
@@ -1980,7 +2345,8 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         return {
             curve: THREE.MathUtils.lerp(segment.curve, nextSegment.curve, t),
-            y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t)
+            y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t),
+            highwayElevation: THREE.MathUtils.lerp(segment.highwayElevation || 0, nextSegment.highwayElevation || 0, t)
         };
     }
 
@@ -1989,7 +2355,11 @@ function generateRoadAndTerrain(scene, game, environment) {
         const distanceFromRoadCenter = Math.abs(x - roadData.curve);
         const distanceFromRoadEdge = distanceFromRoadCenter - halfRoadWidth;
         const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
-        const baseHeight = roadData.y;
+        let baseHeight = roadData.y;
+        if (environment.id === 'city' && roadData.highwayElevation > 0.01) {
+            const groundDrop = roadData.highwayElevation * smoothStep(shoulderWidth + 2.5, shoulderWidth + 28, distanceFromRoadEdge);
+            baseHeight -= groundDrop;
+        }
         let heightOffset = generateMountainHeight(x, z) * getTerrainLiftFactor(normalizedDistance);
 
         if (environment.terrainStyle === 'rainforest') {
@@ -2402,109 +2772,614 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function addCityRoadsideDecor(decor) {
-        const buildingMaterials = [
-            new THREE.MeshPhongMaterial({ color: 0x66717a, shininess: 10 }),
-            new THREE.MeshPhongMaterial({ color: 0x8b8479, shininess: 8 }),
-            new THREE.MeshPhongMaterial({ color: 0x4f5d67, shininess: 12 }),
-            new THREE.MeshPhongMaterial({ color: 0x9a927f, shininess: 7 })
+        const isNight = Boolean(environment.nightRace);
+        const startZ = game.startLine + 170;
+        const endZ = game.finishLine - 520;
+        const facadeMaterials = Array.from({ length: 6 }, (_, index) => new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            map: createTokyoFacadeTexture(index, environment),
+            shininess: isNight ? 30 : 18,
+            specular: isNight ? 0x38506b : 0x1d252b,
+            emissive: isNight ? 0x111827 : 0x000000,
+            emissiveIntensity: isNight ? 0.46 : 0.08
+        }));
+        const darkGlassMaterial = new THREE.MeshPhongMaterial({
+            color: 0x17242e,
+            shininess: 42,
+            specular: 0x566978,
+            emissive: isNight ? 0x07101b : 0x000000,
+            emissiveIntensity: isNight ? 0.28 : 0.02
+        });
+        const roofMaterial = new THREE.MeshPhongMaterial({ color: 0x1a2028, shininess: 18, specular: 0x222831 });
+        const barrierMaterial = new THREE.MeshPhongMaterial({ color: 0xd0d5d6, shininess: 14, specular: 0x283037 });
+        const curbMaterial = new THREE.MeshPhongMaterial({ color: 0x5f676b, shininess: 10 });
+        const gantryMaterial = new THREE.MeshPhongMaterial({ color: 0x18212a, shininess: 28, specular: 0x35404a });
+        const railMaterial = new THREE.MeshPhongMaterial({ color: 0x2a323b, shininess: 18, specular: 0x3a4650 });
+        const crosswalkMaterial = new THREE.MeshBasicMaterial({ color: 0xf5f7f2, transparent: true, opacity: 0.82 });
+
+        function addTokyoObject(object, statsKey, options = {}) {
+            object.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = Boolean(options.castShadow);
+                    child.receiveShadow = options.receiveShadow !== false;
+                }
+            });
+            decor.add(object);
+            if (object?.position && Number.isFinite(object.position.z)) {
+                object.userData = object.userData || {};
+                object.userData.sceneryCull = {
+                    z: Number.isFinite(options.cullZ) ? options.cullZ : object.position.z,
+                    radius: Number.isFinite(options.cullRadius) ? options.cullRadius : getSceneryCullRadius(statsKey)
+                };
+                game.sceneryCullObjects = game.sceneryCullObjects || [];
+                game.sceneryCullObjects.push(object);
+            }
+            if (statsKey) {
+                stageDecorStats[statsKey] += Number.isFinite(options.count) ? options.count : 1;
+            }
+            return object;
+        }
+
+        function createTokyoSignTexture(label, options = {}) {
+            const vertical = Boolean(options.vertical);
+            const canvas = document.createElement('canvas');
+            canvas.width = vertical ? 256 : 512;
+            canvas.height = vertical ? 640 : 192;
+            const context = canvas.getContext('2d');
+            const accent = options.accent || '#45d8ff';
+            const secondary = options.secondary || '#ff4da6';
+            const background = options.background || '#08111c';
+            const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, background);
+            gradient.addColorStop(0.55, '#142335');
+            gradient.addColorStop(1, '#05080d');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.strokeStyle = accent;
+            context.lineWidth = vertical ? 10 : 8;
+            context.strokeRect(9, 9, canvas.width - 18, canvas.height - 18);
+            context.fillStyle = secondary;
+            context.globalAlpha = isNight ? 0.82 : 0.42;
+            for (let i = 0; i < 8; i++) {
+                const x = vertical ? 22 + (i % 2) * (canvas.width - 58) : 34 + i * 52;
+                const y = vertical ? 52 + i * 66 : canvas.height - 28;
+                context.fillRect(x, y, vertical ? 14 : 26, vertical ? 36 : 7);
+            }
+            context.globalAlpha = 1;
+            context.fillStyle = '#f9fbff';
+            context.shadowColor = accent;
+            context.shadowBlur = isNight ? 18 : 4;
+            if (vertical) {
+                const compactLabel = label.replace(/\s+/g, '');
+                const fontSize = compactLabel.length > 7 ? 38 : 46;
+                context.font = `800 ${fontSize}px Arial Black, Impact, sans-serif`;
+                context.textAlign = 'center';
+                compactLabel.split('').slice(0, 10).forEach((letter, index) => {
+                    context.fillText(letter, canvas.width * 0.5, 92 + index * (fontSize + 10));
+                });
+            } else {
+                context.font = '800 46px Arial Black, Impact, sans-serif';
+                context.textAlign = 'left';
+                context.fillText(label, 34, 78);
+                context.shadowBlur = isNight ? 9 : 2;
+                context.fillStyle = accent;
+                context.font = '700 27px Arial, sans-serif';
+                context.fillText(options.subtitle || 'TOKYO ROUTE', 36, 126);
+            }
+            context.shadowBlur = 0;
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.anisotropy = 4;
+            if (THREE.sRGBEncoding) {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+            return texture;
+        }
+
+        const verticalSignMaterials = [
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('SHIBUYA', { vertical: true, accent: '#ff4da6', secondary: '#39e8ff' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('AKIBA', { vertical: true, accent: '#48f7a4', secondary: '#ffd84e' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('GINZA', { vertical: true, accent: '#ffe15c', secondary: '#ff5d53' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('RAMEN', { vertical: true, accent: '#ff684f', secondary: '#f5f2dc' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('HOTEL', { vertical: true, accent: '#75d8ff', secondary: '#ff8fd1' }), transparent: true })
         ];
-        const windowMaterial = new THREE.MeshBasicMaterial({ color: 0xffe2a0, transparent: true, opacity: 0.48 });
-        const barrierMaterial = new THREE.MeshPhongMaterial({ color: 0xd7dde0, shininess: 12 });
-        const startZ = game.startLine + 70;
-        const endZ = game.finishLine + 130;
+        const storefrontMaterials = [
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('TOKYO FM', { accent: '#48dfff', secondary: '#ff4fa3', subtitle: 'ON AIR 24H' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('SHUTO C1', { accent: '#52ffa9', secondary: '#ffd84e', subtitle: 'INNER LOOP' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('RALLY TOKYO', { accent: '#ff4fa3', secondary: '#50e9ff', subtitle: 'NIGHT RUN' }), transparent: true }),
+            new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('GINZA EXIT', { accent: '#ffe15c', secondary: '#ff6d58', subtitle: 'NEXT 400M' }), transparent: true })
+        ];
 
-        for (let z = startZ; z > endZ; z -= 96) {
-            [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 11 + Math.random() * 17);
-                const width = 7 + Math.random() * 7;
-                const depth = 6 + Math.random() * 9;
-                const height = 7 + Math.random() * 18;
-                const building = new THREE.Mesh(
-                    new THREE.BoxGeometry(width, height, depth),
-                    buildingMaterials[Math.floor(Math.random() * buildingMaterials.length)]
+        function createTokyoBuilding(width, height, depth, material, side, detailLevel) {
+            const building = new THREE.Group();
+            building.name = 'city-tokyo-building';
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+            body.name = 'city-tokyo-building-body';
+            body.position.y = height * 0.5;
+            building.add(body);
+
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(width * 1.04, 0.45, depth * 1.04), roofMaterial);
+            cap.name = 'city-tokyo-roof-cap';
+            cap.position.y = height + 0.22;
+            building.add(cap);
+
+            if (height > 44 && detailLevel > 0.45) {
+                const equipment = new THREE.Mesh(
+                    new THREE.BoxGeometry(width * 0.34, 0.8 + Math.random() * 0.9, depth * 0.28),
+                    roofMaterial
                 );
-                building.name = 'city-building';
-                building.position.set(pose.x, getPropGroundY(pose.x, z, 2.5) + height * 0.5, z);
-                building.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.08;
-                addDecorMesh(decor, building, 'buildings');
+                equipment.name = 'city-tokyo-rooftop-equipment';
+                equipment.position.set((Math.random() - 0.5) * width * 0.26, height + 0.82, (Math.random() - 0.5) * depth * 0.32);
+                building.add(equipment);
+            }
 
-                for (let row = 0; row < Math.min(5, Math.floor(height / 3)); row++) {
-                    const windows = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.78, 0.42), windowMaterial);
-                    windows.name = 'city-window-strip';
-                    windows.position.set(pose.x - side * (width * 0.5 + 0.01), building.position.y - height * 0.32 + row * 2.1, z);
-                    windows.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-                    decor.add(windows);
+            if (height > 62 && detailLevel > 0.68) {
+                const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 5.5 + Math.random() * 6, 6), roofMaterial);
+                antenna.name = 'city-tokyo-roof-antenna';
+                antenna.position.set((Math.random() - 0.5) * width * 0.35, height + antenna.geometry.parameters.height * 0.5, (Math.random() - 0.5) * depth * 0.36);
+                building.add(antenna);
+            }
+
+            const signFaceX = -side * (width * 0.5 + 0.04);
+            const verticalSignChance = THREE.MathUtils.clamp((detailLevel - 0.28) * 0.24, 0, 0.18);
+            const hasVerticalSign = detailLevel > 0.28 && Math.random() < verticalSignChance;
+            if (hasVerticalSign) {
+                const signHeight = Math.min(height * 0.62, 18 + Math.random() * 22);
+                const signWidth = 1.5 + Math.random() * 1.1;
+                const sign = new THREE.Mesh(
+                    new THREE.PlaneGeometry(signWidth, signHeight),
+                    verticalSignMaterials[Math.floor(Math.random() * verticalSignMaterials.length)]
+                );
+                sign.name = 'city-tokyo-neon-vertical-sign';
+                sign.position.set(signFaceX, Math.max(5, height * (0.42 + Math.random() * 0.18)), (Math.random() - 0.5) * depth * 0.54);
+                sign.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                building.add(sign);
+            }
+
+            const storefrontChance = hasVerticalSign
+                ? 0.07
+                : THREE.MathUtils.clamp(0.06 + detailLevel * 0.16, 0.08, 0.22);
+            if (detailLevel > 0.12 && Math.random() < storefrontChance) {
+                const storefront = new THREE.Mesh(
+                    new THREE.PlaneGeometry(Math.max(4.2, depth * 0.72), 1.7),
+                    storefrontMaterials[Math.floor(Math.random() * storefrontMaterials.length)]
+                );
+                storefront.name = 'city-tokyo-storefront-sign';
+                storefront.position.set(signFaceX, 3.1, 0);
+                storefront.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                building.add(storefront);
+            }
+
+            return building;
+        }
+
+        function placeBuildingRows() {
+            const randomRange = range => range[0] + Math.random() * (range[1] - range[0]);
+            const blockStep = 92;
+            const blockRows = [
+                { offset: [16, 21], zSlots: [-29, 0, 29], width: [8.5, 13], depth: [16, 22], height: [24, 66], cullRadius: 225, detail: 0.98 },
+                { offset: [34, 47], zSlots: [-24, 24], width: [14, 23], depth: [22, 34], height: [48, 122], cullRadius: 340, detail: 0.66 },
+                { offset: [64, 92], zSlots: [0], width: [24, 38], depth: [28, 48], height: [82, 176], cullRadius: 500, detail: 0.34, every: 3 }
+            ];
+
+            [-1, 1].forEach(side => {
+                let blockIndex = 0;
+                for (let blockZ = startZ - (side > 0 ? 34 : 0); blockZ > endZ; blockZ -= blockStep) {
+                    const hasCrossStreetGap = blockIndex % 9 === 5;
+                    blockRows.forEach((row, rowIndex) => {
+                        if (row.every && blockIndex % row.every !== (side > 0 ? 1 : 0)) {
+                            return;
+                        }
+
+                        row.zSlots.forEach(slot => {
+                            if (hasCrossStreetGap && rowIndex === 0 && Math.abs(slot) < 1) {
+                                return;
+                            }
+
+                            const actualZ = blockZ + slot + (Math.random() - 0.5) * 3.6;
+                            if (actualZ > startZ + 34 || actualZ < endZ - 34) {
+                                return;
+                            }
+
+                            const offset = randomRange(row.offset);
+                            const pose = getRoadsidePose(actualZ, side, offset);
+                            const width = randomRange(row.width);
+                            const depth = randomRange(row.depth);
+                            const height = randomRange(row.height);
+                            const materialIndex = Math.floor(Math.random() * facadeMaterials.length);
+                            const material = rowIndex === 0 && Math.random() < 0.22 ? darkGlassMaterial : facadeMaterials[materialIndex];
+                            const building = createTokyoBuilding(width, height, depth, material, side, row.detail * (0.68 + Math.random() * 0.55));
+                            building.position.set(
+                                pose.x,
+                                getPropGroundY(pose.x, actualZ, Math.max(width, depth) * 0.55) + 0.02,
+                                actualZ
+                            );
+                            building.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.028;
+                            addTokyoObject(building, 'buildings', {
+                                cullRadius: row.cullRadius,
+                                castShadow: rowIndex === 0 && Math.random() < 0.16
+                            });
+                        });
+                    });
+                    blockIndex += 1;
                 }
             });
         }
 
-        for (let z = startZ - 15; z > endZ; z -= 72) {
-            [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 1.4);
-                const barrier = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, 8.5), barrierMaterial);
-                barrier.name = 'city-concrete-barrier';
-                barrier.position.set(pose.x, pose.roadY + 0.31, z);
-                barrier.rotation.y = pose.yaw;
-                addDecorMesh(decor, barrier);
+        function addSkylinePanels() {
+            const skylineMaterials = [
+                new THREE.MeshBasicMaterial({
+                    map: createTokyoSkylineTexture(0, environment),
+                    transparent: true,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                }),
+                new THREE.MeshBasicMaterial({
+                    map: createTokyoSkylineTexture(1, environment),
+                    transparent: true,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                })
+            ];
+            const layers = [
+                { distance: 188, height: 78, step: 360, material: skylineMaterials[0], count: 8 },
+                { distance: 312, height: 124, step: 420, material: skylineMaterials[1], count: 12 }
+            ];
+
+            layers.forEach((layer, layerIndex) => {
+                [-1, 1].forEach(side => {
+                    for (let z = startZ - layerIndex * 110; z > endZ; z -= layer.step) {
+                        const roadData = getLinearRoadDataAtZ(z);
+                        const roadPose = getRoadDataAtZ(z, game);
+                        const x = roadData.curve + side * (halfRoadWidth + layer.distance);
+                        const panel = new THREE.Mesh(new THREE.PlaneGeometry(layer.step * 1.24, layer.height), layer.material);
+                        panel.name = 'city-tokyo-distant-skyline';
+                        panel.position.set(x, getPropGroundY(x, z, 44) + layer.height * 0.5 - 1.2, z);
+                        panel.rotation.y = side > 0 ? -Math.PI / 2 - roadPose.curvatureAngle : Math.PI / 2 - roadPose.curvatureAngle;
+                        addTokyoObject(panel, 'buildings', {
+                            cullRadius: 560,
+                            count: layer.count,
+                            receiveShadow: false
+                        });
+                    }
+                });
             });
         }
 
-        for (let z = startZ - 20; z > endZ; z -= 170) {
-            [-1, 1].forEach(side => {
-                const pose = getRoadsidePose(z, side, 3.25);
-                addStreetLight(decor, pose.x, pose.roadY, z, 0xffecb0, 5.6);
-            });
+        function getTokyoRoadAlignedPlacement(z, side, offsetFromRoadEdge, heightOffset, length) {
+            const front = getRoadsidePose(z - length * 0.5, side, offsetFromRoadEdge);
+            const rear = getRoadsidePose(z + length * 0.5, side, offsetFromRoadEdge);
+            const start = new THREE.Vector3(rear.x, rear.roadY + heightOffset, rear.z);
+            const end = new THREE.Vector3(front.x, front.roadY + heightOffset, front.z);
+            const forward = end.clone().sub(start).normalize();
+            const right = localUp.clone().cross(forward).normalize();
+            const up = forward.clone().cross(right).normalize();
+            const matrix = new THREE.Matrix4().makeBasis(right, up, forward);
+            return {
+                position: start.clone().add(end).multiplyScalar(0.5),
+                quaternion: new THREE.Quaternion().setFromRotationMatrix(matrix)
+            };
         }
 
-        const signTexture = createSignTexture('RALLY CITY', 'DOWNTOWN EXPRESS', '#14212b', '#ffd84e');
-        const signMaterial = new THREE.MeshBasicMaterial({ map: signTexture, transparent: true });
-        const gantryMaterial = new THREE.MeshPhongMaterial({ color: 0x222a31, shininess: 30 });
-        for (let z = startZ - 180; z > endZ; z -= 760) {
-            const roadData = getLinearRoadDataAtZ(z);
-            const roadPose = getRoadDataAtZ(z, game);
-            const width = game.road.width + 8;
-            const beam = new THREE.Mesh(new THREE.BoxGeometry(width, 0.32, 0.34), gantryMaterial);
-            beam.name = 'city-overhead-gantry';
-            beam.position.set(roadData.curve, roadData.y + 6.3, z);
-            beam.rotation.y = -roadPose.curvatureAngle;
-            addDecorMesh(decor, beam);
-
-            [-1, 1].forEach(side => {
-                const post = new THREE.Mesh(new THREE.BoxGeometry(0.34, 6.4, 0.34), gantryMaterial);
-                post.name = 'city-gantry-post';
-                post.position.set(roadData.curve + side * (halfRoadWidth + 3.8), roadData.y + 3.15, z);
-                addDecorMesh(decor, post);
-            });
-
-            const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 2.6), signMaterial);
-            sign.name = 'city-overhead-sign';
-            sign.position.set(roadData.curve, roadData.y + 5.25, z + 0.2);
-            sign.rotation.y = -roadPose.curvatureAngle;
-            addDecorMesh(decor, sign, 'billboards');
+        function getTokyoRoadSurfacePlacement(z, heightOffset, length) {
+            const front = getLinearRoadDataAtZ(z - length * 0.5);
+            const rear = getLinearRoadDataAtZ(z + length * 0.5);
+            const start = new THREE.Vector3(rear.curve, rear.y + heightOffset, z + length * 0.5);
+            const end = new THREE.Vector3(front.curve, front.y + heightOffset, z - length * 0.5);
+            const forward = end.clone().sub(start).normalize();
+            const right = localUp.clone().cross(forward).normalize();
+            const up = forward.clone().cross(right).normalize();
+            const matrix = new THREE.Matrix4().makeBasis(right, up, forward);
+            return {
+                position: start.clone().add(end).multiplyScalar(0.5),
+                quaternion: new THREE.Quaternion().setFromRotationMatrix(matrix)
+            };
         }
 
-        for (let z = startZ - 140; z > endZ; z -= 420) {
-            const side = Math.random() > 0.5 ? 1 : -1;
-            const pose = getRoadsidePose(z, side, 5.8 + Math.random() * 3);
-            const billboard = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 2.1), signMaterial);
-            billboard.name = 'city-billboard';
-            billboard.position.set(pose.x, pose.roadY + 4.4, z);
-            billboard.rotation.y = side > 0 ? -Math.PI / 2 + pose.yaw : Math.PI / 2 + pose.yaw;
-            addDecorMesh(decor, billboard, 'billboards');
-        }
-
-        const crosswalkMaterial = new THREE.MeshBasicMaterial({ color: 0xf4f8f5, transparent: true, opacity: 0.72 });
-        for (let z = startZ - 260; z > endZ; z -= 920) {
-            const roadData = getLinearRoadDataAtZ(z);
-            const roadPose = getRoadDataAtZ(z, game);
-            for (let i = -3; i <= 3; i++) {
-                const stripe = new THREE.Mesh(new THREE.BoxGeometry(game.road.width * 0.62, 0.025, 0.16), crosswalkMaterial);
-                stripe.name = 'city-crosswalk-stripe';
-                stripe.position.set(roadData.curve, roadData.y + 0.045, z + i * 0.45);
-                stripe.rotation.y = -roadPose.curvatureAngle;
-                decor.add(stripe);
+        function addRoadsideBarriers() {
+            const barrierLength = 7.8;
+            for (let z = startZ - 10; z > endZ; z -= 58) {
+                [-1, 1].forEach(side => {
+                    const placement = getTokyoRoadAlignedPlacement(z, side, 0.9, 0, barrierLength);
+                    const barrier = new THREE.Group();
+                    barrier.name = 'city-tokyo-road-edge-barrier';
+                    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.76, barrierLength), barrierMaterial);
+                    wall.position.y = 0.38;
+                    barrier.add(wall);
+                    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, barrierLength + 0.12), curbMaterial);
+                    cap.position.y = 0.82;
+                    barrier.add(cap);
+                    if (Math.floor(Math.abs(z) / 54) % 3 === 0) {
+                        const reflector = new THREE.Mesh(
+                            new THREE.PlaneGeometry(0.34, 0.18),
+                            new THREE.MeshBasicMaterial({ color: side > 0 ? 0xff344d : 0x4fd9ff, transparent: true, opacity: 0.76 })
+                        );
+                        reflector.position.set(-side * 0.255, 0.56, 0);
+                        reflector.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                        barrier.add(reflector);
+                    }
+                    barrier.position.copy(placement.position);
+                    barrier.quaternion.copy(placement.quaternion);
+                    addTokyoObject(barrier, 'guardrails', { cullRadius: 70 });
+                });
             }
         }
+
+        function addTokyoStreetLights() {
+            const poleMaterial = new THREE.MeshPhongMaterial({ color: 0x1d2730, shininess: 24 });
+            const glowMaterials = [
+                new THREE.MeshBasicMaterial({ color: 0xffe9af, transparent: true, opacity: 0.82 }),
+                new THREE.MeshBasicMaterial({ color: 0x9feeff, transparent: true, opacity: 0.7 })
+            ];
+
+            for (let z = startZ - 28; z > endZ; z -= 220) {
+                [-1, 1].forEach(side => {
+                    const pose = getRoadsidePose(z, side, 3.2);
+                    const height = 7.8 + Math.random() * 1.4;
+                    const lamp = new THREE.Group();
+                    lamp.name = 'city-tokyo-streetlight';
+                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.12, height, 8), poleMaterial);
+                    pole.position.y = height * 0.5;
+                    lamp.add(pole);
+                    const arm = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.08, 0.08), poleMaterial);
+                    arm.position.set(-side * 0.98, height - 0.28, 0);
+                    lamp.add(arm);
+                    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), glowMaterials[Math.floor(Math.random() * glowMaterials.length)]);
+                    bulb.position.set(-side * 2.0, height - 0.34, 0);
+                    lamp.add(bulb);
+                    lamp.position.set(pose.x, pose.roadY, z);
+                    lamp.rotation.y = pose.yaw;
+                    addTokyoObject(lamp, 'streetLights', { cullRadius: 105 });
+
+                    if (isNight) {
+                        const lightPosition = new THREE.Vector3(-side * 2.0, height - 0.34, 0)
+                            .applyAxisAngle(localUp, lamp.rotation.y)
+                            .add(lamp.position);
+                        addDecorPointLight(decor, bulb.material.color.getHex(), 0.72, 19, 2, lightPosition, 14);
+                    }
+                });
+            }
+        }
+
+        function addElevatedHighwaySupports() {
+            const supportMaterial = new THREE.MeshPhongMaterial({ color: 0x81888b, shininess: 10, specular: 0x2b3033 });
+            const deckEdgeMaterial = new THREE.MeshPhongMaterial({ color: 0xb9bfc1, shininess: 12, specular: 0x30363a });
+
+            for (let z = startZ - 70; z > endZ; z -= 92) {
+                const roadData = getLinearRoadDataAtZ(z);
+                if ((roadData.highwayElevation || 0) < 2.4) {
+                    continue;
+                }
+                const roadPose = getRoadDataAtZ(z, game);
+                const groundY = roadData.y - roadData.highwayElevation + 0.18;
+                const columnHeight = Math.max(1.2, roadData.y - groundY - 0.38);
+
+                if (Math.floor(Math.abs(z) / 184) % 2 === 0) {
+                    [-1, 1].forEach(side => {
+                        const support = new THREE.Group();
+                        support.name = 'city-tokyo-elevated-highway-support';
+                        const column = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, columnHeight, 10), supportMaterial);
+                        column.position.set(side * (halfRoadWidth * 0.58), groundY + columnHeight * 0.5, 0);
+                        support.add(column);
+                        const head = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.45, 1.3), supportMaterial);
+                        head.position.set(side * (halfRoadWidth * 0.58), roadData.y - 0.32, 0);
+                        support.add(head);
+                        support.position.set(roadData.curve, 0, z);
+                        support.rotation.y = -roadPose.curvatureAngle;
+                        addTokyoObject(support, 'buildings', { cullRadius: 170, count: 0 });
+                    });
+                }
+
+                if (Math.floor(Math.abs(z) / 184) % 2 === 1) {
+                    [-1, 1].forEach(side => {
+                        const placement = getTokyoRoadAlignedPlacement(z, side, 0.42, 0.54, 68);
+                        const deckWall = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.05, 68), deckEdgeMaterial);
+                        deckWall.name = 'city-tokyo-elevated-highway-sidewall';
+                        deckWall.position.copy(placement.position);
+                        deckWall.quaternion.copy(placement.quaternion);
+                        addTokyoObject(deckWall, 'guardrails', { cullRadius: 128 });
+                    });
+                }
+            }
+        }
+
+        function addPedestrianOverpasses() {
+            const deckMaterial = new THREE.MeshPhongMaterial({ color: 0xc7ccca, shininess: 16, specular: 0x384047 });
+            const railMat = new THREE.MeshPhongMaterial({ color: 0x303941, shininess: 16, specular: 0x3c4650 });
+            const stairMaterial = new THREE.MeshPhongMaterial({ color: 0xaeb5b4, shininess: 8, specular: 0x2e3436 });
+            const signMaterial = new THREE.MeshBasicMaterial({
+                map: createTokyoSignTexture('PEDESTRIAN DECK', { accent: '#55e4ff', secondary: '#ffe15c', subtitle: 'TOKYO CROSSING' }),
+                transparent: true
+            });
+
+            for (let z = startZ - 580; z > endZ; z -= 1120) {
+                const roadData = getLinearRoadDataAtZ(z);
+                if ((roadData.highwayElevation || 0) > 5.5) {
+                    continue;
+                }
+                const roadPose = getRoadDataAtZ(z, game);
+                const overpass = new THREE.Group();
+                overpass.name = 'city-tokyo-pedestrian-overpass';
+                const deckWidth = game.road.width + 24;
+                const deckY = roadData.y + 6.4;
+                const deck = new THREE.Mesh(new THREE.BoxGeometry(deckWidth, 0.34, 2.7), deckMaterial);
+                deck.position.y = deckY;
+                overpass.add(deck);
+
+                [-1, 1].forEach(side => {
+                    const railA = new THREE.Mesh(new THREE.BoxGeometry(deckWidth, 0.16, 0.12), railMat);
+                    railA.position.set(0, deckY + 0.72, side * 1.16);
+                    overpass.add(railA);
+
+                    const stairTower = new THREE.Mesh(new THREE.BoxGeometry(3.2, 6.1, 2.2), stairMaterial);
+                    stairTower.name = 'city-tokyo-overpass-stair';
+                    stairTower.position.set(side * (halfRoadWidth + 8.5), roadData.y + 3.05, 0);
+                    overpass.add(stairTower);
+
+                    const ramp = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.28, 2.0), stairMaterial);
+                    ramp.name = 'city-tokyo-overpass-stair-ramp';
+                    ramp.position.set(side * (halfRoadWidth + 13.0), roadData.y + 2.95, -2.7);
+                    ramp.rotation.z = side * 0.42;
+                    overpass.add(ramp);
+                });
+
+                const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 1.7), signMaterial);
+                sign.name = 'city-tokyo-overpass-sign';
+                sign.position.set(0, deckY + 1.0, 1.42);
+                overpass.add(sign);
+
+                overpass.position.set(roadData.curve, 0, z);
+                overpass.rotation.y = -roadPose.curvatureAngle;
+                addTokyoObject(overpass, 'buildings', { cullRadius: 190, count: 1 });
+            }
+        }
+
+        function addGantrySigns() {
+            const signMaterials = [
+                new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('SHUTO EXPWY', { accent: '#47dfff', secondary: '#ff4da6', subtitle: 'TOKYO C1' }), transparent: true }),
+                new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('SHIBUYA EXIT', { accent: '#54ffa8', secondary: '#ffd84e', subtitle: 'LEFT 600M' }), transparent: true }),
+                new THREE.MeshBasicMaterial({ map: createTokyoSignTexture('BAY ROUTE', { accent: '#ffe15c', secondary: '#4bdfff', subtitle: 'RAINBOW BRIDGE' }), transparent: true })
+            ];
+
+            for (let z = startZ - 220; z > endZ; z -= 680) {
+                const roadData = getLinearRoadDataAtZ(z);
+                const roadPose = getRoadDataAtZ(z, game);
+                const gantry = new THREE.Group();
+                gantry.name = 'city-tokyo-overhead-gantry';
+                const width = game.road.width + 11;
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(width, 0.34, 0.36), gantryMaterial);
+                beam.position.y = 7.1;
+                gantry.add(beam);
+                [-1, 1].forEach(side => {
+                    const post = new THREE.Mesh(new THREE.BoxGeometry(0.34, 7.1, 0.34), gantryMaterial);
+                    post.position.set(side * (halfRoadWidth + 4.6), 3.55, 0);
+                    gantry.add(post);
+                });
+                const sign = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 3.0), signMaterials[Math.floor(Math.random() * signMaterials.length)]);
+                sign.name = 'city-tokyo-overhead-route-sign';
+                sign.position.set(0, 5.7, 0.22);
+                gantry.add(sign);
+                gantry.position.set(roadData.curve, roadData.y, z);
+                gantry.rotation.y = -roadPose.curvatureAngle;
+                addTokyoObject(gantry, 'billboards', { cullRadius: 185 });
+            }
+        }
+
+        function addZebraCrosswalks() {
+            for (let z = startZ - 315; z > endZ; z -= 860) {
+                const crossing = new THREE.Group();
+                crossing.name = 'city-tokyo-zebra-crosswalk';
+                const stripeCount = 8;
+                const crossingWidth = game.road.width * 0.74;
+                const stripeWidth = 0.46;
+                const stripeLength = 5.4;
+                const placement = getTokyoRoadSurfacePlacement(z, 0.095, stripeLength);
+                const stripeGap = (crossingWidth - stripeCount * stripeWidth) / (stripeCount - 1);
+                const firstStripeX = -crossingWidth * 0.5 + stripeWidth * 0.5;
+                for (let i = 0; i < stripeCount; i++) {
+                    const stripe = new THREE.Mesh(new THREE.BoxGeometry(stripeWidth, 0.018, stripeLength), crosswalkMaterial);
+                    stripe.name = 'city-tokyo-crosswalk-stripe';
+                    stripe.position.x = firstStripeX + i * (stripeWidth + stripeGap);
+                    crossing.add(stripe);
+                }
+                crossing.position.copy(placement.position);
+                crossing.quaternion.copy(placement.quaternion);
+                addTokyoObject(crossing, null, { cullRadius: 105 });
+            }
+        }
+
+        function addTokyoLandmarks() {
+            const redMaterial = new THREE.MeshPhongMaterial({ color: 0xdb2f2f, shininess: 22, emissive: isNight ? 0x240202 : 0x000000, emissiveIntensity: isNight ? 0.35 : 0 });
+            const whiteMaterial = new THREE.MeshPhongMaterial({ color: 0xf0f1e8, shininess: 18 });
+            const steelMaterial = new THREE.MeshPhongMaterial({ color: 0xaab4bc, shininess: 36, specular: 0x6f7d86, emissive: isNight ? 0x101820 : 0x000000, emissiveIntensity: isNight ? 0.2 : 0 });
+            const glassMaterial = new THREE.MeshBasicMaterial({ color: isNight ? 0x9be8ff : 0xb9dce6, transparent: true, opacity: isNight ? 0.78 : 0.42 });
+            const deckMaterial = new THREE.MeshBasicMaterial({ color: isNight ? 0xffd36b : 0xf4e2a4, transparent: true, opacity: isNight ? 0.9 : 0.58 });
+
+            const towerZ = game.finishLine + 430;
+            const towerPose = getRoadsidePose(towerZ, 1, 86);
+            const tower = new THREE.Group();
+            tower.name = 'city-tokyo-tower-landmark';
+            let y = 0;
+            for (let i = 0; i < 11; i++) {
+                const segmentHeight = 8.9;
+                const radius = 2.15 - i * 0.145;
+                const section = new THREE.Mesh(
+                    new THREE.CylinderGeometry(Math.max(0.42, radius * 0.74), radius, segmentHeight, 4, 1, true),
+                    i % 2 === 0 ? redMaterial : whiteMaterial
+                );
+                section.position.y = y + segmentHeight * 0.5;
+                tower.add(section);
+
+                if (i % 2 === 0) {
+                    const brace = new THREE.Mesh(new THREE.BoxGeometry(radius * 1.8, 0.18, 0.18), i % 4 === 0 ? whiteMaterial : redMaterial);
+                    brace.name = 'city-tokyo-tower-cross-brace';
+                    brace.position.y = y + segmentHeight * 0.5;
+                    brace.rotation.y = Math.PI / 4;
+                    tower.add(brace);
+                    const braceB = brace.clone();
+                    braceB.rotation.y = -Math.PI / 4;
+                    tower.add(braceB);
+                }
+                y += segmentHeight;
+            }
+            const deck = new THREE.Mesh(new THREE.CylinderGeometry(5.1, 5.6, 2.4, 12), deckMaterial);
+            deck.position.y = 54;
+            tower.add(deck);
+            const upperDeck = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.1, 1.7, 10), deckMaterial);
+            upperDeck.position.y = 87;
+            tower.add(upperDeck);
+            const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.28, 34, 8), redMaterial);
+            mast.position.y = 116;
+            tower.add(mast);
+            tower.position.set(towerPose.x, getPropGroundY(towerPose.x, towerZ, 8), towerZ);
+            tower.rotation.y = towerPose.yaw + 0.28;
+            addTokyoObject(tower, 'buildings', { cullRadius: 1300, count: 5 });
+
+            const skytreeZ = game.finishLine + 780;
+            const skytreePose = getRoadsidePose(skytreeZ, -1, 138);
+            const skytree = new THREE.Group();
+            skytree.name = 'city-tokyo-skytree-landmark';
+            const baseLegRadius = 10;
+            [-1, 1].forEach(side => {
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.34, 76, 8), steelMaterial);
+                leg.name = 'city-tokyo-skytree-sloped-leg';
+                leg.position.set(side * baseLegRadius * 0.34, 38, 0);
+                leg.rotation.z = -side * 0.12;
+                skytree.add(leg);
+            });
+            const core = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.86, 124, 12), steelMaterial);
+            core.name = 'city-tokyo-skytree-core';
+            core.position.y = 62;
+            skytree.add(core);
+            const lowerDeck = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 6.2, 3.2, 18), glassMaterial);
+            lowerDeck.name = 'city-tokyo-skytree-observation-deck';
+            lowerDeck.position.y = 74;
+            skytree.add(lowerDeck);
+            const upperDeckMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.9, 2.4, 18), glassMaterial);
+            upperDeckMesh.name = 'city-tokyo-skytree-upper-deck';
+            upperDeckMesh.position.y = 101;
+            skytree.add(upperDeckMesh);
+            const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.28, 44, 8), steelMaterial);
+            spire.name = 'city-tokyo-skytree-spire';
+            spire.position.y = 145;
+            skytree.add(spire);
+            skytree.position.set(skytreePose.x, getPropGroundY(skytreePose.x, skytreeZ, 8), skytreeZ);
+            skytree.rotation.y = skytreePose.yaw - 0.18;
+            addTokyoObject(skytree, 'buildings', { cullRadius: 1500, count: 5 });
+        }
+
+        placeBuildingRows();
+        addSkylinePanels();
+        addRoadsideBarriers();
+        addTokyoStreetLights();
+        addElevatedHighwaySupports();
+        addPedestrianOverpasses();
+        addGantrySigns();
+        addZebraCrosswalks();
+        addTokyoLandmarks();
     }
 
     function addLakeRoadsideDecor(decor) {
@@ -6412,28 +7287,44 @@ function generateRoadAndTerrain(scene, game, environment) {
             ? createCoastalSkyTexture()
             : environment.id === 'jungle'
                 ? createJungleSkyTexture(environment)
-                : null;
+                : environment.id === 'city'
+                    ? createTokyoSkyTexture(environment)
+                    : null;
     scene.background = stageSkyTexture
         ? adaptSkyTexture(stageSkyTexture, atmosphere)
         : atmosphere.skyColor;
     scene.fog = environment.disableFog ? null : new THREE.FogExp2(atmosphere.fogColor, atmosphere.fogDensity);
 
-    function createBannerTexture(label) {
+    function createBannerTexture(label, options = {}) {
+        const highVisibility = Boolean(options.highVisibility);
         const canvas = document.createElement('canvas');
         canvas.width = 1024;
         canvas.height = 256;
         const context = canvas.getContext('2d');
         const squareSize = 32;
 
-        context.fillStyle = '#22242b';
-        context.fillRect(0, 0, canvas.width, canvas.height);
+        if (highVisibility) {
+            const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#ffd84a');
+            gradient.addColorStop(0.5, '#fff2a8');
+            gradient.addColorStop(1, '#ffd84a');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
 
-        const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
-        gradient.addColorStop(0, '#15171d');
-        gradient.addColorStop(0.5, '#343741');
-        gradient.addColorStop(1, '#15171d');
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = '#101218';
+            context.fillRect(0, 0, canvas.width, 34);
+            context.fillRect(0, canvas.height - 34, canvas.width, 34);
+        } else {
+            context.fillStyle = '#22242b';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+            gradient.addColorStop(0, '#15171d');
+            gradient.addColorStop(0.5, '#343741');
+            gradient.addColorStop(1, '#15171d');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         for (let x = 0; x < canvas.width; x += squareSize) {
             for (let y = 0; y < canvas.height; y += squareSize) {
@@ -6448,19 +7339,19 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
         }
 
-        context.strokeStyle = '#f4f1df';
-        context.lineWidth = 10;
+        context.strokeStyle = highVisibility ? '#101218' : '#f4f1df';
+        context.lineWidth = highVisibility ? 14 : 10;
         context.strokeRect(96, 36, canvas.width - 192, canvas.height - 72);
 
-        context.fillStyle = '#f4f1df';
+        context.fillStyle = highVisibility ? '#101218' : '#f4f1df';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.font = '900 112px Arial, sans-serif';
-        context.fillText(label, canvas.width / 2, 108);
+        context.font = highVisibility ? '900 132px Arial Black, Impact, sans-serif' : '900 112px Arial, sans-serif';
+        context.fillText(label, canvas.width / 2, highVisibility ? 118 : 108);
 
         context.font = '900 44px Arial, sans-serif';
-        context.fillStyle = '#ffd447';
-        context.fillText('RALLYRUSHII', canvas.width / 2, 190);
+        context.fillStyle = highVisibility ? '#db1f2e' : '#ffd447';
+        context.fillText(highVisibility ? 'TOKYO STAGE' : 'RALLYRUSHII', canvas.width / 2, 190);
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.anisotropy = 4;
@@ -6472,12 +7363,50 @@ function generateRoadAndTerrain(scene, game, environment) {
         return texture;
     }
 
+    function createFinishRoadMarkerTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        context.fillStyle = 'rgba(255,255,255,0)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        const squareSize = 64;
+        for (let x = 0; x < canvas.width; x += squareSize) {
+            for (let y = 0; y < canvas.height; y += squareSize) {
+                context.fillStyle = ((x / squareSize + y / squareSize) % 2 === 0) ? '#f9fbff' : '#101218';
+                context.fillRect(x, y, squareSize, squareSize);
+            }
+        }
+
+        context.fillStyle = 'rgba(255,216,74,0.92)';
+        context.fillRect(0, canvas.height * 0.34, canvas.width, canvas.height * 0.32);
+        context.strokeStyle = '#101218';
+        context.lineWidth = 18;
+        context.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
+        context.fillStyle = '#101218';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.font = '900 142px Arial Black, Impact, sans-serif';
+        context.fillText('FINISH', canvas.width * 0.5, canvas.height * 0.5);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
+        return texture;
+    }
+
     function createRallyStructure(scene, game, zPosition, isFinishLine) {
-        const poleHeight = 10;
-        const poleWidth = 0.5;
-        const poleDepth = 0.5;
-        const bannerWidth = game.road.width; // Match the road's width
-        const bannerHeight = 3;
+        const isCityFinish = isFinishLine && environment.id === 'city';
+        const poleHeight = isCityFinish ? 16 : 10;
+        const poleWidth = isCityFinish ? 0.8 : 0.5;
+        const poleDepth = isCityFinish ? 0.8 : 0.5;
+        const bannerWidth = isCityFinish ? game.road.width + 10 : game.road.width;
+        const bannerHeight = isCityFinish ? 4.8 : 3;
     
         // Get the road data at the specified zPosition
         const roadData = getRoadDataAtZ(zPosition, game);
@@ -6488,7 +7417,9 @@ function generateRoadAndTerrain(scene, game, environment) {
     
         // Create poles
         const poleGeometry = new THREE.BoxGeometry(poleWidth, poleHeight, poleDepth);
-        const poleMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const poleMaterial = isCityFinish
+            ? new THREE.MeshBasicMaterial({ color: 0xfff0a8 })
+            : new THREE.MeshPhongMaterial({ color: 0xffffff });
         const leftPole = new THREE.Mesh(poleGeometry, poleMaterial);
         const rightPole = new THREE.Mesh(poleGeometry, poleMaterial);
     
@@ -6496,7 +7427,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         leftPole.position.set(-bannerWidth / 2, poleHeight / 2, 0);
         rightPole.position.set(bannerWidth / 2, poleHeight / 2, 0);
     
-        const bannerTexture = createBannerTexture(isFinishLine ? 'FINISH' : 'START');
+        const bannerTexture = createBannerTexture(isFinishLine ? 'FINISH' : 'START', { highVisibility: isCityFinish });
     
         // Create banner
         const bannerGeometry = new THREE.PlaneGeometry(bannerWidth, bannerHeight);
@@ -6509,14 +7440,35 @@ function generateRoadAndTerrain(scene, game, environment) {
     
         // Add to scene
         structureGroup.add(leftPole, rightPole, banner);
+
+        if (isCityFinish) {
+            const frameMaterial = new THREE.MeshBasicMaterial({ color: 0xffd84a });
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x55e4ff,
+                transparent: true,
+                opacity: 0.34,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const topFrame = new THREE.Mesh(new THREE.BoxGeometry(bannerWidth + 1.4, 0.36, 0.44), frameMaterial);
+            topFrame.position.set(0, poleHeight + 0.18, 0);
+            const lowerFrame = new THREE.Mesh(new THREE.BoxGeometry(bannerWidth + 1.4, 0.3, 0.4), frameMaterial);
+            lowerFrame.position.set(0, poleHeight - bannerHeight - 0.1, 0);
+            const glowPanel = new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth + 2.4, bannerHeight + 1.1), glowMaterial);
+            glowPanel.position.set(0, poleHeight - bannerHeight / 2, -0.06);
+            glowPanel.rotation.y = Math.PI;
+            structureGroup.add(topFrame, lowerFrame, glowPanel);
+        }
     
         if (isFinishLine) {
             // Add a finish line tape on the ground
-            const lineGeometry = new THREE.PlaneGeometry(bannerWidth, 0.2);
-            const lineMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+            const lineGeometry = new THREE.PlaneGeometry(bannerWidth, isCityFinish ? 7.8 : 0.2);
+            const lineMaterial = isCityFinish
+                ? new THREE.MeshBasicMaterial({ map: createFinishRoadMarkerTexture(), transparent: true, side: THREE.DoubleSide })
+                : new THREE.MeshPhongMaterial({ color: 0xff0000 });
             const finishLine = new THREE.Mesh(lineGeometry, lineMaterial);
             finishLine.rotation.x = -Math.PI / 2;
-            finishLine.position.set(0, 0.1, 0);
+            finishLine.position.set(0, isCityFinish ? 0.16 : 0.1, isCityFinish ? 0.7 : 0);
             structureGroup.add(finishLine);
         }
 
