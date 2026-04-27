@@ -1575,6 +1575,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             horizonWaterExtension: 260,
             wallDistance: 1.15,
             hillsideMinDistance: 12,
+            hillsideHeight: 16,
             ...environment.coastalBiome
         }
         : null;
@@ -1707,7 +1708,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         const detailNoise = lakeNoise.noise2D(z * 0.013, 14.8);
         const curveShelter = Math.abs(terrainRoadData.curve) / 58;
         const shoreDistance = THREE.MathUtils.clamp(
-            14.5 + broadNoise * 4.8 + detailNoise * 1.7 - curveShelter * 1.6,
+            43 + broadNoise * 8.8 + detailNoise * 2.7 - curveShelter * 1.2,
             coastalBiome.minShoreDistance,
             coastalBiome.maxShoreDistance
         );
@@ -1731,7 +1732,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 return baseHeight;
             }
 
-            const cliffStart = shoulderWidth + 0.65;
+            const cliffStart = shoulderWidth + 3.2;
             const upperBankEnd = Math.max(cliffStart + 2, profile.shoreDistance - coastalBiome.shoreWidth * 0.62);
             const waterStart = profile.shoreDistance + coastalBiome.shoreWidth * 0.55;
             const bankT = smoothStep(cliffStart, waterStart, distanceFromRoadEdge);
@@ -1742,9 +1743,11 @@ function generateRoadAndTerrain(scene, game, environment) {
             return Math.min(baseHeight, cliffY);
         }
 
-        const hillsideT = smoothStep(shoulderWidth + coastalBiome.hillsideMinDistance, terrainWidth * 0.82, distanceFromRoadEdge);
-        const cliffNoise = lakeNoise.noise2D(x * 0.009, z * 0.006) * 2.4 + lakeNoise.noise2D(x * 0.024, z * 0.012) * 0.8;
-        return baseHeight + Math.max(0, hillsideT * (4.2 + cliffNoise));
+        const hillsideT = smoothStep(shoulderWidth + coastalBiome.hillsideMinDistance, terrainWidth * 0.88, distanceFromRoadEdge);
+        const nearSlopeT = smoothStep(shoulderWidth + 3.5, shoulderWidth + coastalBiome.hillsideMinDistance + 34, distanceFromRoadEdge);
+        const ridgeT = Math.max(hillsideT, nearSlopeT * 0.48);
+        const cliffNoise = lakeNoise.noise2D(x * 0.009, z * 0.006) * 3.9 + lakeNoise.noise2D(x * 0.024, z * 0.012) * 1.4;
+        return baseHeight + Math.max(0, ridgeT * ((coastalBiome.hillsideHeight || 16) + cliffNoise));
     }
 
     function updateGeometries() {
@@ -5504,37 +5507,18 @@ function generateRoadAndTerrain(scene, game, environment) {
             side: THREE.DoubleSide
         });
         const limestoneBarrierMaterial = new THREE.MeshPhongMaterial({
-            color: 0xd9d0b8,
+            color: 0xf1efe2,
             specular: 0x3a342b,
             shininess: 12
         });
-        const roofMaterial = new THREE.MeshPhongMaterial({
-            color: 0xc15c34,
+        const terracottaCapMaterial = new THREE.MeshPhongMaterial({
+            color: 0xb44f2f,
             map: roofTexture,
             bumpMap: roofTexture,
-            bumpScale: 0.08,
+            bumpScale: 0.06,
+            specular: 0x3a1f16,
             shininess: 10
         });
-        const villaMaterial = new THREE.MeshPhongMaterial({
-            color: 0xe6dec7,
-            map: stoneTexture,
-            bumpMap: stoneTexture,
-            bumpScale: 0.08,
-            shininess: 7
-        });
-        const rockTexture = createLakeRockTexture();
-        const rockMaterial = new THREE.MeshPhongMaterial({
-            color: 0xa69f8f,
-            map: rockTexture,
-            bumpMap: rockTexture,
-            bumpScale: 0.25,
-            shininess: 6,
-            specular: 0x202018,
-            flatShading: true,
-            vertexColors: true
-        });
-        const metalMaterial = new THREE.MeshPhongMaterial({ color: 0x9fa6a2, specular: 0xd9e5e1, shininess: 34 });
-        const darkMetalMaterial = new THREE.MeshPhongMaterial({ color: 0x485052, shininess: 14 });
         const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x5f3d28, shininess: 5 });
         const cypressMaterial = new THREE.MeshLambertMaterial({ color: 0x123f2d });
         const pineMaterial = new THREE.MeshLambertMaterial({ color: 0x2c5d36 });
@@ -5544,9 +5528,10 @@ function generateRoadAndTerrain(scene, game, environment) {
             new THREE.MeshLambertMaterial({ color: 0x315d32 })
         ];
         const flowerMaterials = [
-            new THREE.MeshBasicMaterial({ color: 0xd44878 }),
-            new THREE.MeshBasicMaterial({ color: 0xf07553 }),
-            new THREE.MeshBasicMaterial({ color: 0xb746b8 })
+            new THREE.MeshLambertMaterial({ color: 0xa95f74 }),
+            new THREE.MeshLambertMaterial({ color: 0xa34a36 }),
+            new THREE.MeshLambertMaterial({ color: 0xc5ac50 }),
+            new THREE.MeshLambertMaterial({ color: 0xd8d2b8 })
         ];
         const sailMaterial = new THREE.MeshBasicMaterial({ color: 0xfff4d8, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
         const boatHullMaterial = new THREE.MeshPhongMaterial({ color: 0xf2efe5, shininess: 28 });
@@ -5554,14 +5539,6 @@ function generateRoadAndTerrain(scene, game, environment) {
         const endZ = game.finishLine + 170;
         const sampleStride = 3;
         const railSegmentLength = 30;
-        const localForward = new THREE.Vector3(0, 0, 1);
-        const coastalAssetCache = environment.assetCache || {};
-        const villaAssets = ['villaD', 'villaE', 'villaN', 'villaT', 'villaU']
-            .map(key => coastalAssetCache[key])
-            .filter(asset => asset?.scene);
-        const villaDetailAssets = {
-            planter: coastalAssetCache.planter
-        };
 
         function addInstanced(name, geometry, material, placements, receiveShadow = true) {
             if (placements.length === 0) {
@@ -5574,9 +5551,10 @@ function generateRoadAndTerrain(scene, game, environment) {
             mesh.name = name;
             mesh.castShadow = false;
             mesh.receiveShadow = receiveShadow;
+            mesh.frustumCulled = false;
             placements.forEach((placement, index) => {
                 const rotation = new THREE.Euler(placement.rotation?.x || 0, placement.rotation?.y || 0, placement.rotation?.z || 0);
-                const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                const quaternion = placement.quaternion || new THREE.Quaternion().setFromEuler(rotation);
                 matrix.compose(placement.position, quaternion, placement.scale || new THREE.Vector3(1, 1, 1));
                 mesh.setMatrixAt(index, matrix);
                 if (placement.color) {
@@ -5638,14 +5616,19 @@ function generateRoadAndTerrain(scene, game, environment) {
             return roadData.curve + side * (halfRoadWidth + distanceFromRoadEdge);
         }
 
-        function alignAlongRoad(mesh, z, side, offsetFromRoadEdge, heightOffset, length = railSegmentLength) {
+        function getAlignedRoadPlacement(z, side, offsetFromRoadEdge, heightOffset, length = railSegmentLength) {
             const front = getRoadsidePose(z - length * 0.5, side, offsetFromRoadEdge);
             const rear = getRoadsidePose(z + length * 0.5, side, offsetFromRoadEdge);
             const start = new THREE.Vector3(rear.x, rear.roadY + heightOffset, rear.z);
             const end = new THREE.Vector3(front.x, front.roadY + heightOffset, front.z);
-            const direction = end.clone().sub(start).normalize();
-            mesh.position.copy(start).add(end).multiplyScalar(0.5);
-            mesh.quaternion.setFromUnitVectors(localForward, direction);
+            const forward = end.clone().sub(start).normalize();
+            const right = localUp.clone().cross(forward).normalize();
+            const up = forward.clone().cross(right).normalize();
+            const matrix = new THREE.Matrix4().makeBasis(right, up, forward);
+            return {
+                position: start.clone().add(end).multiplyScalar(0.5),
+                quaternion: new THREE.Quaternion().setFromRotationMatrix(matrix)
+            };
         }
 
         function addSeaSurface() {
@@ -5662,7 +5645,7 @@ function generateRoadAndTerrain(scene, game, environment) {
 
                 const roadData = getLinearRoadDataAtZ(segment.z);
                 const profile = getCoastalShoreProfile(-1, segment.z, roadData);
-                const innerDistance = profile.shoreDistance + 1.2 + lakeNoise.noise2D(segment.z * 0.025, 8.9) * 0.7;
+                const innerDistance = profile.shoreDistance + coastalBiome.shoreWidth * 1.52 + lakeNoise.noise2D(segment.z * 0.025, 8.9) * 0.32;
                 const outerDistance = terrainWidth + shoulderWidth + coastalBiome.horizonWaterExtension
                     + lakeNoise.noise2D(segment.z * 0.0028, 30.1) * 55;
                 rows.push({
@@ -5672,7 +5655,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         const waterlineDrift = lakeNoise.noise2D(segment.z * 0.016, columnIndex * 7.3) * 4.5 * weight;
                         return {
                             x: roadSideX(roadData, -1, distance),
-                            y: profile.seaLevel + 0.04,
+                            y: profile.seaLevel - 0.12,
                             z: segment.z + waterlineDrift
                         };
                     })
@@ -5704,7 +5687,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 const topDistance = shoulderWidth + 0.18;
                 const ledgeDistance = Math.max(topDistance + 1.4, profile.shoreDistance - coastalBiome.shoreWidth * 0.72);
                 const toeDistance = profile.shoreDistance + coastalBiome.shoreWidth * 0.42;
-                const farShoreDistance = profile.shoreDistance + coastalBiome.shoreWidth * 1.35;
+                const farShoreDistance = profile.shoreDistance + coastalBiome.shoreWidth * 1.62;
                 const rockNoise = lakeNoise.noise2D(segment.z * 0.018, 91.6) * 0.28;
 
                 cliffRows.push({
@@ -5718,9 +5701,9 @@ function generateRoadAndTerrain(scene, game, environment) {
 
                 shoreRows.push({
                     points: [
-                        { x: roadSideX(roadData, -1, ledgeDistance - 0.8), y: profile.seaLevel + 0.22, z: segment.z },
-                        { x: roadSideX(roadData, -1, toeDistance), y: profile.seaLevel + 0.06, z: segment.z },
-                        { x: roadSideX(roadData, -1, farShoreDistance), y: profile.seaLevel + 0.02, z: segment.z }
+                        { x: roadSideX(roadData, -1, ledgeDistance - 0.8), y: profile.seaLevel + 0.34, z: segment.z },
+                        { x: roadSideX(roadData, -1, toeDistance), y: profile.seaLevel + 0.2, z: segment.z },
+                        { x: roadSideX(roadData, -1, farShoreDistance), y: profile.seaLevel + 0.14, z: segment.z }
                     ]
                 });
             }
@@ -5730,191 +5713,53 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function addRoadsideWalls() {
-            const seaWallLength = 34;
-            const seaWallStep = 78;
-            const wallGeometry = new THREE.BoxGeometry(0.48, 0.72, seaWallLength);
-            const capGeometry = new THREE.BoxGeometry(0.64, 0.14, seaWallLength);
-            const railGeometry = new THREE.BoxGeometry(0.16, 0.16, seaWallLength * 0.72);
-            const postGeometry = new THREE.BoxGeometry(0.28, 1.05, 0.28);
-            const terraceWallGeometry = new THREE.BoxGeometry(0.62, 1.12, 15);
+            const seaWallLength = 16;
+            const seaWallStep = seaWallLength * 2;
+            const seaWallPlacements = [];
+            const seaCapPlacements = [];
+            const mountainWallPlacements = [];
+            const mountainCapPlacements = [];
 
-            let railIndex = 0;
             for (let z = startZ - 8; z > endZ; z -= seaWallStep) {
-                const seaWall = new THREE.Mesh(wallGeometry, limestoneBarrierMaterial);
-                seaWall.name = 'coastal-sea-parapet';
-                alignAlongRoad(seaWall, z, -1, coastalBiome.wallDistance, 0.38, seaWallLength);
-                addDecorMesh(decor, seaWall, 'seaWalls');
-
-                const cap = new THREE.Mesh(capGeometry, limestoneBarrierMaterial);
-                cap.name = 'coastal-sea-parapet-cap';
-                alignAlongRoad(cap, z, -1, coastalBiome.wallDistance, 0.78, seaWallLength);
-                addDecorMesh(decor, cap);
-
-                if (railIndex % 2 === 0) {
-                    const topRail = new THREE.Mesh(railGeometry, metalMaterial);
-                    topRail.name = 'coastal-sea-rail';
-                    alignAlongRoad(topRail, z, -1, 1.82, 1.05, seaWallLength * 0.72);
-                    addDecorMesh(decor, topRail, 'guardrails');
-
-                    const pose = getRoadsidePose(z, -1, 1.82);
-                    const post = new THREE.Mesh(postGeometry, darkMetalMaterial);
-                    post.name = 'coastal-sea-rail-post';
-                    post.position.set(pose.x, pose.roadY + 0.56, z);
-                    post.rotation.y = pose.yaw;
-                    addDecorMesh(decor, post);
-                }
-                railIndex += 1;
+                [-1, 1].forEach(side => {
+                    const wallPlacement = getAlignedRoadPlacement(z, side, coastalBiome.wallDistance, 0.34, seaWallLength);
+                    const capPlacement = getAlignedRoadPlacement(z, side, coastalBiome.wallDistance, 0.78, seaWallLength);
+                    if (side < 0) {
+                        seaWallPlacements.push(wallPlacement);
+                        seaCapPlacements.push(capPlacement);
+                    } else {
+                        mountainWallPlacements.push(wallPlacement);
+                        mountainCapPlacements.push(capPlacement);
+                    }
+                });
             }
 
-            for (let z = startZ - 70; z > endZ; z -= 148) {
-                if (Math.random() < 0.22) {
-                    continue;
-                }
-                const offset = 5 + Math.random() * 7;
-                const wallLength = 12 + Math.random() * 7;
-                const wall = new THREE.Mesh(terraceWallGeometry, retainingStoneMaterial);
-                wall.name = 'coastal-hillside-retaining-wall';
-                wall.scale.z = wallLength / 15;
-                alignAlongRoad(wall, z, 1, offset, 0.58, wallLength);
-                addDecorMesh(decor, wall, 'stoneWalls');
-
-                if (Math.random() < 0.7) {
-                    const upper = getRoadsidePose(z + (Math.random() - 0.5) * 28, 1, 15 + Math.random() * 20);
-                    const terrace = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.95, 12 + Math.random() * 10), stoneMaterial);
-                    terrace.name = 'coastal-terrace-wall';
-                    terrace.position.set(upper.x, getPropGroundY(upper.x, upper.z, 1.2) + 0.48, upper.z);
-                    terrace.rotation.y = upper.yaw + (Math.random() - 0.5) * 0.28;
-                    addDecorMesh(decor, terrace, 'stoneWalls');
-                }
-            }
-        }
-
-        function cloneAssetMaterial(material) {
-            if (!material) {
-                return material;
-            }
-
-            const cloned = material.clone();
-            cloned.userData.keepTextureMaps = true;
-            if ('roughness' in cloned) {
-                cloned.roughness = Math.max(cloned.roughness || 0.55, 0.72);
-            }
-            if ('metalness' in cloned) {
-                cloned.metalness = Math.min(cloned.metalness || 0, 0.08);
-            }
-            if (cloned.color) {
-                cloned.color.offsetHSL(0.012, -0.03, 0.035);
-            }
-            cloned.needsUpdate = true;
-            return cloned;
-        }
-
-        function createCoastalAssetClone(asset, targetWidth = 11, targetDepth = 9) {
-            if (!asset?.scene) {
-                return null;
-            }
-
-            const wrapper = new THREE.Group();
-            wrapper.name = `coastal-asset-${asset.assetName || 'model'}`;
-            const clone = asset.scene.clone(true);
-            clone.traverse(child => {
-                if (!child.isMesh) {
-                    return;
-                }
-
-                child.castShadow = true;
-                child.receiveShadow = true;
-                child.userData.keepGeometry = true;
-                if (Array.isArray(child.material)) {
-                    child.material = child.material.map(cloneAssetMaterial);
-                } else {
-                    child.material = cloneAssetMaterial(child.material);
-                }
-            });
-
-            const sourceBox = new THREE.Box3().setFromObject(clone);
-            const size = sourceBox.getSize(new THREE.Vector3());
-            const widthScale = targetWidth / Math.max(0.001, size.x);
-            const depthScale = targetDepth / Math.max(0.001, size.z);
-            clone.scale.multiplyScalar(Math.min(widthScale, depthScale));
-
-            const fittedBox = new THREE.Box3().setFromObject(clone);
-            const center = fittedBox.getCenter(new THREE.Vector3());
-            clone.position.x -= center.x;
-            clone.position.z -= center.z;
-            clone.position.y -= fittedBox.min.y;
-            wrapper.add(clone);
-            return wrapper;
-        }
-
-        function createCoastalVillaModel(scale = 1) {
-            if (villaAssets.length === 0) {
-                return createMediterraneanVilla(scale);
-            }
-
-            const asset = villaAssets[Math.floor(Math.random() * villaAssets.length)];
-            const targetWidth = (11.5 + Math.random() * 5.5) * scale;
-            const targetDepth = (8.8 + Math.random() * 5.2) * scale;
-            const villa = createCoastalAssetClone(asset, targetWidth, targetDepth);
-            if (villa) {
-                villa.name = `coastal-downloaded-villa-${asset.assetName}`;
-                return villa;
-            }
-
-            return createMediterraneanVilla(scale);
-        }
-
-        function createCoastalDetailAsset(key, targetWidth, targetDepth) {
-            return createCoastalAssetClone(villaDetailAssets[key], targetWidth, targetDepth);
-        }
-
-        function createMediterraneanVilla(scale = 1) {
-            const villa = new THREE.Group();
-            villa.name = 'coastal-stone-villa';
-            const bodyWidth = (5.2 + Math.random() * 3.4) * scale;
-            const bodyDepth = (5.6 + Math.random() * 2.4) * scale;
-            const bodyHeight = (3.0 + Math.random() * 1.1) * scale;
-            const body = new THREE.Mesh(new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyDepth), villaMaterial);
-            body.position.y = bodyHeight * 0.5;
-            villa.add(body);
-
-            const roof = new THREE.Mesh(new THREE.ConeGeometry(bodyWidth * 0.76, 1.25 * scale, 4), roofMaterial);
-            roof.position.y = bodyHeight + 0.72 * scale;
-            roof.rotation.y = Math.PI / 4;
-            roof.scale.z = bodyDepth / Math.max(0.001, bodyWidth);
-            villa.add(roof);
-
-            if (Math.random() < 0.45) {
-                const towerWidth = bodyWidth * 0.38;
-                const tower = new THREE.Mesh(new THREE.BoxGeometry(towerWidth, bodyHeight * 1.42, towerWidth), villaMaterial);
-                tower.position.set(bodyWidth * 0.32, bodyHeight * 0.71, -bodyDepth * 0.18);
-                villa.add(tower);
-                const towerRoof = new THREE.Mesh(new THREE.ConeGeometry(towerWidth * 0.86, 0.9 * scale, 4), roofMaterial);
-                towerRoof.position.set(tower.position.x, bodyHeight * 1.42 + 0.45 * scale, tower.position.z);
-                towerRoof.rotation.y = Math.PI / 4;
-                villa.add(towerRoof);
-            }
-
-            const windowMaterial = new THREE.MeshPhongMaterial({ color: 0x29333a, specular: 0xb4d5e0, shininess: 45 });
-            const shutterMaterial = new THREE.MeshPhongMaterial({ color: 0x416c5e, shininess: 12 });
-            for (let i = 0; i < 4; i++) {
-                const x = (i % 2 === 0 ? -0.24 : 0.24) * bodyWidth;
-                const y = bodyHeight * (i < 2 ? 0.58 : 0.28);
-                const frontWindow = new THREE.Mesh(new THREE.BoxGeometry(0.62 * scale, 0.72 * scale, 0.06 * scale), windowMaterial);
-                frontWindow.position.set(x, y, -bodyDepth * 0.505);
-                villa.add(frontWindow);
-                const leftShutter = new THREE.Mesh(new THREE.BoxGeometry(0.16 * scale, 0.78 * scale, 0.07 * scale), shutterMaterial);
-                leftShutter.position.set(x - 0.46 * scale, y, -bodyDepth * 0.51);
-                villa.add(leftShutter);
-                const rightShutter = leftShutter.clone();
-                rightShutter.position.x = x + 0.46 * scale;
-                villa.add(rightShutter);
-            }
-
-            const balcony = new THREE.Mesh(new THREE.BoxGeometry(bodyWidth * 0.62, 0.14 * scale, 0.72 * scale), stoneMaterial);
-            balcony.position.set(0, bodyHeight * 0.49, -bodyDepth * 0.62);
-            villa.add(balcony);
-            return villa;
+            addInstanced(
+                'coastal-sea-white-brick-guardwalls',
+                new THREE.BoxGeometry(0.58, 0.68, seaWallLength + 0.35),
+                limestoneBarrierMaterial,
+                seaWallPlacements
+            );
+            addInstanced(
+                'coastal-sea-red-brick-caps',
+                new THREE.BoxGeometry(0.72, 0.18, seaWallLength + 0.45),
+                terracottaCapMaterial,
+                seaCapPlacements
+            );
+            addInstanced(
+                'coastal-mountain-white-brick-guardwalls',
+                new THREE.BoxGeometry(0.58, 0.68, seaWallLength + 0.35),
+                limestoneBarrierMaterial,
+                mountainWallPlacements
+            );
+            addInstanced(
+                'coastal-mountain-red-brick-caps',
+                new THREE.BoxGeometry(0.72, 0.18, seaWallLength + 0.45),
+                terracottaCapMaterial,
+                mountainCapPlacements
+            );
+            stageDecorStats.seaWalls += seaWallPlacements.length;
+            stageDecorStats.guardrails += seaCapPlacements.length + mountainWallPlacements.length + mountainCapPlacements.length;
         }
 
         function createCypressTree(scale = 1) {
@@ -5958,191 +5803,88 @@ function generateRoadAndTerrain(scene, game, environment) {
             return pine;
         }
 
-        function createFlowerBush(scale = 1) {
+        function createFlowerBush(scale = 1, flowerMaterial = null) {
             const bush = new THREE.Group();
-            bush.name = 'coastal-bougainvillea-bush';
-            for (let i = 0; i < 3; i++) {
-                const foliage = new THREE.Mesh(new THREE.SphereGeometry((0.58 + Math.random() * 0.28) * scale, 8, 6), bushMaterials[i % bushMaterials.length]);
-                foliage.scale.y = 0.58 + Math.random() * 0.22;
-                foliage.position.set((Math.random() - 0.5) * 0.9 * scale, 0.42 * scale, (Math.random() - 0.5) * 0.7 * scale);
+            bush.name = 'coastal-low-aromatic-shrub';
+            for (let i = 0; i < 6; i++) {
+                const foliage = new THREE.Mesh(new THREE.SphereGeometry((0.58 + Math.random() * 0.28) * scale, 8, 5), bushMaterials[i % bushMaterials.length]);
+                foliage.scale.set(1.35 + Math.random() * 0.55, 0.16 + Math.random() * 0.08, 0.78 + Math.random() * 0.34);
+                foliage.position.set((Math.random() - 0.5) * 1.55 * scale, 0.13 * scale, (Math.random() - 0.5) * 1.08 * scale);
+                foliage.rotation.y = Math.random() * Math.PI;
                 bush.add(foliage);
             }
-            if (Math.random() < 0.58) {
-                for (let i = 0; i < 6; i++) {
-                    const flower = new THREE.Mesh(new THREE.SphereGeometry(0.08 * scale, 6, 4), flowerMaterials[i % flowerMaterials.length]);
-                    flower.position.set((Math.random() - 0.5) * 1.25 * scale, 0.64 * scale + Math.random() * 0.45 * scale, (Math.random() - 0.5) * 0.95 * scale);
-                    bush.add(flower);
-                }
+            const patchMaterial = flowerMaterial || flowerMaterials[Math.floor(Math.random() * flowerMaterials.length)];
+            const flowerCount = 6 + Math.floor(Math.random() * 8);
+            for (let i = 0; i < flowerCount; i++) {
+                const flower = new THREE.Mesh(new THREE.SphereGeometry((0.045 + Math.random() * 0.025) * scale, 5, 3), patchMaterial);
+                flower.position.set((Math.random() - 0.5) * 1.65 * scale, 0.28 * scale + Math.random() * 0.08 * scale, (Math.random() - 0.5) * 1.12 * scale);
+                bush.add(flower);
             }
             return bush;
         }
 
-        function placeHillsideVillas() {
-            function addVillaGarden(villa, z, offset, scale, yaw) {
-                const wallPose = getRoadsidePose(z, 1, Math.max(5.2, offset - 6.4));
-                const wall = new THREE.Mesh(new THREE.BoxGeometry(10.5 * scale, 0.72 * scale, 0.32 * scale), stoneMaterial);
-                wall.name = 'coastal-villa-front-stone-wall';
-                wall.position.set(wallPose.x, getPropGroundY(wallPose.x, wallPose.z, 1.1) + 0.36 * scale, wallPose.z);
-                wall.rotation.y = yaw + (Math.random() - 0.5) * 0.18;
-                addDecorMesh(decor, wall, 'stoneWalls');
-
-                for (let i = 0; i < 3; i++) {
-                    const bushZ = z + (Math.random() - 0.5) * 9;
-                    const bushOffset = Math.max(6, offset - 8 + Math.random() * 9);
-                    const bushRoadData = getLinearRoadDataAtZ(bushZ);
-                    const x = roadSideX(bushRoadData, 1, bushOffset);
-                    const bush = createFlowerBush(0.78 + Math.random() * 0.55);
-                    bush.position.set(x, getPropGroundY(x, bushZ, 1.2), bushZ);
-                    bush.rotation.y = Math.random() * Math.PI * 2;
-                    addDecorGroup(decor, bush, 'coastalDetails');
-                }
-
-                if (Math.random() < 0.72) {
-                    const cypressZ = z + (Math.random() - 0.5) * 14;
-                    const cypressOffset = offset + 4 + Math.random() * 9;
-                    const cypressRoadData = getLinearRoadDataAtZ(cypressZ);
-                    const x = roadSideX(cypressRoadData, 1, cypressOffset);
-                    const cypress = createCypressTree(0.72 + Math.random() * 0.45);
-                    cypress.position.set(x, getPropGroundY(x, cypressZ, 1.4), cypressZ);
-                    cypress.rotation.y = Math.random() * Math.PI * 2;
-                    addDecorGroup(decor, cypress, 'trees');
-                }
-
-                if (villaDetailAssets.planter?.scene && Math.random() < 0.6) {
-                    const planterZ = z + 2 + (Math.random() - 0.5) * 7;
-                    const planterOffset = Math.max(7, offset - 5 + Math.random() * 4);
-                    const planterRoadData = getLinearRoadDataAtZ(planterZ);
-                    const x = roadSideX(planterRoadData, 1, planterOffset);
-                    const planter = createCoastalDetailAsset('planter', 2.4 * scale, 1.7 * scale);
-                    if (planter) {
-                        planter.name = 'coastal-villa-planter';
-                        planter.position.set(x, getPropGroundY(x, planterZ, 0.8), planterZ);
-                        planter.rotation.y = yaw + (Math.random() - 0.5) * 0.3;
-                        addDecorGroup(decor, planter, 'coastalDetails');
-                    }
-                }
-
-            }
-
-            for (let z = game.startLine - 210; z > endZ; z -= 250) {
-                const isOpeningCluster = z > game.startLine - 900;
-                const clusterCount = isOpeningCluster || Math.random() < 0.72 ? 2 : 1;
-                for (let i = 0; i < clusterCount; i++) {
-                    const villaZ = z - i * (28 + Math.random() * 22) + (Math.random() - 0.5) * 22;
-                    const roadData = getLinearRoadDataAtZ(villaZ);
-                    const nearRoad = i === 0 || Math.random() < 0.56;
-                    const offset = nearRoad
-                        ? 14 + Math.random() * 13
-                        : 28 + Math.random() * 32;
-                    const x = roadSideX(roadData, 1, offset);
-                    const normal = getTerrainNormalAt(x, villaZ, 3.6);
-                    if (normal.y < 0.38) {
-                        continue;
-                    }
-
-                    const scale = (i === 0 ? 1.28 + Math.random() * 0.38 : 0.95 + Math.random() * 0.28)
-                        + (isOpeningCluster ? 0.2 : 0);
-                    const villa = createCoastalVillaModel(scale);
-                    villa.position.set(x, getPropHighGroundY(x, villaZ, 3.8), villaZ);
-                    const yaw = -getRoadDataAtZ(villaZ, game).curvatureAngle + Math.PI + (Math.random() - 0.5) * 0.32;
-                    villa.rotation.y = yaw;
-                    addDecorGroup(decor, villa, 'villas');
-
-                    const terrace = new THREE.Mesh(new THREE.BoxGeometry(14 * scale, 0.2, 10 * scale), stoneMaterial);
-                    terrace.name = 'coastal-villa-terrace-pad';
-                    terrace.position.set(villa.position.x, villa.position.y + 0.03, villa.position.z);
-                    terrace.rotation.y = villa.rotation.y;
-                    addDecorMesh(decor, terrace, 'coastalDetails');
-
-                    addVillaGarden(villa, villaZ, offset, scale, yaw);
-                }
-            }
-        }
-
         function placeVegetation() {
-            for (let z = startZ - 25; z > endZ; z -= 76) {
+            for (let z = startZ - 25; z > endZ; z -= 68) {
                 const roadData = getLinearRoadDataAtZ(z);
-                const isCluster = Math.random() < 0.64;
-                const clusterCount = isCluster ? 2 + Math.floor(Math.random() * 4) : 1;
+                const isCluster = Math.random() < 0.72;
+                const clusterCount = isCluster ? 2 + Math.floor(Math.random() * 3) : 1;
                 for (let i = 0; i < clusterCount; i++) {
-                    const offset = 6 + Math.random() * 72;
+                    const offset = 10 + Math.random() * 74;
                     const treeZ = z + (Math.random() - 0.5) * 34;
                     const treeRoadData = getLinearRoadDataAtZ(treeZ);
                     const x = roadSideX(treeRoadData, 1, offset);
-                    const y = getPropGroundY(x, treeZ, 1.8);
                     const normal = getTerrainNormalAt(x, treeZ, 2.4);
-                    if (normal.y < 0.5) {
+                    if (normal.y < 0.68) {
                         continue;
                     }
 
                     const scale = 0.72 + Math.random() * 0.72;
-                    const tree = Math.random() < 0.45 ? createCypressTree(scale) : createStonePine(scale);
-                    tree.position.set(x, y, treeZ);
+                    const tree = Math.random() < 0.16 ? createCypressTree(scale) : createStonePine(scale);
+                    tree.position.set(x, getTerrainHeightAt(x, treeZ) - 0.08 * scale, treeZ);
                     tree.rotation.y = Math.random() * Math.PI * 2;
                     addDecorGroup(decor, tree, 'trees');
                 }
             }
 
-            for (let z = startZ - 10; z > endZ; z -= 52) {
+            for (let z = startZ - 10; z > endZ; z -= 38) {
                 [1, -1].forEach(side => {
-                    if (side < 0 && Math.random() < 0.78) {
+                    if (side < 0 && Math.random() < 0.72) {
                         return;
                     }
                     const roadData = getLinearRoadDataAtZ(z);
-                    const offset = side > 0 ? 3.4 + Math.random() * 14 : 2.8 + Math.random() * 5.8;
-                    const x = roadSideX(roadData, side, offset);
-                    if (side < 0) {
-                        const profile = getCoastalShoreProfile(-1, z, roadData);
-                        if (offset > profile.shoreDistance - 1.6) {
+                    const bushCount = side > 0
+                        ? 1 + (Math.random() < 0.58 ? 1 : 0)
+                        : 1;
+                    const materialIndex = Math.abs(Math.floor(z / 76) + (side > 0 ? 0 : 2)) % flowerMaterials.length;
+                    const patchMaterial = flowerMaterials[materialIndex];
+                    for (let i = 0; i < bushCount; i++) {
+                        const bushZ = z + (Math.random() - 0.5) * 22;
+                        const bushRoadData = getLinearRoadDataAtZ(bushZ);
+                        const offset = side > 0
+                            ? (i === 0 ? 3.1 + Math.random() * 4.8 : 7.5 + Math.random() * 34)
+                            : 3.4 + Math.random() * 7.4;
+                        const x = roadSideX(bushRoadData, side, offset);
+                        if (side < 0) {
+                            const profile = getCoastalShoreProfile(-1, bushZ, bushRoadData);
+                            if (offset > profile.shoreDistance - 1.6) {
+                                return;
+                            }
+                        }
+                        const normal = getTerrainNormalAt(x, bushZ, 1.8);
+                        if (normal.y < 0.46) {
                             return;
                         }
+                        const bush = createFlowerBush(0.76 + Math.random() * 0.46, patchMaterial);
+                        bush.position.set(x, getTerrainHeightAt(x, bushZ) + 0.035, bushZ);
+                        bush.quaternion.setFromUnitVectors(localUp, normal);
+                        bush.rotateY(Math.random() * Math.PI * 2);
+                        addDecorGroup(decor, bush, 'coastalDetails');
                     }
-                    const bush = createFlowerBush(0.7 + Math.random() * 0.42);
-                    bush.position.set(x, getPropGroundY(x, z, 1.1), z + (Math.random() - 0.5) * 12);
-                    bush.rotation.y = Math.random() * Math.PI * 2;
-                    addDecorGroup(decor, bush, 'coastalDetails');
                 });
             }
         }
 
-        function addRocksAndBoats() {
-            const rockPlacements = [];
-            for (let z = startZ - 18; z > endZ; z -= 34) {
-                const roadData = getLinearRoadDataAtZ(z);
-                const profile = getCoastalShoreProfile(-1, z, roadData);
-                if (Math.random() < 0.74) {
-                    const rockCount = 1 + Math.floor(Math.random() * 3);
-                    for (let i = 0; i < rockCount; i++) {
-                        const rockZ = z + (Math.random() - 0.5) * 24;
-                        const rockRoadData = getLinearRoadDataAtZ(rockZ);
-                        const rockProfile = getCoastalShoreProfile(-1, rockZ, rockRoadData);
-                        const distance = rockProfile.shoreDistance - 1.2 + Math.random() * coastalBiome.shoreWidth * 1.6;
-                        const x = roadSideX(rockRoadData, -1, distance);
-                        const y = Math.max(getPropGroundY(x, rockZ, 1.2), rockProfile.seaLevel - 0.04);
-                        const scale = 0.35 + Math.random() * 1.1;
-                        const tint = new THREE.Color().setHSL(0.11 + Math.random() * 0.04, 0.09, 0.42 + Math.random() * 0.16);
-                        rockPlacements.push({
-                            position: new THREE.Vector3(x, y + scale * 0.38, rockZ),
-                            rotation: { x: (Math.random() - 0.5) * 0.22, y: Math.random() * Math.PI, z: (Math.random() - 0.5) * 0.16 },
-                            scale: new THREE.Vector3(scale * (1.2 + Math.random() * 0.9), scale * (0.34 + Math.random() * 0.32), scale * (0.8 + Math.random() * 0.85)),
-                            color: tint
-                        });
-                    }
-                }
-
-                if (Math.random() < 0.18) {
-                    const wall = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.5, 0.22), stoneMaterial);
-                    wall.name = 'coastal-road-marker-stone';
-                    wall.position.set(roadSideX(roadData, 1, 4.4), roadData.y + 0.76, z);
-                    wall.rotation.y = -getRoadDataAtZ(z, game).curvatureAngle + Math.PI / 2;
-                    addDecorMesh(decor, wall, 'coastalDetails');
-                }
-            }
-
-            addInstanced('coastal-shore-boulders', new THREE.DodecahedronGeometry(1, 0), rockMaterial, rockPlacements);
-            stageDecorStats.shorelineRocks += rockPlacements.length;
-            stageDecorStats.rockClusters += Math.ceil(rockPlacements.length / 5);
-
+        function addBoats() {
             for (let z = startZ - 280; z > endZ; z -= 760) {
                 const roadData = getLinearRoadDataAtZ(z);
                 const profile = getCoastalShoreProfile(-1, z, roadData);
@@ -6171,9 +5913,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         addSeaSurface();
         addCliffsAndShoreline();
         addRoadsideWalls();
-        placeHillsideVillas();
         placeVegetation();
-        addRocksAndBoats();
+        addBoats();
     }
 
     function addAlpineRoadsideDecor(decor) {

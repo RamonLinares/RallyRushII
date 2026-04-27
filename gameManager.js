@@ -186,15 +186,18 @@ const environments = {
         mountainHeightPower: 1.18,
         mountainNoiseScale: 0.0062,
         mountainNoiseGain: 0.31,
-        mountainRoadsideDelay: 0.14,
-        mountainRoadsidePower: 1.12,
-        roadElevationAmplitude: 7.2,
+        mountainRoadsideDelay: 0.16,
+        mountainRoadsidePower: 1.18,
+        roadElevationAmplitude: 10.5,
         coastalBiome: {
-            seaLevelOffset: 3.8,
-            shoreWidth: 7.4,
-            minShoreDistance: 10.5,
-            maxShoreDistance: 22.5,
-            horizonWaterExtension: 280
+            seaLevelOffset: 12.5,
+            shoreWidth: 13.5,
+            minShoreDistance: 34,
+            maxShoreDistance: 58,
+            horizonWaterExtension: 340,
+            wallDistance: 1.05,
+            hillsideMinDistance: 8.5,
+            hillsideHeight: 32
         },
         fogColor: 0x91c3d0,
         fogDensity: 0.00068
@@ -415,14 +418,7 @@ class GameManager {
         this.environmentModelScenes = {};
         this.environmentStageAssets = {
             jungle: [],
-            coastal: [
-                'coastalVillaD',
-                'coastalVillaE',
-                'coastalVillaN',
-                'coastalVillaT',
-                'coastalVillaU',
-                'coastalPlanter'
-            ]
+            coastal: []
         };
         this.environmentModelAssets = {
             jungleTallTreeA: {
@@ -3630,23 +3626,6 @@ class GameManager {
             opacity: 1,
             depthWrite: true
         });
-        const accentMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffd447,
-            metalness: 0.55,
-            roughness: 0.22,
-            emissive: 0xffa000,
-            emissiveIntensity: 0.54,
-            transparent: false,
-            opacity: 1,
-            depthWrite: true
-        });
-        const cyanMaterial = new THREE.MeshBasicMaterial({
-            color: 0x5fe2ff,
-            transparent: true,
-            opacity: 0.92,
-            depthWrite: true,
-            side: THREE.DoubleSide
-        });
         const pylonMaterial = new THREE.MeshStandardMaterial({
             color: 0xf8fbff,
             metalness: 0.48,
@@ -3673,18 +3652,17 @@ class GameManager {
             pylon.position.set(side * 13.6, -1, -0.04);
             pylon.castShadow = true;
             group.add(pylon);
-
-            const lowerBrace = new THREE.Mesh(new THREE.BoxGeometry(4.35, 0.24, 0.34), accentMaterial.clone());
-            lowerBrace.position.set(side * 11.15, -0.35, 0.04);
-            lowerBrace.rotation.z = side * 0.58;
-            lowerBrace.castShadow = true;
-            group.add(lowerBrace);
         });
 
         const topTruss = new THREE.Mesh(new THREE.BoxGeometry(28.4, 0.36, 0.52), pylonMaterial.clone());
         topTruss.position.set(0, 2.68, -0.08);
         topTruss.castShadow = true;
         group.add(topTruss);
+
+        const bottomTruss = new THREE.Mesh(new THREE.BoxGeometry(28.4, 0.36, 0.52), pylonMaterial.clone());
+        bottomTruss.position.set(0, -2.82, -0.08);
+        bottomTruss.castShadow = true;
+        group.add(bottomTruss);
 
         const signGroup = new THREE.Group();
         signGroup.name = 'countdown-moving-sign';
@@ -3742,21 +3720,6 @@ class GameManager {
             glow.userData.activeColor = activeColor;
             signGroup.add(glow);
             launchLights.push({ bulb, glow });
-        });
-
-        [-1, 1].forEach(side => {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.28, 4.4, 0.6), accentMaterial);
-            rail.position.set(side * 8.35, 0, 0.04);
-            rail.rotation.z = side * 0.18;
-            rail.castShadow = true;
-            signGroup.add(rail);
-
-            for (let i = 0; i < 3; i++) {
-                const slash = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 1.8), cyanMaterial.clone());
-                slash.position.set(side * (6.9 - i * 0.62), -1.64, 0.3);
-                slash.rotation.z = side * 0.34;
-                signGroup.add(slash);
-            }
         });
 
         const textGroup = signGroup;
@@ -3952,7 +3915,7 @@ class GameManager {
             return true;
         });
 
-        if (elapsed >= countdown.endAt && countdown.confetti.length === 0) {
+        if (elapsed >= countdown.endAt) {
             this.clearStartCountdown();
         }
     }
