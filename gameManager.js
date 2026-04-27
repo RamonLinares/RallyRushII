@@ -150,7 +150,23 @@ const environments = {
         roadElevationAmplitude: 5.2,
         fogColor: 0x5f7770,
         fogDensity: 0.0032,
-        nightRace: false
+        nightRace: false,
+        jungleGeneration: {
+            complexity: 0.75,
+            trailLength: 5900,
+            trailWidth: 15.5,
+            trailCurve: 0.45,
+            bankHeight: 2.5,
+            density: 1,
+            canopyCover: 0.95,
+            treeCount: 24,
+            treeMultiplier: 3,
+            branchMultiplier: 1,
+            understoryHeight: 6.5,
+            understoryMultiplier: 10,
+            rockCount: 24,
+            vines: 12
+        }
     },
     coastal: {
         id: 'coastal',
@@ -382,16 +398,13 @@ class GameManager {
         this.rimLight = null;
         this.ambientLight = null;
         this.hemiLight = null;
-        this.rainforestPlayerLightRig = null;
         this.vehicleEnvironmentMap = null;
         this.lastStageEffectUpdateAt = performance.now();
-        this.rainforestCarLightStrength = 3;
         // Enable shadow rendering with improved settings
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.trafficCars = [];
         this.maxTrafficCars = 10; // Maximum number of traffic cars
-        this.maxActiveRainforestTrafficHeadlights = 2;
         this.trafficVehicleTypes = ['muscle', 'suv', 'hatchback', 'pickup', 'supercar'];
         this.gltfLoader = THREE.GLTFLoader ? new THREE.GLTFLoader() : null;
         this.dracoLoader = null;
@@ -423,6 +436,48 @@ class GameManager {
             ]
         };
         this.environmentModelAssets = {
+            jungleTallTreeA: {
+                stage: 'jungle',
+                key: 'tallTreeA',
+                label: 'Rainforest tall tree A',
+                url: 'assets/environment/jungle/ownmodels/tree_2026-04-26T08-50-19-040Z.glb'
+            },
+            jungleTallTreeB: {
+                stage: 'jungle',
+                key: 'tallTreeB',
+                label: 'Rainforest tall tree B',
+                url: 'assets/environment/jungle/ownmodels/tree_2026-04-26T09-26-32-604Z.glb'
+            },
+            jungleTallTreeC: {
+                stage: 'jungle',
+                key: 'tallTreeC',
+                label: 'Rainforest tall tree C',
+                url: 'assets/environment/jungle/ownmodels/tree_2026-04-26T09-27-03-552Z.glb'
+            },
+            jungleSmallTreeA: {
+                stage: 'jungle',
+                key: 'smallTreeA',
+                label: 'Rainforest small tree A',
+                url: 'assets/environment/jungle/ownmodels/small_tree_2026-04-26T08-56-14-863Z.glb'
+            },
+            jungleSmallTreeB: {
+                stage: 'jungle',
+                key: 'smallTreeB',
+                label: 'Rainforest small tree B',
+                url: 'assets/environment/jungle/ownmodels/small_tree_2026-04-26T09-28-49-832Z.glb'
+            },
+            jungleFernA: {
+                stage: 'jungle',
+                key: 'fernA',
+                label: 'Rainforest fern A',
+                url: 'assets/environment/jungle/ownmodels/fern_2026-04-26T08-56-40-222Z.glb'
+            },
+            jungleFernB: {
+                stage: 'jungle',
+                key: 'fernB',
+                label: 'Rainforest fern B',
+                url: 'assets/environment/jungle/ownmodels/fern_2026-04-26T09-29-05-425Z.glb'
+            },
             junglePalmDetailedTall: {
                 stage: 'jungle',
                 key: 'palmDetailedTall',
@@ -920,29 +975,26 @@ class GameManager {
 
         // Clear the traffic cars array to remove references to old traffic cars
         this.trafficCars = [];
-        this.rainforestPlayerLightRig = null;
-
         // Set up lighting with shadows (if needed)
         this.configureSceneEnvironment(environment);
 
         this.currentEnvironment = environment;
         this.nightRace = Boolean(environment.nightRace);
-        const isRainforestStage = environment.id === 'jungle';
 
         this.ambientLight = new THREE.AmbientLight(
-            this.nightRace ? 0x476c86 : isRainforestStage ? 0x8fa69b : 0xffffff,
-            this.nightRace ? 0.085 : isRainforestStage ? 0.06 : 0.035
+            this.nightRace ? 0x476c86 : 0xffffff,
+            this.nightRace ? 0.085 : 0.035
         );
         this.scene.add(this.ambientLight);
 
         this.directionalLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x8fb2ff : isRainforestStage ? 0xb8c7bf : 0xffffff,
-            this.nightRace ? 0.42 : isRainforestStage ? 0.32 : 2.15
+            this.nightRace ? 0x8fb2ff : 0xffffff,
+            this.nightRace ? 0.42 : 2.15
         );
         this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
-        this.directionalLight.shadow.mapSize.width = 2048;
-        this.directionalLight.shadow.mapSize.height = 2048;
+        this.directionalLight.shadow.mapSize.width = 1024;
+        this.directionalLight.shadow.mapSize.height = 1024;
         this.directionalLight.shadow.camera.near = 10;
         this.directionalLight.shadow.camera.far = 500;
         this.directionalLight.shadow.camera.left = -100;
@@ -953,31 +1005,34 @@ class GameManager {
         this.scene.add(this.directionalLight);
 
         this.fillLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x2c7f8f : isRainforestStage ? 0x8ba999 : 0xddeeff,
-            this.nightRace ? 0.26 : isRainforestStage ? 0.18 : 0.14
+            this.nightRace ? 0x2c7f8f : 0xddeeff,
+            this.nightRace ? 0.26 : 0.14
         );
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
         this.rimLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x66e0ff : isRainforestStage ? 0xd8caa5 : 0xbdeaff,
-            this.nightRace ? 0.9 : isRainforestStage ? 0.18 : 0.58
+            this.nightRace ? 0x66e0ff : 0xbdeaff,
+            this.nightRace ? 0.9 : 0.58
         );
         this.rimLight.position.set(-24, 28, -42);
         this.scene.add(this.rimLight);
 
         this.hemiLight = new THREE.HemisphereLight(
-            this.nightRace ? 0x18354e : isRainforestStage ? 0x8faaa5 : 0xcde7f2,
-            this.nightRace ? 0x061409 : isRainforestStage ? 0x102014 : 0x334029,
-            this.nightRace ? 0.52 : isRainforestStage ? 0.168 : 0.3
+            this.nightRace ? 0x18354e : 0xcde7f2,
+            this.nightRace ? 0x061409 : 0x334029,
+            this.nightRace ? 0.52 : 0.3
         );
-        if (!this.nightRace && !isRainforestStage) {
+        if (!this.nightRace) {
             this.hemiLight.color.setHSL(0.58, 0.58, 0.62);
             this.hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
         }
         this.scene.add(this.hemiLight);
 
         this.currentStageId = environment.id || this.currentStageId || 'scotland';
+        if (environment.id === 'jungle') {
+            this.applyJungleGenerationOverrides(environment);
+        }
         environment.assetCache = this.getStageEnvironmentAssets(this.currentStageId);
         const difficulty = this.getDifficultyProfile(this.difficultyLevel);
         const drivingAssist = this.getDrivingAssistProfile(this.drivingAssistLevel);
@@ -992,9 +1047,15 @@ class GameManager {
                 difficultyId: difficulty.id,
                 difficultyLabel: difficulty.label,
                 assistId: drivingAssist.id,
-                assistLabel: drivingAssist.label
+                assistLabel: drivingAssist.label,
+                timeOfDay: environment.nightRace ? 'night' : 'day',
+                rainEnabled: !environment.disableRain
             },
-            road: { length: 3000, width: environment.roadWidth || 25, segments: [] },
+            road: {
+                length: Math.abs(environment.jungleGeneration?.trailLength || environment.trackLength || 5900),
+                width: environment.roadWidth || 25,
+                segments: []
+            },
             car: {
                 vehicleType: playerVehicleType,
                 position: new THREE.Vector3(0, 0, -10),
@@ -1040,10 +1101,16 @@ class GameManager {
             },
             terrain: { width: 300 },
             traffic: [],
+            stageEffects: [],
+            sceneryCullObjects: [],
+            sceneryCullWindow: {
+                ahead: environment.id === 'jungle' ? 760 : 900,
+                behind: environment.id === 'jungle' ? 90 : 220
+            },
             startTime: null,
             finishTime: null,
             startLine: -100,
-            finishLine: -5900
+            finishLine: -Math.abs(environment.jungleGeneration?.trailLength || environment.trackLength || 5900)
         };
 
         // Generate the road and terrain based on the environment
@@ -1061,6 +1128,57 @@ class GameManager {
         this.createInitialTrafficCars();
         this.resetCarPosition();
         this.updateCameraPosition();
+    }
+
+    applyJungleGenerationOverrides(environment) {
+        const generation = {
+            complexity: 0.75,
+            trailLength: 5900,
+            trailWidth: environment.roadWidth || 15.5,
+            trailCurve: 0.45,
+            bankHeight: 2.5,
+            density: 1,
+            canopyCover: 0.95,
+            treeCount: 24,
+            treeMultiplier: 3,
+            branchMultiplier: 1,
+            understoryHeight: 6.5,
+            understoryMultiplier: 10,
+            rockCount: 24,
+            vines: 12,
+            ...(environment.jungleGeneration || {})
+        };
+        const params = new URLSearchParams(window.location.search);
+        const overrides = {
+            jungleComplexity: ['complexity', 0.1, 1],
+            jungleTrailLength: ['trailLength', 1800, 9000],
+            jungleTrailWidth: ['trailWidth', 8, 24],
+            jungleTrailCurve: ['trailCurve', 0, 1.5],
+            jungleBankHeight: ['bankHeight', 0, 8],
+            jungleDensity: ['density', 0, 1.25],
+            jungleCanopy: ['canopyCover', 0, 1],
+            jungleTrees: ['treeCount', 0, 70],
+            jungleTreeMultiplier: ['treeMultiplier', 0, 6],
+            jungleBranchMultiplier: ['branchMultiplier', 0, 12],
+            jungleUnderstory: ['understoryHeight', 0, 14],
+            jungleUnderstoryMultiplier: ['understoryMultiplier', 0, 14],
+            jungleRocks: ['rockCount', 0, 70],
+            jungleVines: ['vines', 0, 40]
+        };
+
+        Object.entries(overrides).forEach(([paramName, [settingName, min, max]]) => {
+            if (!params.has(paramName)) {
+                return;
+            }
+            const value = Number(params.get(paramName));
+            if (Number.isFinite(value)) {
+                generation[settingName] = THREE.MathUtils.clamp(value, min, max);
+            }
+        });
+
+        environment.jungleGeneration = generation;
+        environment.roadWidth = generation.trailWidth;
+        environment.roadTextureMetersPerTile = generation.trailWidth;
     }
 
     resetCollisionVisuals() {
@@ -1809,7 +1927,6 @@ class GameManager {
         car.userData.assetVehicle = true;
         car.userData.assetReady = false;
         car.userData.assetName = assetSpec.asset;
-        this.addNightVehicleLights(car, type, Boolean(options.player));
 
         const proxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const proxy = new THREE.Mesh(
@@ -1869,7 +1986,6 @@ class GameManager {
         this.settleVehicleRoadContact(car, 6);
         model.visible = true;
         car.userData.assetReady = true;
-        this.updateRainforestVehicleLightRigAnchors(car);
         if (car === this.playerCar) {
             this.applyCameraModeSettings();
             if (this.game?.car) {
@@ -1879,178 +1995,68 @@ class GameManager {
         }
     }
 
-    addNightVehicleLights(car, type = 'rally', isPlayer = false) {
-        if (!this.nightRace || !this.game) {
+    setupStageVehicleLighting(car = this.playerCar, options = {}) {
+        if (!car || this.currentEnvironment?.disableVehicleLights) {
             return;
         }
 
-        const dimensions = this.getVehicleDimensions(type);
-        const frontZ = -dimensions.length * 0.48;
-        const rearZ = dimensions.length * 0.48;
-        const sideX = Math.min(dimensions.width * 0.34, 1.05);
-        const lightY = Math.max(0.45, dimensions.height * 0.34);
-        const headlightMaterial = new THREE.MeshBasicMaterial({
-            color: 0xe9f7ff,
-            transparent: true,
-            opacity: 0.92,
-            depthWrite: false
-        });
-        const beamMaterial = new THREE.MeshBasicMaterial({
-            color: 0xaee9ff,
-            transparent: true,
-            opacity: 0.15,
-            depthWrite: false,
-            side: THREE.DoubleSide
-        });
-        const tailMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff2338,
-            transparent: true,
-            opacity: 0.86,
-            depthWrite: false
-        });
-
-        [-1, 1].forEach(side => {
-            const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), headlightMaterial);
-            headlight.name = 'night-headlight-glow';
-            headlight.position.set(sideX * side, lightY, frontZ);
-            car.add(headlight);
-
-            const beam = new THREE.Mesh(new THREE.ConeGeometry(0.62, 7.6, 18, 1, true), beamMaterial);
-            beam.name = 'night-headlight-beam';
-            beam.position.set(sideX * side, lightY - 0.02, frontZ - 3.9);
-            beam.rotation.x = -Math.PI / 2;
-            beam.scale.x = 0.55;
-            car.add(beam);
-
-            const tail = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 6), tailMaterial);
-            tail.name = 'night-taillight-glow';
-            tail.position.set(sideX * side, lightY * 0.86, rearZ);
-            car.add(tail);
-        });
-
-        if (isPlayer) {
-            const light = new THREE.PointLight(0xc8f2ff, 1.45, 30, 2.1);
-            light.name = 'night-vehicle-light';
-            light.position.set(0, lightY, frontZ - 3.2);
-            light.castShadow = false;
-            car.add(light);
-        }
-
-        car.userData.nightLights = true;
+        this.setupNightStageVehicleLighting(car, options);
     }
 
-    setupStageVehicleLighting(car = this.playerCar, options = {}) {
-        if (!car || this.currentEnvironment?.id !== 'jungle' || car.userData.rainforestLightRig) {
+    setupNightStageVehicleLighting(car = this.playerCar, options = {}) {
+        if (!this.nightRace || car.userData.stageLightRig) {
             return;
         }
 
         const isPlayer = Boolean(options.player);
         const type = car.userData.vehicleType || (isPlayer ? this.game?.car?.vehicleType || this.playerVehicleType : 'rally') || 'rally';
         const dimensions = this.getVehicleDimensions(type);
-        const frontZ = -dimensions.length * 0.48;
-        const rearZ = dimensions.length * 0.48;
-        const lightY = Math.max(0.58, dimensions.height * 0.42);
-        const sideX = Math.min(dimensions.width * 0.25, 0.72);
+        const frontZ = -dimensions.length * 0.49;
+        const rearZ = dimensions.length * 0.49;
+        const lightY = Math.max(0.5, dimensions.height * 0.4);
+        const anchors = this.getVehicleHeadlightAnchors(car, dimensions);
         const rig = new THREE.Group();
-        rig.name = isPlayer ? 'rainforest-player-light-rig' : 'rainforest-traffic-light-rig';
-        rig.userData.rainforestVehicleLightRig = true;
-        rig.userData.rainforestLightRigPlayer = isPlayer;
+        rig.name = isPlayer ? 'stage-player-light-rig' : 'stage-traffic-light-rig';
+        rig.userData.stageVehicleLightRig = true;
 
-        [-1, 1].forEach(side => {
+        anchors.forEach(anchor => {
             const target = new THREE.Object3D();
-            target.name = 'rainforest-headlight-target';
-            target.position.set(sideX * side * 0.45, Math.max(0.16, lightY - 0.36), frontZ - 18);
-            target.userData.rainforestHeadlightTarget = true;
-            target.userData.rainforestLightSide = side;
+            target.name = 'stage-headlight-target';
+            target.position.set(anchor.position.x * 0.55, Math.max(0.12, anchor.position.y - 0.32), anchor.position.z - (isPlayer ? 40 : 24));
             rig.add(target);
 
             const headlight = new THREE.SpotLight(
-                0xffdfad,
-                (isPlayer ? 5.8 : 2.4) * this.rainforestCarLightStrength,
-                isPlayer ? 66 : 46,
-                isPlayer ? 0.2 : 0.23,
-                0.74,
-                1.75
+                0xdff6ff,
+                isPlayer ? 3.6 : 1.3,
+                isPlayer ? 74 : 42,
+                isPlayer ? 0.18 : 0.22,
+                0.76,
+                1.8
             );
-            headlight.name = 'rainforest-headlight-spot';
-            headlight.position.set(sideX * side, lightY, frontZ - 0.1);
+            headlight.name = 'stage-headlight-spot';
+            headlight.position.copy(anchor.position);
             headlight.target = target;
             headlight.castShadow = false;
-            headlight.userData.rainforestHeadlightSpot = true;
-            headlight.userData.rainforestLightSide = side;
-            headlight.userData.rainforestBaseIntensity = isPlayer ? 5.8 : 2.4;
+            headlight.userData.stageHeadlightSpot = true;
             rig.add(headlight);
         });
 
-        const roadFocusLight = new THREE.PointLight(0xffd08a, (isPlayer ? 0.16 : 0.08) * this.rainforestCarLightStrength, isPlayer ? 12 : 8, 2.45);
-        roadFocusLight.name = 'rainforest-road-focus-light';
-        roadFocusLight.position.set(0, Math.max(0.42, lightY * 0.72), frontZ - 4.2);
-        roadFocusLight.castShadow = false;
-        roadFocusLight.userData.rainforestRoadFocusLight = true;
-        roadFocusLight.userData.rainforestBaseIntensity = isPlayer ? 0.16 : 0.08;
-        if (isPlayer) {
-            rig.add(roadFocusLight);
-        }
+        const tailGlow = new THREE.PointLight(0xff1830, isPlayer ? 0.18 : 0.08, isPlayer ? 5.2 : 3.4, 2.2);
+        tailGlow.name = 'stage-taillight-glow';
+        tailGlow.position.set(0, lightY * 0.82, rearZ + 0.08);
+        tailGlow.castShadow = false;
+        rig.add(tailGlow);
 
         if (isPlayer) {
-            const carContrastLight = new THREE.PointLight(0xcfe3d8, 0.025, 4.2, 2.6);
-            carContrastLight.name = 'rainforest-car-roof-fill';
-            carContrastLight.position.set(-0.18, dimensions.height + 0.85, rearZ * 0.15);
-            carContrastLight.castShadow = false;
-            rig.add(carContrastLight);
+            const roadFill = new THREE.PointLight(0xbdeeff, 0.14, 10, 2.3);
+            roadFill.name = 'stage-road-focus-light';
+            roadFill.position.set(0, Math.max(0.35, lightY * 0.7), frontZ - 5);
+            roadFill.castShadow = false;
+            rig.add(roadFill);
         }
 
         car.add(rig);
-        car.userData.rainforestLightRig = rig;
-        if (isPlayer) {
-            this.rainforestPlayerLightRig = rig;
-        }
-        this.updateRainforestVehicleLightRigAnchors(car);
-    }
-
-    updateRainforestVehicleLightRigAnchors(car = this.playerCar) {
-        const rig = car?.userData?.rainforestLightRig;
-        if (!car || !rig || this.currentEnvironment?.id !== 'jungle') {
-            return;
-        }
-
-        const type = car.userData.vehicleType || (car === this.playerCar ? this.game?.car?.vehicleType || this.playerVehicleType : 'rally') || 'rally';
-        const dimensions = this.getVehicleDimensions(type);
-        const anchors = this.getVehicleHeadlightAnchors(car, dimensions);
-        const spots = [];
-        const targets = [];
-        let roadFocusLight = null;
-
-        rig.traverse(child => {
-            if (child.userData.rainforestHeadlightSpot) {
-                spots.push(child);
-            } else if (child.userData.rainforestHeadlightTarget) {
-                targets.push(child);
-            } else if (child.userData.rainforestRoadFocusLight) {
-                roadFocusLight = child;
-            }
-        });
-
-        anchors.forEach(anchor => {
-            const spot = spots.find(light => light.userData.rainforestLightSide === anchor.side);
-            const target = targets.find(object => object.userData.rainforestLightSide === anchor.side);
-            if (!spot || !target) {
-                return;
-            }
-
-            spot.position.copy(anchor.position);
-            target.position.set(
-                anchor.position.x * 0.58,
-                Math.max(0.14, anchor.position.y - 0.36),
-                anchor.position.z - 26
-            );
-            spot.target = target;
-        });
-
-        if (roadFocusLight && anchors.length) {
-            const average = anchors.reduce((sum, anchor) => sum.add(anchor.position), new THREE.Vector3()).multiplyScalar(1 / anchors.length);
-            roadFocusLight.position.set(0, Math.max(0.34, average.y - 0.2), average.z - 6.4);
-        }
+        car.userData.stageLightRig = rig;
     }
 
     getVehicleHeadlightAnchors(car, dimensions) {
@@ -2058,7 +2064,7 @@ class GameManager {
         car.updateMatrixWorld(true);
 
         car.traverse(child => {
-            if (!child.isMesh || child.name === 'vehicle-collision-proxy' || child.userData.rainforestHeadlightSpot) {
+            if (!child.isMesh || child.name === 'vehicle-collision-proxy' || child.userData.stageHeadlightSpot) {
                 return;
             }
 
@@ -3126,7 +3132,6 @@ class GameManager {
         car.userData.wheels = [];
 
         this.populateProceduralCar(car, spec, materials, type);
-        this.addNightVehicleLights(car, type, Boolean(options.player));
         this.cacheVehicleWheelContactPoints(car);
 
         return car;
@@ -3503,7 +3508,6 @@ class GameManager {
         this.placeTrafficCar(trafficState, spawnPose.z, spawnPose.xOffset);
         this.scene.add(trafficCar);
         this.setupStageVehicleLighting(trafficCar, { player: false });
-        this.setRainforestVehicleLightRigEnabled(trafficCar, false);
         this.trafficCars.push(trafficState);
     }
     resetCarPosition() {
@@ -3984,7 +3988,14 @@ class GameManager {
         }
 
         const selectedCircuit = document.getElementById('circuitSelect').value;
-        const environment = environments[selectedCircuit]; // Use the selected environment
+        const timeOfDayMode = localStorage.getItem('rallyRushIITimeOfDay') === 'night' ? 'night' : 'day';
+        const rainEnabled = localStorage.getItem('rallyRushIIRainEnabled') !== 'off';
+        const environment = {
+            ...environments[selectedCircuit],
+            disableRain: !rainEnabled,
+            disableVehicleLights: timeOfDayMode === 'day',
+            nightRace: timeOfDayMode === 'night'
+        }; // Use the selected environment
         this.currentStageId = selectedCircuit;
         this.isPaused = false;
         this.pauseStartedAt = 0;
@@ -4441,6 +4452,8 @@ class GameManager {
         const now = performance.now();
         const deltaSeconds = Math.min(0.05, Math.max(0, (now - (this.lastStageEffectUpdateAt || now)) / 1000));
         this.lastStageEffectUpdateAt = now;
+        this.updateSceneryCulling();
+
         if (!this.game?.stageEffects?.length) {
             return;
         }
@@ -4450,6 +4463,84 @@ class GameManager {
                 effect.update(deltaSeconds, this.game, this.camera);
             }
         });
+    }
+
+    updateSceneryCulling() {
+        const cullObjects = this.game?.sceneryCullObjects;
+        if (!Array.isArray(cullObjects) || cullObjects.length === 0 || !this.game?.car?.position) {
+            return;
+        }
+
+        const carZ = this.game.car.position.z;
+        const windowSettings = this.game.sceneryCullWindow || {};
+        const ahead = Number.isFinite(windowSettings.ahead) ? windowSettings.ahead : 900;
+        const behind = Number.isFinite(windowSettings.behind) ? windowSettings.behind : 220;
+        let visibleCount = 0;
+
+        cullObjects.forEach(object => {
+            if (!object) {
+                return;
+            }
+            const cull = object.userData?.sceneryCull;
+            const z = Number.isFinite(cull?.z) ? cull.z : object.position?.z;
+            if (!Number.isFinite(z)) {
+                return;
+            }
+            const radius = Number.isFinite(cull?.radius) ? cull.radius : 70;
+            const visible = z >= carZ - ahead - radius && z <= carZ + behind + radius;
+            object.visible = visible;
+            if (visible) {
+                visibleCount += 1;
+            }
+        });
+
+        this.game.visibleSceneryCullObjects = visibleCount;
+    }
+
+    getPerformanceDiagnostics() {
+        const renderInfo = this.renderer?.info;
+        let activeLights = 0;
+        if (this.scene) {
+            this.scene.traverse(object => {
+                if (object.isLight && object.visible) {
+                    activeLights += 1;
+                }
+            });
+        }
+
+        return {
+            stage: this.currentStageId,
+            timeOfDay: this.nightRace ? 'night' : 'day',
+            rainEnabled: !this.currentEnvironment?.disableRain,
+            sceneChildren: this.scene?.children?.length || 0,
+            activeLights,
+            scenery: {
+                total: this.game?.sceneryCullObjects?.length || 0,
+                visible: this.game?.visibleSceneryCullObjects || 0,
+                window: this.game?.sceneryCullWindow || null
+            },
+            renderer: renderInfo ? {
+                calls: renderInfo.render.calls,
+                triangles: renderInfo.render.triangles,
+                lines: renderInfo.render.lines,
+                points: renderInfo.render.points,
+                geometries: renderInfo.memory.geometries,
+                textures: renderInfo.memory.textures
+            } : null,
+            jungleAssets: this.game?.jungleAssetDiagnostics || null,
+            jungleBatches: this.game?.stageEffects
+                ?.filter(effect => effect.type === 'jungleInstancedVegetation')
+                .map(effect => ({
+                    asset: effect.asset,
+                    placements: effect.placements?.length || 0,
+                    meshDraws: effect.fullMeshes?.length || 0,
+                    visibleFull: effect.visibleFull || 0,
+                    visibleBillboards: effect.visibleBillboards || 0,
+                    nearDistance: effect.nearDistance,
+                    farDistance: effect.farDistance
+                })) || null,
+            stageDecor: this.game?.stageDecor || null
+        };
     }
 
 
@@ -5127,7 +5218,6 @@ class GameManager {
             this.animateVehicleWheels(trafficCar.mesh, trafficCar.speed * 0.72, 0);
         });
 
-        this.updateRainforestTrafficLightBudget();
         this.resolveTrafficSpacing();
 
         this.trafficCars.forEach(trafficCar => {
@@ -5137,41 +5227,6 @@ class GameManager {
 
             if (!this.activeCollision && this.isPlayerCollidingWithTraffic(trafficCar) && this.game.car.trafficCollisionCooldown === 0) {
                 this.triggerTrafficCollision(trafficCar);
-            }
-        });
-    }
-
-    updateRainforestTrafficLightBudget() {
-        if (this.currentEnvironment?.id !== 'jungle' || !this.playerCar) {
-            return;
-        }
-
-        const active = this.trafficCars
-            .filter(trafficCar => trafficCar.mesh?.userData?.rainforestLightRig)
-            .map(trafficCar => ({
-                trafficCar,
-                distance: Math.abs(trafficCar.mesh.position.z - this.game.car.position.z)
-                    + Math.abs(trafficCar.mesh.position.x - this.playerCar.position.x) * 0.3
-            }))
-            .sort((a, b) => a.distance - b.distance)
-            .slice(0, this.maxActiveRainforestTrafficHeadlights)
-            .map(entry => entry.trafficCar);
-
-        this.trafficCars.forEach(trafficCar => {
-            this.setRainforestVehicleLightRigEnabled(trafficCar.mesh, active.includes(trafficCar));
-        });
-    }
-
-    setRainforestVehicleLightRigEnabled(car, enabled) {
-        const rig = car?.userData?.rainforestLightRig;
-        if (!rig || rig.userData.rainforestLightRigPlayer) {
-            return;
-        }
-
-        rig.traverse(child => {
-            if (child.isLight) {
-                child.visible = enabled;
-                child.intensity = enabled ? (child.userData.rainforestBaseIntensity ?? child.intensity) * this.rainforestCarLightStrength : 0;
             }
         });
     }

@@ -386,26 +386,42 @@ function createCoastalSkyTexture() {
     return texture;
 }
 
-function createJungleSkyTexture() {
+function createJungleSkyTexture(environment = {}) {
+    const isNight = Boolean(environment.nightRace);
+    const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const context = canvas.getContext('2d');
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#4c6264');
-    skyGradient.addColorStop(0.32, '#718382');
-    skyGradient.addColorStop(0.64, '#8e9d91');
-    skyGradient.addColorStop(1, '#3d6647');
+    if (isNight) {
+        skyGradient.addColorStop(0, '#101a26');
+        skyGradient.addColorStop(0.34, '#1b2a35');
+        skyGradient.addColorStop(0.68, '#253c3a');
+        skyGradient.addColorStop(1, '#173421');
+    } else if (isRainy) {
+        skyGradient.addColorStop(0, '#66797b');
+        skyGradient.addColorStop(0.32, '#879794');
+        skyGradient.addColorStop(0.64, '#a5afa0');
+        skyGradient.addColorStop(1, '#4f7a52');
+    } else {
+        skyGradient.addColorStop(0, '#67b9d0');
+        skyGradient.addColorStop(0.34, '#9bd0cf');
+        skyGradient.addColorStop(0.68, '#c1d8bc');
+        skyGradient.addColorStop(1, '#6aa05a');
+    }
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    const stormBand = context.createLinearGradient(0, 0, 0, canvas.height * 0.58);
-    stormBand.addColorStop(0, 'rgba(33,43,45,0.84)');
-    stormBand.addColorStop(0.38, 'rgba(60,72,72,0.62)');
-    stormBand.addColorStop(0.76, 'rgba(106,122,116,0.28)');
-    stormBand.addColorStop(1, 'rgba(128,150,142,0)');
-    context.fillStyle = stormBand;
-    context.fillRect(0, 0, canvas.width, canvas.height * 0.6);
+    if (isRainy || isNight) {
+        const stormBand = context.createLinearGradient(0, 0, 0, canvas.height * 0.58);
+        stormBand.addColorStop(0, isNight ? 'rgba(4,9,16,0.64)' : 'rgba(42,53,55,0.56)');
+        stormBand.addColorStop(0.38, isNight ? 'rgba(17,27,34,0.52)' : 'rgba(72,86,86,0.42)');
+        stormBand.addColorStop(0.76, isNight ? 'rgba(42,58,58,0.24)' : 'rgba(116,132,126,0.2)');
+        stormBand.addColorStop(1, 'rgba(128,150,142,0)');
+        context.fillStyle = stormBand;
+        context.fillRect(0, 0, canvas.width, canvas.height * 0.6);
+    }
 
     const drawRainCloud = (cx, cy, width, height, opacity, seed) => {
         context.save();
@@ -430,20 +446,26 @@ function createJungleSkyTexture() {
         context.restore();
     };
 
-    for (let x = -340; x < canvas.width + 420; x += 260) {
-        drawRainCloud(x + 120, 116 + Math.sin(x * 0.01) * 20, 620, 190, 0.76, x * 0.03);
-    }
-    for (let x = -260; x < canvas.width + 320; x += 360) {
-        drawRainCloud(x + 150, 288 + Math.cos(x * 0.008) * 22, 760, 150, 0.48, x * 0.019 + 9);
+    if (isRainy || isNight) {
+        const cloudStrength = isRainy ? 1 : 0.56;
+        for (let x = -340; x < canvas.width + 420; x += 260) {
+            drawRainCloud(x + 120, 116 + Math.sin(x * 0.01) * 20, 620, 190, 0.58 * cloudStrength, x * 0.03);
+        }
+        for (let x = -260; x < canvas.width + 320; x += 360) {
+            drawRainCloud(x + 150, 288 + Math.cos(x * 0.008) * 22, 760, 150, 0.34 * cloudStrength, x * 0.019 + 9);
+        }
     }
 
     context.save();
-    context.filter = 'blur(26px)';
-    for (let i = 0; i < 46; i++) {
+    context.filter = isRainy || isNight ? 'blur(26px)' : 'blur(16px)';
+    const cloudSheetCount = isRainy || isNight ? 34 : 14;
+    for (let i = 0; i < cloudSheetCount; i++) {
         const y = 26 + Math.random() * 390;
         const cloudSheet = context.createLinearGradient(0, y - 90, 0, y + 90);
         cloudSheet.addColorStop(0, 'rgba(28,36,38,0)');
-        cloudSheet.addColorStop(0.5, `rgba(${42 + Math.floor(Math.random() * 28)},${52 + Math.floor(Math.random() * 30)},${54 + Math.floor(Math.random() * 28)},${0.08 + Math.random() * 0.18})`);
+        cloudSheet.addColorStop(0.5, isRainy || isNight
+            ? `rgba(${42 + Math.floor(Math.random() * 28)},${52 + Math.floor(Math.random() * 30)},${54 + Math.floor(Math.random() * 28)},${0.05 + Math.random() * 0.13})`
+            : `rgba(236,248,232,${0.035 + Math.random() * 0.045})`);
         cloudSheet.addColorStop(1, 'rgba(96,112,112,0)');
         context.fillStyle = cloudSheet;
         context.beginPath();
@@ -462,8 +484,8 @@ function createJungleSkyTexture() {
 
     const canopyHaze = context.createLinearGradient(0, canvas.height * 0.44, 0, canvas.height);
     canopyHaze.addColorStop(0, 'rgba(116,143,133,0)');
-    canopyHaze.addColorStop(0.45, 'rgba(112,141,120,0.34)');
-    canopyHaze.addColorStop(1, 'rgba(47,88,51,0.64)');
+    canopyHaze.addColorStop(0.45, isRainy || isNight ? 'rgba(112,141,120,0.26)' : 'rgba(158,190,135,0.16)');
+    canopyHaze.addColorStop(1, isRainy || isNight ? 'rgba(47,88,51,0.52)' : 'rgba(91,143,71,0.32)');
     context.fillStyle = canopyHaze;
     context.fillRect(0, canvas.height * 0.44, canvas.width, canvas.height * 0.56);
 
@@ -1470,7 +1492,10 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function generateRoadCurve(z) {
-        return roadNoise.noise2D(z * 0.002, 0) * 40;
+        const curveScale = environment.terrainStyle === 'rainforest'
+            ? THREE.MathUtils.clamp(environment.jungleGeneration?.trailCurve ?? 0.45, 0, 1.5)
+            : 1;
+        return roadNoise.noise2D(z * 0.002, 0) * 40 * curveScale;
     }
 
     const segmentLength = 10;
@@ -1965,6 +1990,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         let heightOffset = generateMountainHeight(x, z) * getTerrainLiftFactor(normalizedDistance);
 
         if (environment.terrainStyle === 'rainforest') {
+            const bankScale = THREE.MathUtils.clamp((environment.jungleGeneration?.bankHeight ?? 2.5) / 2.5, 0.25, 2.35);
             const side = x < roadData.curve ? -1 : 1;
             const broadNoise = (terrainNoise.noise2D(z * 0.0026, side * 12.4) + 1) * 0.5;
             const detailNoise = (terrainNoise.noise2D((x + side * 31) * 0.014, z * 0.007) + 1) * 0.5;
@@ -2006,7 +2032,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const ripple = (crossNoise * 4.8 + moundNoise * 6.6 + fineNoise * 1.8) * baseLift * (0.22 + normalizedDistance * 0.78);
 
             heightOffset *= 0.2 + baseLift * (0.25 + asymmetry * 0.16 + brokenLift * 0.48);
-            heightOffset += closeShelf + midShelf + farShelf + ripple - gully - pocketCut;
+            heightOffset += (closeShelf + midShelf + farShelf - gully - pocketCut) * bankScale + ripple;
             heightOffset *= smoothStep(2.4, 11, distanceFromRoadEdge);
             heightOffset = Math.max(heightOffset, -0.35 + baseLift * 0.2);
         }
@@ -2065,13 +2091,53 @@ function generateRoadAndTerrain(scene, game, environment) {
         };
     }
 
+    function getSceneryCullRadius(statsKey) {
+        const largeProps = new Set([
+            'buildings',
+            'cabins',
+            'villas',
+            'boats',
+            'docks',
+            'stoneWalls',
+            'seaWalls',
+            'canopy'
+        ]);
+        const smallProps = new Set([
+            'junglePlants',
+            'coastalDetails',
+            'hazardMarkers',
+            'fenceSegments',
+            'guardrails'
+        ]);
+        if (largeProps.has(statsKey)) {
+            return 150;
+        }
+        if (smallProps.has(statsKey)) {
+            return 55;
+        }
+        return 85;
+    }
+
+    function registerSceneryCull(object, statsKey) {
+        if (!object?.position || !Number.isFinite(object.position.z)) {
+            return;
+        }
+        game.sceneryCullObjects = game.sceneryCullObjects || [];
+        object.userData = object.userData || {};
+        object.userData.sceneryCull = {
+            z: object.position.z,
+            radius: getSceneryCullRadius(statsKey)
+        };
+        game.sceneryCullObjects.push(object);
+    }
+
     function addDecorMesh(group, mesh, statsKey) {
-        const isNewCircuit = ['city', 'lakes', 'jungle', 'coastal'].includes(environment.id);
-        const majorShadowKeys = new Set(['buildings', 'cabins', 'villas']);
-        const castsUsefulShadow = !isNewCircuit || majorShadowKeys.has(statsKey);
+        const majorShadowKeys = new Set(['buildings', 'cabins', 'villas', 'stoneWalls']);
+        const castsUsefulShadow = majorShadowKeys.has(statsKey);
         mesh.castShadow = castsUsefulShadow;
         mesh.receiveShadow = castsUsefulShadow;
         group.add(mesh);
+        registerSceneryCull(mesh, statsKey);
         if (statsKey) {
             stageDecorStats[statsKey] += 1;
         }
@@ -2079,9 +2145,8 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function addDecorGroup(group, object, statsKey) {
-        const isNewCircuit = ['city', 'lakes', 'jungle', 'coastal'].includes(environment.id);
-        const majorShadowKeys = new Set(['cabins', 'villas']);
-        const castsUsefulShadow = !isNewCircuit || majorShadowKeys.has(statsKey);
+        const majorShadowKeys = new Set(['cabins', 'villas', 'buildings', 'stoneWalls']);
+        const castsUsefulShadow = majorShadowKeys.has(statsKey);
         object.traverse(child => {
             if (child.isMesh) {
                 child.castShadow = castsUsefulShadow;
@@ -2089,6 +2154,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
         });
         group.add(object);
+        registerSceneryCull(object, statsKey);
         if (statsKey) {
             stageDecorStats[statsKey] += 1;
         }
@@ -2096,7 +2162,11 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function addDecorPointLight(group, color, intensity, distance, decay, position, limit = 8) {
-        if (stageDecorStats.activePointLights >= limit) {
+        const decorativeLightLimit = Number.isFinite(environment.decorativeLightLimit)
+            ? Math.max(0, environment.decorativeLightLimit)
+            : 0;
+        const effectiveLimit = Math.min(limit, decorativeLightLimit);
+        if (stageDecorStats.activePointLights >= effectiveLimit) {
             return null;
         }
 
@@ -2131,6 +2201,78 @@ function generateRoadAndTerrain(scene, game, environment) {
         if (decor.children.length > 0) {
             scene.add(decor);
         }
+    }
+
+    function addGenericRainEffect() {
+        const texture = createCanvasTexture(512, 1024, 1.8, 3.6, (context, width, height) => {
+            context.clearRect(0, 0, width, height);
+            context.lineCap = 'round';
+            for (let i = 0; i < 320; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const length = 28 + Math.random() * 64;
+                const slant = 6 + Math.random() * 16;
+                context.strokeStyle = `rgba(216,241,238,${0.08 + Math.random() * 0.18})`;
+                context.lineWidth = 0.7 + Math.random() * 1.1;
+                context.beginPath();
+                context.moveTo(x, y);
+                context.lineTo(x - slant, y + length);
+                context.stroke();
+            }
+        });
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.anisotropy = 4;
+
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            color: 0xd8f1ee,
+            transparent: true,
+            opacity: environment.nightRace ? 0.32 : 0.2,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const rain = new THREE.Group();
+        rain.name = 'stage-rain-curtains';
+        const geometry = new THREE.PlaneGeometry(260, 80);
+        const curtainOffsets = [-120, -220, -330, -455, -590, -735, -890, -1045, -1195, -1360];
+        const lateralOffsets = curtainOffsets.map((_, index) => ((index % 2 === 0 ? -1 : 1) * (8 + (index % 4) * 5)));
+        curtainOffsets.forEach((offsetZ, index) => {
+            const curtain = new THREE.Mesh(geometry, material);
+            curtain.name = 'stage-rain-curtain';
+            curtain.userData.rainOffsetZ = offsetZ;
+            curtain.userData.rainLateral = lateralOffsets[index];
+            curtain.frustumCulled = true;
+            curtain.renderOrder = 8;
+            rain.add(curtain);
+        });
+        scene.add(rain);
+        game.stageEffects = game.stageEffects || [];
+        game.stageEffects.push({
+            type: 'rain',
+            update(deltaSeconds, activeGame, activeCamera) {
+                texture.offset.x = (texture.offset.x + deltaSeconds * 0.08) % 1;
+                texture.offset.y = (texture.offset.y - deltaSeconds * 1.85) % 1;
+                const carZ = activeGame?.car?.position?.z ?? game.startLine;
+                rain.children.forEach(curtain => {
+                    const z = carZ + curtain.userData.rainOffsetZ;
+                    const roadData = getLinearRoadDataAtZ(z);
+                    curtain.position.set(
+                        roadData.curve + curtain.userData.rainLateral,
+                        roadData.y + 38,
+                        z
+                    );
+                    if (activeCamera) {
+                        curtain.quaternion.copy(activeCamera.quaternion);
+                    }
+                });
+            },
+            setIntensity(value) {
+                material.opacity = THREE.MathUtils.clamp(value, 0, 1);
+                rain.visible = material.opacity > 0.01;
+            }
+        });
+        stageDecorStats.rainStreaks += curtainOffsets.length;
     }
 
     function addStreetLight(decor, x, y, z, color = 0xfff1b8, height = 5.2) {
@@ -2265,7 +2407,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         ];
         const windowMaterial = new THREE.MeshBasicMaterial({ color: 0xffe2a0, transparent: true, opacity: 0.48 });
         const barrierMaterial = new THREE.MeshPhongMaterial({ color: 0xd7dde0, shininess: 12 });
-        const startZ = game.startLine - 70;
+        const startZ = game.startLine + 70;
         const endZ = game.finishLine + 130;
 
         for (let z = startZ; z > endZ; z -= 96) {
@@ -3199,8 +3341,55 @@ function generateRoadAndTerrain(scene, game, environment) {
             shininess: 12,
             specular: 0x17351d
         });
-        const startZ = game.startLine - 70;
+        const generation = {
+            complexity: 0.75,
+            trailLength: Math.abs(game.finishLine - game.startLine),
+            trailWidth: game.road.width,
+            trailCurve: 0.45,
+            bankHeight: 2.5,
+            density: 1,
+            canopyCover: 0.95,
+            treeCount: 24,
+            understoryHeight: 6.5,
+            rockCount: 24,
+            vines: 12,
+            ...(environment.jungleGeneration || {})
+        };
+        const detail = (min, max) => Math.max(min, Math.round(min + (max - min) * generation.complexity));
+        const densityScale = THREE.MathUtils.clamp(generation.density, 0, 1.35);
+        const canopyScale = THREE.MathUtils.clamp(generation.canopyCover, 0, 1.2);
+        const treeScale = densityScale * THREE.MathUtils.clamp(generation.treeCount / 34, 0, 2.2);
+        const understoryScale = densityScale * THREE.MathUtils.clamp(generation.understoryHeight / 7.2, 0, 2);
+        const vineScale = densityScale * THREE.MathUtils.clamp(generation.vines / 18, 0, 2.2);
+        const rockScale = THREE.MathUtils.clamp(generation.rockCount / 30, 0, 2.2);
+        const scaledStep = (base, scale) => base / Math.max(0.22, scale);
+        const startZ = game.startLine + 70;
         const endZ = game.finishLine + 150;
+        const jungleAssetCache = environment.assetCache || {};
+        const tallTreeAssets = ['tallTreeA', 'tallTreeB', 'tallTreeC']
+            .map(key => jungleAssetCache[key])
+            .filter(asset => asset?.scene);
+        const smallTreeAssets = ['smallTreeA', 'smallTreeB']
+            .map(key => jungleAssetCache[key])
+            .filter(asset => asset?.scene);
+        const fernAssets = ['fernA', 'fernB']
+            .map(key => jungleAssetCache[key])
+            .filter(asset => asset?.scene);
+        const kenneyTreeAssets = ['palmDetailedTall', 'palmTall', 'palmBend', 'palmDetailedShort']
+            .map(key => jungleAssetCache[key])
+            .filter(asset => asset?.scene);
+        const kenneyUnderstoryAssets = ['bushLargeTriangle', 'bushDetailed', 'plantFlatTall', 'grassLeafsLarge', 'grassLeafs']
+            .map(key => jungleAssetCache[key])
+            .filter(asset => asset?.scene);
+        const kenneyGroundAssets = ['logLarge', 'stumpOld', 'rockLarge', 'rockSmall']
+            .map(key => jungleAssetCache[key])
+            .filter(asset => asset?.scene);
+        const tallTreeLimit = tallTreeAssets.length ? Math.round(14 * treeScale) : 0;
+        const smallTreeLimit = smallTreeAssets.length ? Math.round(18 * treeScale) : 0;
+        const fernLimit = fernAssets.length ? Math.round(54 * understoryScale) : 0;
+        const kenneyTreeLimit = kenneyTreeAssets.length ? Math.round(22 * treeScale) : 0;
+        const kenneyUnderstoryLimit = kenneyUnderstoryAssets.length ? Math.round(86 * understoryScale) : 0;
+        const kenneyGroundLimit = kenneyGroundAssets.length ? Math.round(34 * Math.max(densityScale, rockScale)) : 0;
 
         function addInstanced(name, geometry, material, placements, statsKey = 'junglePlants') {
             if (!placements.length) {
@@ -3234,6 +3423,511 @@ function generateRoadAndTerrain(scene, game, environment) {
                 stageDecorStats[statsKey] += placements.length;
             }
             return mesh;
+        }
+
+        function cloneJungleAssetMaterial(material) {
+            if (!material) {
+                return material;
+            }
+
+            const cloned = material.clone();
+            cloned.userData.keepTextureMaps = true;
+            if ('roughness' in cloned) {
+                cloned.roughness = Math.max(cloned.roughness || 0.5, 0.8);
+            }
+            if ('metalness' in cloned) {
+                cloned.metalness = Math.min(cloned.metalness || 0, 0.04);
+            }
+            if (cloned.color) {
+                cloned.color.offsetHSL(-0.015, 0.02, -0.025);
+            }
+            cloned.needsUpdate = true;
+            return cloned;
+        }
+
+        function getGeometryTriangleCount(geometry) {
+            if (!geometry) {
+                return 0;
+            }
+            if (geometry.index) {
+                return Math.floor(geometry.index.count / 3);
+            }
+            return Math.floor((geometry.attributes?.position?.count || 0) / 3);
+        }
+
+        function getAssetBatchData(asset) {
+            if (!asset?.scene) {
+                return null;
+            }
+            if (asset.userData?.jungleBatchData) {
+                return asset.userData.jungleBatchData;
+            }
+
+            asset.scene.updateMatrixWorld(true);
+            const sourceBox = new THREE.Box3().setFromObject(asset.scene);
+            const size = sourceBox.getSize(new THREE.Vector3());
+            const center = sourceBox.getCenter(new THREE.Vector3());
+            const normalizeMatrix = new THREE.Matrix4()
+                .makeTranslation(-center.x, -sourceBox.min.y, -center.z);
+            const meshes = [];
+            let meshCount = 0;
+            let materialCount = 0;
+            let triangleCount = 0;
+
+            asset.scene.traverse(child => {
+                if (!child.isMesh) {
+                    return;
+                }
+
+                const material = Array.isArray(child.material)
+                    ? child.material.map(cloneJungleAssetMaterial)
+                    : cloneJungleAssetMaterial(child.material);
+                meshes.push({
+                    name: child.name || `mesh-${meshes.length}`,
+                    geometry: child.geometry,
+                    material,
+                    localMatrix: child.matrixWorld.clone(),
+                    triangles: getGeometryTriangleCount(child.geometry)
+                });
+                meshCount += 1;
+                materialCount += Array.isArray(child.material) ? child.material.length : 1;
+                triangleCount += getGeometryTriangleCount(child.geometry);
+            });
+
+            const data = {
+                assetName: asset.assetName || asset.key || 'jungle-asset',
+                height: Math.max(0.001, size.y),
+                normalizeMatrix,
+                meshes,
+                audit: {
+                    asset: asset.assetName || asset.key || 'jungle-asset',
+                    meshes: meshCount,
+                    materials: materialCount,
+                    triangles: triangleCount
+                }
+            };
+            asset.userData = asset.userData || {};
+            asset.userData.jungleBatchData = data;
+            return data;
+        }
+
+        function createJungleAssetClone(asset, targetHeight = 14) {
+            if (!asset?.scene) {
+                return null;
+            }
+
+            const wrapper = new THREE.Group();
+            wrapper.name = `jungle-uploaded-asset-${asset.assetName || asset.key || 'model'}`;
+            const clone = asset.scene.clone(true);
+            clone.traverse(child => {
+                if (!child.isMesh) {
+                    return;
+                }
+
+                child.castShadow = false;
+                child.receiveShadow = true;
+                child.userData.keepGeometry = true;
+                if (Array.isArray(child.material)) {
+                    child.material = child.material.map(cloneJungleAssetMaterial);
+                } else {
+                    child.material = cloneJungleAssetMaterial(child.material);
+                }
+            });
+
+            const sourceBox = new THREE.Box3().setFromObject(clone);
+            const size = sourceBox.getSize(new THREE.Vector3());
+            clone.scale.multiplyScalar(targetHeight / Math.max(0.001, size.y));
+
+            const fittedBox = new THREE.Box3().setFromObject(clone);
+            const center = fittedBox.getCenter(new THREE.Vector3());
+            clone.position.x -= center.x;
+            clone.position.z -= center.z;
+            clone.position.y -= fittedBox.min.y;
+            wrapper.add(clone);
+            return wrapper;
+        }
+
+        function createJungleBillboardTexture(label, colorTop, colorBottom) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 192;
+            canvas.height = 384;
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            const trunk = context.createLinearGradient(88, 0, 108, 0);
+            trunk.addColorStop(0, '#2c1d12');
+            trunk.addColorStop(0.5, '#5b3922');
+            trunk.addColorStop(1, '#1c120b');
+            context.fillStyle = trunk;
+            context.fillRect(88, 156, 16, 212);
+
+            for (let layer = 0; layer < 5; layer++) {
+                const y = 72 + layer * 40;
+                const width = 132 - layer * 10;
+                const height = 80 - layer * 7;
+                const leafGradient = context.createLinearGradient(0, y - height * 0.6, 0, y + height * 0.7);
+                leafGradient.addColorStop(0, colorTop);
+                leafGradient.addColorStop(0.58, colorBottom);
+                leafGradient.addColorStop(1, 'rgba(9,48,24,0.18)');
+                context.fillStyle = leafGradient;
+                context.beginPath();
+                context.moveTo(96, y - height * 0.62);
+                context.bezierCurveTo(96 - width * 0.56, y - height * 0.1, 96 - width * 0.5, y + height * 0.42, 96, y + height * 0.58);
+                context.bezierCurveTo(96 + width * 0.5, y + height * 0.42, 96 + width * 0.56, y - height * 0.1, 96, y - height * 0.62);
+                context.fill();
+            }
+
+            context.globalAlpha = 0.7;
+            context.strokeStyle = colorTop;
+            context.lineWidth = 7;
+            for (let i = 0; i < 16; i++) {
+                const side = i % 2 === 0 ? -1 : 1;
+                const y = 72 + (i % 8) * 25;
+                const length = 36 + (i % 5) * 8;
+                context.beginPath();
+                context.moveTo(96, y);
+                context.quadraticCurveTo(96 + side * length * 0.45, y + 14, 96 + side * length, y + 34);
+                context.stroke();
+            }
+            context.globalAlpha = 1;
+
+            context.fillStyle = colorBottom;
+            for (let i = 0; i < 9; i++) {
+                const y = 82 + i * 22;
+                context.beginPath();
+                context.ellipse(96 + Math.sin(i * 2.1) * 20, y, 48 - i * 2, 18, Math.sin(i) * 0.2, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            context.globalAlpha = 0.38;
+            context.fillStyle = '#d6f2a8';
+            for (let i = 0; i < 80; i++) {
+                context.fillRect(36 + Math.random() * 120, 42 + Math.random() * 190, 1 + Math.random() * 3, 1 + Math.random() * 4);
+            }
+            context.globalAlpha = 1;
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.name = label;
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.anisotropy = 2;
+            if (THREE.sRGBEncoding) {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+            return texture;
+        }
+
+        function createJungleInstancedAssetBatch(asset, placements, statsKey, options = {}) {
+            const data = getAssetBatchData(asset);
+            if (!data || !placements.length || !data.meshes.length) {
+                return null;
+            }
+
+            const group = new THREE.Group();
+            group.name = `jungle-instanced-${data.assetName}`;
+            const maxCount = placements.length;
+            const fullMeshes = data.meshes.map((entry, meshIndex) => {
+                const mesh = new THREE.InstancedMesh(entry.geometry, entry.material, maxCount);
+                mesh.name = `jungle-instanced-${data.assetName}-${meshIndex}`;
+                mesh.castShadow = false;
+                mesh.receiveShadow = true;
+                mesh.frustumCulled = false;
+                mesh.count = 0;
+                group.add(mesh);
+                return { mesh, entry };
+            });
+
+            const billboardTexture = createJungleBillboardTexture(
+                `${data.assetName}-billboard`,
+                options.billboardTop || 'rgba(109,165,78,0.96)',
+                options.billboardBottom || 'rgba(22,91,43,0.94)'
+            );
+            const billboardMaterial = new THREE.MeshBasicMaterial({
+                map: billboardTexture,
+                transparent: true,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                color: 0xffffff
+            });
+            const billboard = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1.9), billboardMaterial, maxCount);
+            billboard.name = `jungle-billboard-${data.assetName}`;
+            billboard.castShadow = false;
+            billboard.receiveShadow = false;
+            billboard.frustumCulled = false;
+            billboard.count = 0;
+            group.add(billboard);
+
+            decor.add(group);
+            stageDecorStats.totalInstancedProps += placements.length;
+            if (statsKey) {
+                stageDecorStats[statsKey] += placements.length;
+            }
+
+            const placementMatrix = new THREE.Matrix4();
+            const scaleMatrix = new THREE.Matrix4();
+            const normalizedMatrix = new THREE.Matrix4();
+            const finalMatrix = new THREE.Matrix4();
+            const position = new THREE.Vector3();
+            const quaternion = new THREE.Quaternion();
+            const scale = new THREE.Vector3();
+            const billboardScale = new THREE.Vector3();
+            const billboardQuaternion = new THREE.Quaternion();
+            const billboardMatrix = new THREE.Matrix4();
+
+            const batch = {
+                type: 'jungleInstancedVegetation',
+                asset: data.assetName,
+                statsKey,
+                placements,
+                audit: data.audit,
+                fullMeshes,
+                billboard,
+                billboardEnabled: options.billboardEnabled === true,
+                nearDistance: options.nearDistance || 245,
+                farDistance: options.farDistance || 620,
+                update(deltaSeconds, activeGame, activeCamera) {
+                    const carZ = activeGame?.car?.position?.z ?? game.startLine;
+                    const cameraQuaternion = activeCamera?.quaternion || billboardQuaternion.identity();
+                    let fullCount = 0;
+                    let billboardCount = 0;
+
+                    placements.forEach(placement => {
+                        const dz = Math.abs(placement.z - carZ);
+                        if (dz > batch.farDistance || placement.z > carZ + 110 || placement.z < carZ - 560) {
+                            return;
+                        }
+
+                        position.set(placement.x, placement.y, placement.z);
+                        quaternion.setFromEuler(new THREE.Euler(placement.rotationX || 0, placement.rotationY || 0, placement.rotationZ || 0));
+                        const uniformScale = placement.targetHeight / data.height;
+                        scale.set(uniformScale, uniformScale, uniformScale);
+                        placementMatrix.compose(position, quaternion, scale);
+
+                        if (!batch.billboardEnabled || dz <= batch.nearDistance) {
+                            fullMeshes.forEach(({ mesh, entry }) => {
+                                finalMatrix
+                                    .copy(placementMatrix)
+                                    .multiply(data.normalizeMatrix)
+                                    .multiply(entry.localMatrix);
+                                mesh.setMatrixAt(fullCount, finalMatrix);
+                            });
+                            fullCount += 1;
+                        } else {
+                            position.y = placement.y + placement.targetHeight * 0.5;
+                            billboardScale.set(placement.targetHeight * 0.5, placement.targetHeight, 1);
+                            billboardMatrix.compose(position, cameraQuaternion, billboardScale);
+                            billboard.setMatrixAt(billboardCount, billboardMatrix);
+                            billboardCount += 1;
+                        }
+                    });
+
+                    fullMeshes.forEach(({ mesh }) => {
+                        mesh.count = fullCount;
+                        mesh.instanceMatrix.needsUpdate = true;
+                        mesh.visible = fullCount > 0;
+                    });
+                    billboard.count = billboardCount;
+                    billboard.instanceMatrix.needsUpdate = true;
+                    billboard.visible = batch.billboardEnabled && billboardCount > 0;
+                    batch.visibleFull = fullCount;
+                    batch.visibleBillboards = billboardCount;
+                }
+            };
+
+            game.stageEffects = game.stageEffects || [];
+            game.stageEffects.push(batch);
+            game.jungleAssetDiagnostics = game.jungleAssetDiagnostics || [];
+            game.jungleAssetDiagnostics.push({
+                ...data.audit,
+                placements: placements.length,
+                instancedDrawCalls: data.meshes.length,
+                statsKey
+            });
+            return batch;
+        }
+
+        function placeUploadedJungleTrees() {
+            let placedTallTrees = 0;
+            let placedSmallTrees = 0;
+            let placedFerns = 0;
+            let placedKenneyTrees = 0;
+            let placedKenneyUnderstory = 0;
+            let placedKenneyGround = 0;
+            const placementsByAsset = new Map();
+
+            function addAssetPlacement(asset, placement) {
+                if (!asset) {
+                    return;
+                }
+                const key = asset.assetName || asset.key || asset.url || `asset-${placementsByAsset.size}`;
+                if (!placementsByAsset.has(key)) {
+                    placementsByAsset.set(key, {
+                        asset,
+                        statsKey: placement.statsKey,
+                        options: placement.options || {},
+                        placements: []
+                    });
+                }
+                placementsByAsset.get(key).placements.push(placement);
+            }
+
+            function addBatchedAsset(asset, point, targetHeight, statsKey, options = {}) {
+                addAssetPlacement(asset, {
+                    x: point.x,
+                    y: point.y,
+                    z: point.z,
+                    rotationY: Math.random() * Math.PI * 2,
+                    targetHeight,
+                    statsKey,
+                    options
+                });
+            }
+
+            for (let z = startZ - 58; z > endZ; z -= scaledStep(185, treeScale)) {
+                [-1, 1].forEach(side => {
+                    const canPlaceTall = placedTallTrees < tallTreeLimit && tallTreeAssets.length > 0;
+                    const canPlaceSmall = placedSmallTrees < smallTreeLimit && smallTreeAssets.length > 0;
+                    if (!canPlaceTall && !canPlaceSmall) {
+                        return;
+                    }
+
+                    const useTallTree = canPlaceTall && (placedTallTrees < 4 || Math.random() < 0.46 || !canPlaceSmall);
+                    const assetList = useTallTree ? tallTreeAssets : smallTreeAssets;
+                    const asset = assetList[Math.floor(Math.random() * assetList.length)];
+                    const targetHeight = useTallTree
+                        ? 24 + Math.random() * 18
+                        : 7.5 + Math.random() * 9;
+                    const offset = useTallTree
+                        ? 11 + Math.random() * 26
+                        : 5.4 + Math.random() * 17;
+                    const treeZ = z + (Math.random() - 0.5) * 54;
+                    const point = getJunglePoint(treeZ, side, offset, 5.2);
+                    if (getTerrainNormalAt(point.x, point.z, 2.4).y < 0.55) {
+                        return;
+                    }
+
+                    const tree = createJungleAssetClone(asset, targetHeight);
+                    if (!tree) {
+                        return;
+                    }
+                    tree.name = useTallTree ? 'jungle-uploaded-tall-tree' : 'jungle-uploaded-small-tree';
+                    tree.position.set(point.x, point.y, point.z);
+                    tree.rotation.y = Math.random() * Math.PI * 2;
+                    tree.frustumCulled = true;
+                    addDecorGroup(decor, tree, 'trees');
+                    if (useTallTree) {
+                        placedTallTrees += 1;
+                    } else {
+                        placedSmallTrees += 1;
+                    }
+                });
+
+                if (fernAssets.length && placedFerns < fernLimit) {
+                    [-1, 1].forEach(side => {
+                        if (placedFerns >= fernLimit) {
+                            return;
+                        }
+                        const fernCount = 2 + Math.floor(Math.random() * 3);
+                        for (let i = 0; i < fernCount && placedFerns < fernLimit; i++) {
+                            const fernZ = z + (Math.random() - 0.5) * 68;
+                            const point = getJunglePoint(fernZ, side, 2.2 + Math.random() * 10, 2.2);
+                            if (getTerrainNormalAt(point.x, point.z, 1.6).y < 0.52) {
+                                continue;
+                            }
+
+                            const fernAsset = fernAssets[Math.floor(Math.random() * fernAssets.length)];
+                            addAssetPlacement(fernAsset, {
+                                x: point.x,
+                                y: point.y,
+                                z: point.z,
+                                rotationY: Math.random() * Math.PI * 2,
+                                targetHeight: 1.0 + Math.random() * 1.6,
+                                statsKey: 'junglePlants',
+                                options: {
+                                    nearDistance: 160,
+                                    farDistance: 380,
+                                    billboardEnabled: true,
+                                    billboardTop: 'rgba(97,170,74,0.94)',
+                                    billboardBottom: 'rgba(26,101,39,0.92)'
+                                }
+                            });
+                        placedFerns += 1;
+                        }
+                    });
+                }
+
+                if (kenneyTreeAssets.length && placedKenneyTrees < kenneyTreeLimit) {
+                    [-1, 1].forEach(side => {
+                        if (placedKenneyTrees >= kenneyTreeLimit || Math.random() > 0.72 * densityScale) {
+                            return;
+                        }
+                        const asset = kenneyTreeAssets[Math.floor(Math.random() * kenneyTreeAssets.length)];
+                        const treeZ = z + (Math.random() - 0.5) * 78;
+                        const point = getJunglePoint(treeZ, side, 7 + Math.random() * 34, 4.8);
+                        if (getTerrainNormalAt(point.x, point.z, 2.2).y < 0.52) {
+                            return;
+                        }
+                        addBatchedAsset(asset, point, 7.5 + Math.random() * 11, 'trees', {
+                            nearDistance: 210,
+                            farDistance: 520,
+                            billboardEnabled: true
+                        });
+                        placedKenneyTrees += 1;
+                    });
+                }
+
+                if (kenneyUnderstoryAssets.length && placedKenneyUnderstory < kenneyUnderstoryLimit) {
+                    [-1, 1].forEach(side => {
+                        const clumpCount = Math.min(5, Math.max(1, Math.round(1 + Math.random() * 3 * understoryScale)));
+                        for (let i = 0; i < clumpCount && placedKenneyUnderstory < kenneyUnderstoryLimit; i++) {
+                            const plantZ = z + (Math.random() - 0.5) * 96;
+                            const point = getJunglePoint(plantZ, side, 1.8 + Math.random() * 13, 2.2);
+                            if (getTerrainNormalAt(point.x, point.z, 1.4).y < 0.48) {
+                                continue;
+                            }
+                            const asset = kenneyUnderstoryAssets[Math.floor(Math.random() * kenneyUnderstoryAssets.length)];
+                            addBatchedAsset(asset, point, 0.9 + Math.random() * 2.2, 'junglePlants', {
+                                nearDistance: 150,
+                                farDistance: 360,
+                                billboardEnabled: true,
+                                billboardTop: 'rgba(91,169,70,0.94)',
+                                billboardBottom: 'rgba(22,96,39,0.92)'
+                            });
+                            placedKenneyUnderstory += 1;
+                        }
+                    });
+                }
+
+                if (kenneyGroundAssets.length && placedKenneyGround < kenneyGroundLimit) {
+                    [-1, 1].forEach(side => {
+                        if (placedKenneyGround >= kenneyGroundLimit || Math.random() > 0.42 * Math.max(densityScale, rockScale)) {
+                            return;
+                        }
+                        const groundZ = z + (Math.random() - 0.5) * 120;
+                        const point = getJunglePoint(groundZ, side, 3.0 + Math.random() * 18, 2.5);
+                        const asset = kenneyGroundAssets[Math.floor(Math.random() * kenneyGroundAssets.length)];
+                        const isRockAsset = /rock/i.test(asset.assetName || asset.label || '');
+                        addBatchedAsset(asset, point, 0.7 + Math.random() * 2.1, isRockAsset ? 'rockClusters' : 'junglePlants', {
+                            nearDistance: 160,
+                            farDistance: 420,
+                            billboardEnabled: false
+                        });
+                        placedKenneyGround += 1;
+                    });
+                }
+
+                if (placedTallTrees >= tallTreeLimit
+                    && placedSmallTrees >= smallTreeLimit
+                    && placedFerns >= fernLimit
+                    && placedKenneyTrees >= kenneyTreeLimit
+                    && placedKenneyUnderstory >= kenneyUnderstoryLimit
+                    && placedKenneyGround >= kenneyGroundLimit) {
+                    break;
+                }
+            }
+
+            placementsByAsset.forEach(batch => {
+                createJungleInstancedAssetBatch(batch.asset, batch.placements, batch.statsKey, batch.options);
+            });
         }
 
         function createLeafBladeGeometry(width = 1, height = 1) {
@@ -3331,79 +4025,6 @@ function generateRoadAndTerrain(scene, game, environment) {
                 decor.add(mesh);
                 stageDecorStats.junglePlants += Math.floor(game.road.segments.length / 3);
             });
-        }
-
-        function addRainField() {
-            const texture = createCanvasTexture(512, 1024, 1.8, 3.6, (context, width, height) => {
-                context.clearRect(0, 0, width, height);
-                context.lineCap = 'round';
-                for (let i = 0; i < 360; i++) {
-                    const x = Math.random() * width;
-                    const y = Math.random() * height;
-                    const length = 34 + Math.random() * 72;
-                    const slant = 8 + Math.random() * 18;
-                    const alpha = 0.08 + Math.random() * 0.2;
-                    context.strokeStyle = `rgba(216,241,238,${alpha})`;
-                    context.lineWidth = 0.8 + Math.random() * 1.2;
-                    context.beginPath();
-                    context.moveTo(x, y);
-                    context.lineTo(x - slant, y + length);
-                    context.stroke();
-                }
-            });
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.anisotropy = 4;
-
-            const material = new THREE.MeshBasicMaterial({
-                map: texture,
-                color: 0xd8f1ee,
-                transparent: true,
-                opacity: 0.34,
-                depthWrite: false,
-                depthTest: true,
-                fog: true,
-                side: THREE.DoubleSide
-            });
-            const geometry = new THREE.PlaneGeometry(245, 76);
-            const rain = new THREE.Group();
-            rain.name = 'jungle-world-rain-curtains';
-
-            let curtainCount = 0;
-            for (let i = 8; i < game.road.segments.length - 8; i += 14) {
-                const segment = game.road.segments[i];
-                const prev = game.road.segments[Math.max(0, i - 2)];
-                const next = game.road.segments[Math.min(game.road.segments.length - 1, i + 2)];
-                const yaw = Math.atan2(next.curve - prev.curve, next.z - prev.z);
-                const curtain = new THREE.Mesh(geometry, material);
-                curtain.name = 'jungle-rain-curtain';
-                curtain.position.set(
-                    segment.curve + (Math.random() - 0.5) * 18,
-                    segment.y + 34 + Math.random() * 10,
-                    segment.z + (Math.random() - 0.5) * 26
-                );
-                curtain.rotation.y = yaw + (Math.random() - 0.5) * 0.08;
-                curtain.frustumCulled = true;
-                curtain.renderOrder = 8;
-                rain.add(curtain);
-                curtainCount += 1;
-            }
-
-            decor.add(rain);
-            game.stageEffects = game.stageEffects || [];
-            material.userData.baseOpacity = material.opacity;
-            game.stageEffects.push({
-                type: 'rain',
-                update(deltaSeconds) {
-                    texture.offset.x = (texture.offset.x + deltaSeconds * 0.08) % 1;
-                    texture.offset.y = (texture.offset.y - deltaSeconds * 1.85) % 1;
-                },
-                setIntensity(value) {
-                    material.opacity = THREE.MathUtils.clamp(value, 0, 1);
-                    rain.visible = material.opacity > 0.01;
-                }
-            });
-            stageDecorStats.rainStreaks += curtainCount;
         }
 
         function addDistantRainforestWall() {
@@ -3583,9 +4204,9 @@ function generateRoadAndTerrain(scene, game, environment) {
             const canopyShadowClusters = [];
             const canopyHighlightClusters = [];
 
-            for (let z = startZ - 8; z > endZ; z -= 54) {
+            for (let z = startZ - 8; z > endZ; z -= scaledStep(54, canopyScale)) {
                 [-1, 1].forEach(side => {
-                    const density = 1 + Math.floor(Math.max(0, rainforestNoise.noise2D(z * 0.008, side * 22.1)) * 2);
+                    const density = Math.max(1, Math.round((1 + Math.floor(Math.max(0, rainforestNoise.noise2D(z * 0.008, side * 22.1)) * 2)) * canopyScale));
                     for (let i = 0; i < density; i++) {
                         const offset = 5.6 + Math.pow(Math.random(), 0.7) * 38;
                         const clusterZ = z + (Math.random() - 0.5) * 20;
@@ -3626,7 +4247,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const emergentBranches = [];
             const emergentVines = [];
 
-            for (let z = startZ - 24; z > endZ; z -= 74) {
+            for (let z = startZ - 24; z > endZ; z -= scaledStep(74, treeScale)) {
                 [-1, 1].forEach(side => {
                     const treeCount = 1 + (Math.random() < 0.34 ? 1 : 0);
                     for (let i = 0; i < treeCount; i++) {
@@ -3718,10 +4339,10 @@ function generateRoadAndTerrain(scene, game, environment) {
             const ferns = [];
             const vines = [];
 
-            for (let z = startZ; z > endZ; z -= 38) {
+            for (let z = startZ; z > endZ; z -= scaledStep(38, densityScale)) {
                 [-1, 1].forEach(side => {
                     const inOpeningCorridor = z > startZ - 1220;
-                    const localDensity = 0.72 + Math.max(0, rainforestNoise.noise2D(z * 0.006, side * 4.1)) * 0.34;
+                    const localDensity = (0.72 + Math.max(0, rainforestNoise.noise2D(z * 0.006, side * 4.1)) * 0.34) * densityScale;
                     const treeCount = (inOpeningCorridor ? 2 : 3) + (Math.random() < localDensity ? 1 : 0);
                     for (let i = 0; i < treeCount; i++) {
                         const offset = (inOpeningCorridor ? 6.6 : 12) + Math.pow(Math.random(), 0.78) * (inOpeningCorridor ? 74 : 110);
@@ -3840,7 +4461,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         }
                     }
 
-                    const broadleafCount = inOpeningCorridor ? 6 : 4;
+                    const broadleafCount = Math.max(1, Math.round((inOpeningCorridor ? 6 : 4) * understoryScale));
                     for (let i = 0; i < broadleafCount; i++) {
                         const offset = 2.2 + Math.random() * 18;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 28, side, offset);
@@ -3857,7 +4478,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         });
                     }
 
-                    for (let i = 0; i < 6; i++) {
+                    for (let i = 0; i < Math.max(1, Math.round(6 * understoryScale)); i++) {
                         const offset = 2.2 + Math.random() * 18;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 30, side, offset);
                         const height = 0.9 + Math.random() * 1.45;
@@ -3899,12 +4520,12 @@ function generateRoadAndTerrain(scene, game, environment) {
             const floorLeaves = [];
             const roadsideVines = [];
 
-            for (let z = startZ - 16; z > endZ; z -= 54) {
+            for (let z = startZ - 16; z > endZ; z -= scaledStep(54, densityScale)) {
                 [-1, 1].forEach(side => {
                     const inOpeningCorridor = z > startZ - 1050;
-                    const groveCount = inOpeningCorridor
+                    const groveCount = Math.max(1, Math.round((inOpeningCorridor
                         ? 3
-                        : 2 + (Math.random() < 0.45 ? 1 : 0);
+                        : 2 + (Math.random() < 0.45 ? 1 : 0)) * treeScale));
                     for (let i = 0; i < groveCount; i++) {
                         const offset = (inOpeningCorridor ? 2.8 : 3.6) + Math.random() * (inOpeningCorridor ? 15 : 28);
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 34, side, offset, 4.2);
@@ -3943,7 +4564,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                             (Math.random() < 0.38 ? understoryDarkBlobs : understoryBlobs).push(blob);
                         }
 
-                        if (Math.random() < 0.58) {
+                        if (Math.random() < 0.58 * vineScale) {
                             const vineLength = 1.8 + Math.random() * 3.4;
                             roadsideVines.push({
                                 x: point.x + (Math.random() - 0.5) * 1.6,
@@ -3975,7 +4596,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         }
                     }
 
-                    const undergrowthCount = inOpeningCorridor ? 10 : 7;
+                    const undergrowthCount = Math.max(1, Math.round((inOpeningCorridor ? 10 : 7) * understoryScale));
                     for (let i = 0; i < undergrowthCount; i++) {
                         const offset = 1.8 + Math.random() * (inOpeningCorridor ? 9 : 13);
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 40, side, offset, 2.2);
@@ -4012,14 +4633,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                     for (let i = 0; i < palmsThisStep; i++) {
                         const offset = 6 + Math.random() * 26;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 26, side, offset, 4.2);
-                        const palm = createRainforestPalm(0.96 + Math.random() * 0.34);
-                        if (!palm || getTerrainNormalAt(point.x, point.z, 2.4).y < 0.5) {
+                        const tree = createRainforestPalm(0.96 + Math.random() * 0.34);
+                        if (!tree || getTerrainNormalAt(point.x, point.z, 2.4).y < 0.5) {
                             continue;
                         }
-                        palm.name = 'jungle-opening-procedural-palm';
-                        palm.position.set(point.x, point.y, point.z);
-                        palm.rotation.y = Math.random() * Math.PI * 2;
-                        addDecorGroup(decor, palm, 'trees');
+                        tree.name = 'jungle-opening-procedural-palm';
+                        tree.position.set(point.x, point.y, point.z);
+                        tree.rotation.y = Math.random() * Math.PI * 2;
+                        addDecorGroup(decor, tree, 'trees');
                         stageDecorStats.palms += 1;
                     }
                 });
@@ -4072,19 +4693,20 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function placeProceduralPalms() {
-            for (let z = startZ - 35; z > endZ; z -= 112) {
+            for (let z = startZ - 35; z > endZ; z -= scaledStep(112, treeScale)) {
                 [-1, 1].forEach(side => {
-                    const count = 1 + (Math.random() < 0.38 ? 1 : 0);
+                    const count = Math.max(1, Math.round((1 + (Math.random() < 0.38 ? 1 : 0)) * treeScale));
                     for (let i = 0; i < count; i++) {
                         const offset = 3.6 + Math.random() * 18;
                         const point = getJunglePoint(z + (Math.random() - 0.5) * 38, side, offset, 4.2);
                         if (getTerrainNormalAt(point.x, point.z, 2.2).y < 0.58) {
                             continue;
                         }
-                        const palm = createRainforestPalm(0.92 + Math.random() * 0.56);
-                        palm.position.set(point.x, point.y, point.z);
-                        palm.rotation.y = Math.random() * Math.PI * 2;
-                        addDecorGroup(decor, palm, 'trees');
+                        const tree = createRainforestPalm(0.92 + Math.random() * 0.56);
+                        tree.position.set(point.x, point.y, point.z);
+                        tree.rotation.y = Math.random() * Math.PI * 2;
+                        tree.name = 'jungle-rainforest-palm';
+                        addDecorGroup(decor, tree, 'trees');
                         stageDecorStats.palms += 1;
                     }
                 });
@@ -4094,7 +4716,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         function addCanopyTunnels() {
             const drippingLeafMaterial = new THREE.MeshPhongMaterial({ color: 0x1f6938, map: leafTexture, bumpMap: leafTexture, bumpScale: 0.025, shininess: 8, side: THREE.DoubleSide });
             const branchMaterial = new THREE.MeshPhongMaterial({ color: 0x3a291a, map: barkTexture, normalMap: barkNormalTexture, shininess: 3 });
-            for (let z = startZ - 90; z > endZ; z -= 260) {
+            for (let z = startZ - 90; z > endZ; z -= scaledStep(260, Math.max(0.35, canopyScale))) {
                 const roadData = getLinearRoadDataAtZ(z);
                 const roadPose = getRoadDataAtZ(z, game);
                 const arch = new THREE.Group();
@@ -4142,14 +4764,682 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
         }
 
-        addRainforestCanopyClusters();
-        addRainField();
-        addRoadsideTropicalWall();
-        addRoadsideEmergentTrees();
-        placeOpeningProceduralGrove();
-        collectDenseForest();
-        placeProceduralPalms();
-        addCanopyTunnels();
+        function addAssetsHtmlJungleTrailChunks() {
+            const complexity = THREE.MathUtils.clamp(generation.complexity, 0.1, 1);
+            const width = Math.max(2, generation.trailWidth || game.road.width);
+            const curveAmount = THREE.MathUtils.clamp(generation.trailCurve ?? 0.45, 0, 1.5);
+            const bankHeight = THREE.MathUtils.clamp(generation.bankHeight ?? 2.5, 0, 8);
+            const density = THREE.MathUtils.clamp(generation.density ?? 1, 0, 1.25);
+            const canopyCover = THREE.MathUtils.clamp(generation.canopyCover ?? 0.95, 0, 1);
+            const requestedTrees = Math.max(0, generation.treeCount ?? 24);
+            const treeMultiplier = Math.max(0, generation.treeMultiplier ?? 1);
+            const branchMultiplier = THREE.MathUtils.clamp(generation.branchMultiplier ?? 1, 0, 12);
+            const understoryHeight = Math.max(0, generation.understoryHeight ?? 6.5);
+            const understoryMultiplier = Math.max(0, generation.understoryMultiplier ?? 1);
+            const requestedRocks = Math.max(0, generation.rockCount ?? 24);
+            const requestedVines = Math.max(0, generation.vines ?? 12);
+            const chunkLength = 90;
+            const chunkStep = 90;
+            const rand = (min, max) => min + Math.random() * (max - min);
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const pick = items => items[Math.floor(Math.random() * items.length)];
+            const clamp01 = value => Math.max(0, Math.min(1, value));
+            const localDetail = (min, max) => Math.max(min, Math.round(min + (max - min) * complexity));
+            const bankWidth = Math.max(5, width * 1.4);
+            const sideOffset = (min, max) => width * rand(min, max);
+
+            const mossMat = new THREE.MeshLambertMaterial({ color: 0x2d5a25, side: THREE.DoubleSide });
+            const trunkMat = new THREE.MeshLambertMaterial({ color: 0x70401c });
+            const barkDarkMat = new THREE.MeshLambertMaterial({ color: 0x3d1d0c });
+            const vineMat = new THREE.MeshLambertMaterial({ color: 0x2f2418 });
+            const rockMat = new THREE.MeshLambertMaterial({ color: 0x686b67, flatShading: true });
+            const mossRockMat = new THREE.MeshLambertMaterial({ color: 0x555852, flatShading: true });
+            const leafMats = [
+                new THREE.MeshLambertMaterial({ color: 0x173f1f, side: THREE.DoubleSide, flatShading: true }),
+                new THREE.MeshLambertMaterial({ color: 0x235f28, side: THREE.DoubleSide, flatShading: true }),
+                new THREE.MeshLambertMaterial({ color: 0x4a9f3f, side: THREE.DoubleSide, flatShading: true }),
+                new THREE.MeshLambertMaterial({ color: 0x9ad86a, side: THREE.DoubleSide, flatShading: true })
+            ];
+            const makeTaperedTube = (points, radiusStart, radiusEnd, tubularSegments, radialSegments, material, wobble = 0) => {
+                const curve = new THREE.CatmullRomCurve3(points);
+                const segs = Math.max(3, tubularSegments);
+                const radial = Math.max(3, radialSegments);
+                const frames = curve.computeFrenetFrames(segs, false);
+                const positions = [];
+                const indices = [];
+
+                for (let i = 0; i <= segs; i++) {
+                    const t = i / segs;
+                    const point = curve.getPoint(t);
+                    const radius = lerp(radiusStart, radiusEnd, Math.pow(t, 0.85));
+                    for (let j = 0; j < radial; j++) {
+                        const a = (j / radial) * Math.PI * 2;
+                        const ridge = 1 + wobble * (Math.sin(a * 3 + i * 0.7) * 0.45 + Math.sin(a * 7 + i * 0.31) * 0.22);
+                        const normalOffset = frames.normals[i].clone().multiplyScalar(Math.cos(a) * radius * ridge);
+                        const binormalOffset = frames.binormals[i].clone().multiplyScalar(Math.sin(a) * radius * ridge);
+                        const p = point.clone().add(normalOffset).add(binormalOffset);
+                        positions.push(p.x, p.y, p.z);
+                    }
+                }
+
+                for (let i = 0; i < segs; i++) {
+                    for (let j = 0; j < radial; j++) {
+                        const a = i * radial + j;
+                        const b = i * radial + ((j + 1) % radial);
+                        const c = (i + 1) * radial + j;
+                        const d = (i + 1) * radial + ((j + 1) % radial);
+                        indices.push(a, c, b, b, c, d);
+                    }
+                }
+
+                const startCenter = positions.length / 3;
+                const p0 = curve.getPoint(0);
+                positions.push(p0.x, p0.y, p0.z);
+                const endCenter = positions.length / 3;
+                const p1 = curve.getPoint(1);
+                positions.push(p1.x, p1.y, p1.z);
+                const lastRing = segs * radial;
+                for (let j = 0; j < radial; j++) {
+                    indices.push(startCenter, (j + 1) % radial, j);
+                    indices.push(endCenter, lastRing + j, lastRing + ((j + 1) % radial));
+                }
+
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geo.setIndex(indices);
+                geo.computeVertexNormals();
+                const mesh = new THREE.Mesh(geo, material);
+                mesh.castShadow = true;
+                return mesh;
+            };
+
+            const makeLeafGeometry = (lengthValue, widthValue, archValue) => {
+                const positions = [];
+                const indices = [];
+                const segs = localDetail(3, 7);
+                for (let i = 0; i <= segs; i++) {
+                    const t = i / segs;
+                    const halfWidth = widthValue * Math.sin(t * Math.PI) * (0.75 + 0.25 * Math.sin(t * Math.PI * 3));
+                    const y = lengthValue * t;
+                    const z = Math.sin(t * Math.PI) * archValue + Math.pow(t, 1.6) * archValue * 0.3;
+                    positions.push(-halfWidth, y, z, halfWidth, y, z);
+                }
+                for (let i = 0; i < segs; i++) {
+                    const a = i * 2;
+                    indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+                }
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geo.setIndex(indices);
+                geo.computeVertexNormals();
+                return geo;
+            };
+
+            function addChunkToScene(group, centerZ, stats) {
+                group.name = 'assets-html-jungle-trail-chunk';
+                group.userData.sceneryCull = {
+                    z: centerZ,
+                    radius: chunkLength * 1.08
+                };
+                group.traverse(child => {
+                    if (child.isMesh) {
+                        child.frustumCulled = !child.isInstancedMesh;
+                        child.castShadow = false;
+                        child.receiveShadow = false;
+                    }
+                });
+                decor.add(group);
+                game.sceneryCullObjects = game.sceneryCullObjects || [];
+                game.sceneryCullObjects.push(group);
+                stageDecorStats.trees += stats.trees;
+                stageDecorStats.junglePlants += stats.junglePlants;
+                stageDecorStats.rockClusters += stats.rockClusters;
+                stageDecorStats.totalInstancedProps += stats.trees + stats.junglePlants + stats.rockClusters;
+                return { group, stats, centerZ };
+            }
+
+            function createChunk(chunkStartZ, chunkEndZ) {
+                const group = new THREE.Group();
+                const stats = { trees: 0, junglePlants: 0, rockClusters: 0 };
+                const length = Math.abs(chunkStartZ - chunkEndZ);
+                const centerZ = (chunkStartZ + chunkEndZ) * 0.5;
+                const chunkScale = length / 180;
+                const mergeBuckets = new Map();
+                const canopyPlacementsByMaterial = leafMats.map(() => []);
+                const leafPlacementsByMaterial = leafMats.map(() => []);
+                const rockPlacements = [];
+                const mossRockPlacements = [];
+                const rootPlacements = [];
+                const branchPlacements = [];
+                const stemPlacements = [];
+                const instancedCanopyGeometry = new THREE.DodecahedronGeometry(1, 0);
+                const instancedRockGeometry = new THREE.DodecahedronGeometry(1, 0);
+                const instancedLeafGeometry = makeLeafGeometry(1, 0.16, 0.12);
+                const instancedTaperGeometry = new THREE.CylinderGeometry(0.28, 1, 1, 5, 1);
+                const instancedStemGeometry = new THREE.CylinderGeometry(0.42, 1, 1, 4, 1);
+                const instanceMatrix = new THREE.Matrix4();
+                const instancePosition = new THREE.Vector3();
+                const instanceQuaternion = new THREE.Quaternion();
+                const instanceEuler = new THREE.Euler();
+                const instanceScale = new THREE.Vector3();
+                const yAxis = new THREE.Vector3(0, 1, 0);
+
+                const pathCenter = t => {
+                    const z = lerp(chunkStartZ, chunkEndZ, t);
+                    const roadData = getLinearRoadDataAtZ(z);
+                    const pathWiggle = Math.sin(t * Math.PI * 1.15) * curveAmount * width * 0.16
+                        + Math.sin(t * Math.PI * 2.7 + 0.8) * curveAmount * width * 0.05;
+                    const roadPose = getRoadDataAtZ(z, game);
+                    const side = new THREE.Vector3(Math.cos(-roadPose.curvatureAngle), 0, Math.sin(-roadPose.curvatureAngle)).normalize();
+                    const y = roadData.y + Math.sin(t * Math.PI * 7) * 0.08 + Math.sin(t * Math.PI * 2 + 0.6) * 0.12;
+                    return new THREE.Vector3(roadData.curve, y, z).add(side.multiplyScalar(pathWiggle));
+                };
+
+                const pathFrame = t => {
+                    const t0 = Math.max(0, t - 0.01);
+                    const t1 = Math.min(1, t + 0.01);
+                    const center = pathCenter(t);
+                    const tangent = pathCenter(t1).sub(pathCenter(t0)).normalize();
+                    const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+                    return { center, side, tangent };
+                };
+
+                const pathWidthAt = t => width * (0.95 + Math.sin(t * Math.PI * 2.2) * 0.08 + Math.sin(t * Math.PI * 9.1) * 0.025);
+
+                const terrainHeightAt = (t, lateral) => {
+                    const centerY = pathCenter(t).y + 0.065;
+                    const pathWidth = pathWidthAt(t);
+                    const absLat = Math.abs(lateral);
+                    if (absLat <= pathWidth * 0.6) {
+                        const col = lateral / pathWidth;
+                        const crown = -0.18 * (1 - Math.min(1, Math.abs(col) * 2.1));
+                        return centerY + crown + Math.sin(t * 37 + (col + 0.58) * 5.4) * 0.03;
+                    }
+
+                    const d = clamp01((absLat - pathWidth * 0.54) / bankWidth);
+                    const sign = lateral < 0 ? -1 : 1;
+                    return centerY
+                        + bankHeight * Math.pow(d, 0.85) * (0.85 + Math.sin(t * Math.PI * 3 + d * 4) * 0.12)
+                        + Math.sin(t * 27 + d * 8.4 + sign) * 0.12;
+                };
+
+                const terrainPoint = (t, lateral, lift = 0) => {
+                    const { center, side, tangent } = pathFrame(t);
+                    const point = center.clone().add(side.clone().multiplyScalar(lateral));
+                    point.y = terrainHeightAt(t, lateral) + lift;
+                    return { point, center, side, tangent };
+                };
+
+                const mergeBufferGeometries = geometries => {
+                    const positions = [];
+                    const normals = [];
+                    const indices = [];
+                    let vertexOffset = 0;
+
+                    geometries.forEach(geometry => {
+                        const positionAttribute = geometry.getAttribute('position');
+                        const normalAttribute = geometry.getAttribute('normal');
+                        if (!positionAttribute) {
+                            return;
+                        }
+
+                        for (let i = 0; i < positionAttribute.count; i++) {
+                            positions.push(
+                                positionAttribute.getX(i),
+                                positionAttribute.getY(i),
+                                positionAttribute.getZ(i)
+                            );
+                            if (normalAttribute) {
+                                normals.push(
+                                    normalAttribute.getX(i),
+                                    normalAttribute.getY(i),
+                                    normalAttribute.getZ(i)
+                                );
+                            }
+                        }
+
+                        if (geometry.index) {
+                            const index = geometry.index;
+                            for (let i = 0; i < index.count; i++) {
+                                indices.push(index.getX(i) + vertexOffset);
+                            }
+                        } else {
+                            for (let i = 0; i < positionAttribute.count; i++) {
+                                indices.push(vertexOffset + i);
+                            }
+                        }
+                        vertexOffset += positionAttribute.count;
+                    });
+
+                    const merged = new THREE.BufferGeometry();
+                    merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    if (normals.length === positions.length) {
+                        merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+                    } else {
+                        merged.computeVertexNormals();
+                    }
+                    merged.setIndex(indices);
+                    merged.computeBoundingSphere();
+                    return merged;
+                };
+
+                const addTracked = (mesh, key) => {
+                    if (mesh?.isMesh && !mesh.isInstancedMesh && mesh.geometry && mesh.material) {
+                        const bucketKey = `${key || 'junglePlants'}-${mesh.material.uuid}`;
+                        if (!mergeBuckets.has(bucketKey)) {
+                            mergeBuckets.set(bucketKey, {
+                                name: `jungle-merged-${key || 'props'}-${mergeBuckets.size}`,
+                                material: mesh.material,
+                                geometries: [],
+                                statsKey: key
+                            });
+                        }
+                        mergeBuckets.get(bucketKey).geometries.push(mesh.geometry);
+                        if (key) {
+                            stats[key] += 1;
+                        }
+                        return mesh;
+                    }
+
+                    group.add(mesh);
+                    if (key) {
+                        stats[key] += 1;
+                    }
+                    return mesh;
+                };
+
+                const addInstancedBatch = (name, geometry, material, placements, statsKey) => {
+                    if (!placements.length) {
+                        return null;
+                    }
+
+                    const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
+                    mesh.name = name;
+                    mesh.castShadow = false;
+                    mesh.receiveShadow = false;
+                    mesh.frustumCulled = false;
+                    placements.forEach((placement, index) => {
+                        instancePosition.set(placement.x, placement.y, placement.z);
+                        if (placement.quaternion) {
+                            instanceQuaternion.copy(placement.quaternion);
+                        } else {
+                            instanceEuler.set(placement.rotationX || 0, placement.rotationY || 0, placement.rotationZ || 0);
+                            instanceQuaternion.setFromEuler(instanceEuler);
+                        }
+                        instanceScale.set(placement.scaleX || 1, placement.scaleY || 1, placement.scaleZ || 1);
+                        instanceMatrix.compose(instancePosition, instanceQuaternion, instanceScale);
+                        mesh.setMatrixAt(index, instanceMatrix);
+                    });
+                    mesh.instanceMatrix.needsUpdate = true;
+                    group.add(mesh);
+                    if (statsKey) {
+                        stats[statsKey] += placements.length;
+                    }
+                    return mesh;
+                };
+
+                const addTaperedSegmentInstance = (placements, start, end, radius, radiusScaleZ = 1) => {
+                    const direction = end.clone().sub(start);
+                    const segmentLength = direction.length();
+                    if (segmentLength < 0.05 || radius <= 0) {
+                        return;
+                    }
+                    const midpoint = start.clone().add(end).multiplyScalar(0.5);
+                    const quaternion = new THREE.Quaternion().setFromUnitVectors(yAxis, direction.normalize());
+                    placements.push({
+                        x: midpoint.x,
+                        y: midpoint.y,
+                        z: midpoint.z,
+                        quaternion,
+                        scaleX: radius,
+                        scaleY: segmentLength,
+                        scaleZ: radius * radiusScaleZ
+                    });
+                };
+
+                const flushBatches = () => {
+                    mergeBuckets.forEach(bucket => {
+                        if (!bucket.geometries.length) {
+                            return;
+                        }
+                        const mergedGeometry = mergeBufferGeometries(bucket.geometries);
+                        bucket.geometries.forEach(geometry => geometry.dispose());
+                        const mesh = new THREE.Mesh(mergedGeometry, bucket.material);
+                        mesh.name = bucket.name;
+                        mesh.castShadow = false;
+                        mesh.receiveShadow = false;
+                        group.add(mesh);
+                    });
+
+                    canopyPlacementsByMaterial.forEach((placements, index) => {
+                        addInstancedBatch(
+                            `jungle-instanced-canopy-${index}`,
+                            instancedCanopyGeometry.clone(),
+                            leafMats[index],
+                            placements,
+                            'trees'
+                        );
+                    });
+                    leafPlacementsByMaterial.forEach((placements, index) => {
+                        addInstancedBatch(
+                            `jungle-instanced-leaves-${index}`,
+                            instancedLeafGeometry.clone(),
+                            leafMats[index],
+                            placements,
+                            'junglePlants'
+                        );
+                    });
+                    addInstancedBatch('jungle-instanced-roots', instancedTaperGeometry.clone(), barkDarkMat, rootPlacements, 'trees');
+                    addInstancedBatch('jungle-instanced-branches', instancedTaperGeometry.clone(), trunkMat, branchPlacements, 'trees');
+                    addInstancedBatch('jungle-instanced-stems', instancedStemGeometry.clone(), mossMat, stemPlacements, 'junglePlants');
+                    addInstancedBatch('jungle-instanced-rocks', instancedRockGeometry.clone(), rockMat, rockPlacements, 'rockClusters');
+                    addInstancedBatch('jungle-instanced-moss-rocks', instancedRockGeometry.clone(), mossRockMat, mossRockPlacements, 'rockClusters');
+
+                    instancedCanopyGeometry.dispose();
+                    instancedRockGeometry.dispose();
+                    instancedLeafGeometry.dispose();
+                    instancedTaperGeometry.dispose();
+                    instancedStemGeometry.dispose();
+                };
+
+                const addCanopyCluster = (anchor, radius, fullness, ySquash = 0.62) => {
+                    const lumps = Math.max(1, Math.round(1 + fullness * localDetail(2, 5)));
+                    for (let i = 0; i < lumps; i++) {
+                        const materialIndex = Math.floor(Math.random() * leafMats.length);
+                        const s = radius * rand(0.45, 1);
+                        canopyPlacementsByMaterial[materialIndex].push({
+                            x: anchor.x + rand(-radius, radius) * 0.55,
+                            y: anchor.y + rand(-radius, radius) * 0.28,
+                            z: anchor.z + rand(-radius, radius) * 0.55,
+                            rotationX: rand(-0.25, 0.25),
+                            rotationY: rand(0, Math.PI),
+                            rotationZ: rand(-0.2, 0.2),
+                            scaleX: s * rand(1, 1.7),
+                            scaleY: s * ySquash * rand(0.65, 1),
+                            scaleZ: s * rand(0.9, 1.45)
+                        });
+                    }
+                };
+
+                const addRock = (position, size, mossy = false) => {
+                    const placement = {
+                        x: position.x,
+                        y: position.y,
+                        z: position.z,
+                        rotationX: rand(0, Math.PI),
+                        rotationY: rand(0, Math.PI),
+                        rotationZ: rand(0, Math.PI),
+                        scaleX: size * rand(0.8, 1.8),
+                        scaleY: size * rand(0.35, 0.8),
+                        scaleZ: size * rand(0.7, 1.35)
+                    };
+                    (mossy ? mossRockPlacements : rockPlacements).push(placement);
+                };
+
+                const addFernCluster = (baseT, baseLateral, sideSign, scale = 1) => {
+                    const fronds = Math.round(localDetail(2, 6) * density * scale);
+                    for (let f = 0; f < fronds; f++) {
+                        const frondLength = rand(1.2, Math.max(1.6, understoryHeight)) * rand(0.45, 1.05) * scale;
+                        const frondWidth = frondLength * rand(0.08, 0.16);
+                        const jitterT = clamp01(baseT + rand(-0.35, 0.35) / Math.max(1, length));
+                        const jitterLateral = baseLateral + rand(-0.28, 0.28) * scale;
+                        const point = terrainPoint(jitterT, jitterLateral, 0.035).point;
+                        const materialIndex = Math.floor(Math.random() * leafMats.length);
+                        leafPlacementsByMaterial[materialIndex].push({
+                            x: point.x,
+                            y: point.y,
+                            z: point.z,
+                            rotationX: rand(0.25, 0.95),
+                            rotationY: (sideSign < 0 ? Math.PI * 0.5 : -Math.PI * 0.5) + rand(-1.35, 1.35),
+                            rotationZ: rand(-0.75, 0.75),
+                            scaleX: Math.max(0.35, frondWidth / 0.16),
+                            scaleY: frondLength,
+                            scaleZ: Math.max(0.5, frondLength * rand(0.45, 1.05))
+                        });
+                    }
+                };
+
+                const treeCount = Math.round(requestedTrees * 0.85 * treeMultiplier * density * (0.45 + complexity * 0.55) * chunkScale);
+                for (let i = 0; i < treeCount; i++) {
+                    const sideSign = i % 2 === 0 ? -1 : 1;
+                    const t = (i + rand(0.15, 0.85)) / Math.max(1, treeCount);
+                    const { side, tangent } = pathFrame(t);
+                    const offset = sideOffset(0.95, 3.75);
+                    const baseLateral = sideSign * offset;
+                    const base = terrainPoint(t, baseLateral, 0.05).point;
+                    const height = rand(10, 24) * (0.8 + canopyCover * 0.35);
+                    const lean = side.clone().multiplyScalar(-sideSign * rand(1.2, 4.8)).add(tangent.clone().multiplyScalar(rand(-3.2, 3.2)));
+                    const trunkPts = [
+                        base,
+                        base.clone().add(new THREE.Vector3(lean.x * 0.32, height * 0.42, lean.z * 0.32)),
+                        base.clone().add(new THREE.Vector3(lean.x * 0.72, height * 0.78, lean.z * 0.72)),
+                        base.clone().add(new THREE.Vector3(lean.x, height, lean.z))
+                    ];
+                    const trunkRadius = rand(0.22, 0.72);
+                    const trunkCurve = new THREE.CatmullRomCurve3(trunkPts);
+                    addTracked(makeTaperedTube(trunkPts, trunkRadius, trunkRadius * rand(0.42, 0.64), localDetail(7, 24), localDetail(5, 9), trunkMat, 0.1), 'trees');
+
+                    const buttressRoots = localDetail(2, 4);
+                    for (let r = 0; r < buttressRoots; r++) {
+                        const angle = (r / buttressRoots) * Math.PI * 2 + rand(-0.35, 0.35);
+                        const rootDir = side.clone().multiplyScalar(sideSign * Math.cos(angle)).add(tangent.clone().multiplyScalar(Math.sin(angle))).normalize();
+                        const rootLen = rand(1.4, 3.8);
+                        const rootEndT = clamp01(t + rootDir.dot(tangent) * rootLen / Math.max(1, length));
+                        const rootEndLateral = baseLateral + rootDir.dot(side) * rootLen;
+                        const rootEnd = terrainPoint(rootEndT, rootEndLateral, rand(0.02, 0.12)).point;
+                        const rootMid = base.clone().lerp(rootEnd, 0.55);
+                        rootMid.y += rand(0.15, 0.45);
+                        addTaperedSegmentInstance(
+                            rootPlacements,
+                            base.clone().add(new THREE.Vector3(0, 0.16, 0)),
+                            rootMid,
+                            trunkRadius * rand(0.16, 0.28),
+                            rand(0.8, 1.15)
+                        );
+                        addTaperedSegmentInstance(
+                            rootPlacements,
+                            rootMid,
+                            rootEnd,
+                            trunkRadius * rand(0.06, 0.14),
+                            rand(0.75, 1.1)
+                        );
+                    }
+
+                    const branchCount = Math.max(0, Math.round(localDetail(1, 4) * branchMultiplier));
+                    const branchEnds = [];
+                    for (let b = 0; b < branchCount; b++) {
+                        const at = rand(0.45, 0.92);
+                        const origin = trunkCurve.getPoint(at);
+                        const branchDir = side.clone().multiplyScalar(-sideSign * rand(0.3, 1.4)).add(tangent.clone().multiplyScalar(rand(-1.2, 1.2))).normalize();
+                        const branchEnd = origin.clone()
+                            .add(branchDir.multiplyScalar(rand(2.4, 6.2)))
+                            .add(new THREE.Vector3(0, rand(0.8, 3.2), 0));
+                        const branchMid = origin.clone().lerp(branchEnd, 0.5).add(new THREE.Vector3(rand(-0.4, 0.4), rand(0.25, 1), rand(-0.4, 0.4)));
+                        addTaperedSegmentInstance(branchPlacements, origin, branchMid, trunkRadius * rand(0.12, 0.22), rand(0.85, 1.15));
+                        addTaperedSegmentInstance(branchPlacements, branchMid, branchEnd, trunkRadius * rand(0.045, 0.095), rand(0.75, 1.05));
+                        branchEnds.push(branchEnd);
+                    }
+
+                    if (Math.random() < canopyCover) {
+                        addCanopyCluster(trunkPts[trunkPts.length - 1].clone().add(new THREE.Vector3(0, rand(1, 2.6), 0)), rand(2.2, 4.6), 0.75, rand(0.48, 0.72));
+                        branchEnds.forEach(end => {
+                            if (Math.random() < 0.62) addCanopyCluster(end, rand(1.5, 3.2), 0.45, rand(0.45, 0.72));
+                        });
+                    }
+
+                    if (complexity > 0.48 && Math.random() < 0.45) {
+                        const vinePts = [];
+                        const phase = rand(0, Math.PI * 2);
+                        for (let p = 0; p <= 8; p++) {
+                            const tt = p / 8;
+                            const trunkPoint = trunkCurve.getPoint(tt);
+                            const wrapSide = side.clone().multiplyScalar(Math.sin(tt * Math.PI * 5 + phase) * trunkRadius * 0.55);
+                            vinePts.push(trunkPoint.clone().add(wrapSide));
+                        }
+                        addTracked(makeTaperedTube(vinePts, 0.035, 0.018, localDetail(8, 22), 3, vineMat, 0.04), 'junglePlants');
+                    }
+                }
+
+                const frameTreeCount = Math.round((complexity > 0.6 ? 3 : 2) * treeMultiplier * chunkScale);
+                for (let i = 0; i < frameTreeCount; i++) {
+                    const sideSign = i % 2 === 0 ? -1 : 1;
+                    const t = rand(0.18, 0.92);
+                    const { center, side, tangent } = pathFrame(t);
+                    const baseLateral = sideSign * sideOffset(1.7, 4.65);
+                    const base = terrainPoint(t, baseLateral, 0.05).point;
+                    const top = center.clone()
+                        .add(side.clone().multiplyScalar(-sideSign * width * rand(0.28, 0.75)))
+                        .add(tangent.clone().multiplyScalar(rand(-16, 16)))
+                        .add(new THREE.Vector3(rand(-0.8, 0.8), rand(17, 28), rand(-0.8, 0.8)));
+                    const mid = base.clone().lerp(top, 0.48).add(new THREE.Vector3(rand(-0.7, 0.7), rand(2.5, 5.5), rand(-0.7, 0.7)));
+                    const radius = rand(0.65, 1.15);
+                    addTracked(makeTaperedTube([base, mid, top], radius, radius * rand(0.34, 0.48), localDetail(10, 28), localDetail(6, 10), trunkMat, 0.13), 'trees');
+                    const frameBranchCount = Math.max(0, Math.round(localDetail(1, 3) * branchMultiplier));
+                    for (let b = 0; b < frameBranchCount; b++) {
+                        const origin = base.clone().lerp(top, rand(0.55, 0.92));
+                        const branchDir = side.clone().multiplyScalar(-sideSign * rand(0.2, 1)).add(tangent.clone().multiplyScalar(rand(-0.6, 1.3))).normalize();
+                        const branchEnd = origin.clone().add(branchDir.multiplyScalar(rand(3.5, 8))).add(new THREE.Vector3(0, rand(0.8, 3.4), 0));
+                        const branchMid = origin.clone().lerp(branchEnd, 0.5).add(new THREE.Vector3(0, rand(0.35, 1.2), 0));
+                        addTaperedSegmentInstance(branchPlacements, origin, branchMid, radius * rand(0.09, 0.18), rand(0.82, 1.12));
+                        addTaperedSegmentInstance(branchPlacements, branchMid, branchEnd, radius * rand(0.035, 0.08), rand(0.74, 1.05));
+                        if (Math.random() < canopyCover) addCanopyCluster(branchEnd, rand(2, 4.2), 0.65, rand(0.42, 0.65));
+                    }
+                    addCanopyCluster(top.clone().add(new THREE.Vector3(0, rand(1.2, 3), 0)), rand(3.2, 6.4), 0.9, rand(0.42, 0.68));
+                }
+
+                const understoryCount = Math.round(density * understoryMultiplier * localDetail(14, 62) * Math.max(0.3, understoryHeight / 6) * chunkScale);
+                for (let i = 0; i < understoryCount; i++) {
+                    const sideSign = Math.random() < 0.5 ? -1 : 1;
+                    const t = Math.random();
+                    const baseLateral = sideSign * sideOffset(0.75, 3.35);
+                    const base = terrainPoint(t, baseLateral, 0.03).point;
+                    if (Math.random() < 0.72) {
+                        addFernCluster(t, baseLateral, sideSign, rand(0.55, 1.25));
+                    } else {
+                        const h = Math.max(0.6, understoryHeight * rand(0.35, 1.1));
+                        const stemTop = base.clone().add(new THREE.Vector3(rand(-0.25, 0.25), h, rand(-0.25, 0.25)));
+                        addTaperedSegmentInstance(stemPlacements, base, stemTop, 0.035, rand(0.8, 1.15));
+                        for (let l = 0; l < localDetail(1, 4); l++) {
+                            const leafLength = rand(0.8, 1.9);
+                            const leafWidth = rand(0.12, 0.32);
+                            const materialIndex = Math.floor(Math.random() * leafMats.length);
+                            leafPlacementsByMaterial[materialIndex].push({
+                                x: stemTop.x,
+                                y: stemTop.y,
+                                z: stemTop.z,
+                                rotationX: rand(0.25, 0.95),
+                                rotationY: rand(0, Math.PI * 2),
+                                rotationZ: rand(-0.8, 0.8),
+                                scaleX: Math.max(0.55, leafWidth / 0.16),
+                                scaleY: leafLength,
+                                scaleZ: Math.max(0.5, leafLength * rand(0.45, 0.95))
+                            });
+                        }
+                    }
+                }
+
+                const rockCount = Math.round(requestedRocks * 0.65 * (0.45 + complexity * 0.55) * chunkScale);
+                for (let i = 0; i < rockCount; i++) {
+                    const sideSign = Math.random() < 0.5 ? -1 : 1;
+                    const pos = terrainPoint(Math.random(), sideSign * sideOffset(0.85, 2.55), rand(0.08, 0.18)).point;
+                    addRock(pos, rand(0.35, 1.45), Math.random() < 0.45);
+                }
+
+                const canopyMasses = Math.round(canopyCover * density * localDetail(8, 26) * chunkScale);
+                for (let i = 0; i < canopyMasses; i++) {
+                    const sideSign = Math.random() < 0.5 ? -1 : 1;
+                    const anchor = terrainPoint(Math.random(), sideSign * sideOffset(1.05, 5.1), rand(9, 24)).point;
+                    addCanopyCluster(anchor, rand(2.2, 6.6), rand(0.35, 0.95), rand(0.35, 0.65));
+                }
+
+                const lianaCount = Math.round(requestedVines * 0.75 * density * (0.55 + complexity * 0.75) * chunkScale);
+                for (let i = 0; i < lianaCount; i++) {
+                    const t = rand(0.03, 0.97);
+                    const { side, tangent } = pathFrame(t);
+                    const sideSign = Math.random() < 0.5 ? -1 : 1;
+                    const anchorOffset = sideOffset(0.95, 3.45);
+                    const floorOffset = anchorOffset * rand(0.45, 0.95);
+                    const anchor = terrainPoint(t, sideSign * anchorOffset, rand(9, 23)).point;
+                    const floorT = clamp01(t + rand(-1.6, 2.2) / Math.max(1, length));
+                    const floor = terrainPoint(floorT, sideSign * floorOffset, rand(0.08, 0.18)).point;
+                    const drop = Math.max(3, anchor.y - floor.y);
+                    const midHigh = anchor.clone().lerp(floor, 0.35)
+                        .add(side.clone().multiplyScalar(sideSign * rand(-0.28, 0.32)))
+                        .add(tangent.clone().multiplyScalar(rand(-0.75, 0.75)))
+                        .add(new THREE.Vector3(0, -drop * 0.04, 0));
+                    const midLow = anchor.clone().lerp(floor, 0.72)
+                        .add(side.clone().multiplyScalar(sideSign * rand(-0.35, 0.35)))
+                        .add(tangent.clone().multiplyScalar(rand(-0.55, 0.55)));
+                    addTracked(makeTaperedTube([anchor, midHigh, midLow, floor], rand(0.038, 0.07), rand(0.012, 0.024), localDetail(9, 30), 4, vineMat, 0.055), 'junglePlants');
+                }
+
+                flushBatches();
+                return addChunkToScene(group, centerZ, stats);
+            }
+
+            const chunks = new Map();
+            const maxChunkIndex = Math.max(0, Math.ceil((startZ - endZ) / chunkStep));
+
+            function disposeChunk(index) {
+                const entry = chunks.get(index);
+                if (!entry) {
+                    return;
+                }
+                decor.remove(entry.group);
+                if (Array.isArray(game.sceneryCullObjects)) {
+                    game.sceneryCullObjects = game.sceneryCullObjects.filter(object => object !== entry.group);
+                }
+                entry.group.traverse(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                });
+                stageDecorStats.trees = Math.max(0, stageDecorStats.trees - entry.stats.trees);
+                stageDecorStats.junglePlants = Math.max(0, stageDecorStats.junglePlants - entry.stats.junglePlants);
+                stageDecorStats.rockClusters = Math.max(0, stageDecorStats.rockClusters - entry.stats.rockClusters);
+                stageDecorStats.totalInstancedProps = Math.max(
+                    0,
+                    stageDecorStats.totalInstancedProps - entry.stats.trees - entry.stats.junglePlants - entry.stats.rockClusters
+                );
+                chunks.delete(index);
+            }
+
+            function ensureChunk(index) {
+                if (index < 0 || index > maxChunkIndex || chunks.has(index)) {
+                    return;
+                }
+                const chunkStartZ = startZ - index * chunkStep;
+                if (chunkStartZ <= endZ) {
+                    return;
+                }
+                const entry = createChunk(chunkStartZ, Math.max(endZ, chunkStartZ - chunkLength));
+                chunks.set(index, entry);
+            }
+
+            function ensureChunksAround(carZ) {
+                const firstIndex = Math.max(0, Math.floor((startZ - (carZ + 140)) / chunkStep));
+                const lastIndex = Math.min(maxChunkIndex, Math.ceil((startZ - (carZ - 760)) / chunkStep));
+                for (let index = firstIndex; index <= lastIndex; index++) {
+                    ensureChunk(index);
+                }
+                [...chunks.keys()].forEach(index => {
+                    if (index < firstIndex - 1 || index > lastIndex + 2) {
+                        disposeChunk(index);
+                    }
+                });
+            }
+
+            ensureChunksAround(game.car?.position?.z ?? game.startLine);
+            game.stageEffects = game.stageEffects || [];
+            game.stageEffects.push({
+                type: 'assetsHtmlJungleTrailChunks',
+                update(deltaSeconds, activeGame) {
+                    ensureChunksAround(activeGame?.car?.position?.z ?? game.startLine);
+                }
+            });
+        }
+
+        addAssetsHtmlJungleTrailChunks();
     }
 
     function addCoastalRoadsideDecor(decor) {
@@ -5154,6 +6444,9 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     addStageDecor();
+    if (!environment.disableRain) {
+        addGenericRainEffect();
+    }
 
     // Place trees if the environment has any
     if (environment.treeDensity > 0 && environment.id !== 'lakes') {
@@ -5263,17 +6556,86 @@ function generateRoadAndTerrain(scene, game, environment) {
         placeTrees(game.startLine - 40, game.finishLine + 120);
     }
     
+    function getAtmosphereSettings() {
+        const baseFog = new THREE.Color(environment.fogColor || 0x73b6cf);
+        const isNight = Boolean(environment.nightRace);
+        const isRainy = !environment.disableRain;
+        const fogColor = baseFog.clone();
+        let fogDensity = environment.fogDensity || 0.00115;
+        let skyColor = baseFog.clone();
+        let skyOverlay = null;
+
+        if (isNight) {
+            fogColor.lerp(new THREE.Color(0x071321), 0.7);
+            skyColor.copy(fogColor).lerp(new THREE.Color(0x030811), 0.32);
+            fogDensity *= 1.55;
+            skyOverlay = {
+                color: 'rgba(3, 10, 22, 0.66)',
+                horizon: 'rgba(62, 95, 122, 0.24)'
+            };
+        } else {
+            skyColor.copy(baseFog);
+            if (!isRainy) {
+                fogColor.lerp(new THREE.Color(0xbfe5da), 0.18);
+                fogDensity *= 0.42;
+            }
+            skyOverlay = {
+                color: isRainy ? 'rgba(255, 250, 230, 0.03)' : 'rgba(255, 255, 238, 0.1)',
+                horizon: isRainy ? 'rgba(255, 248, 210, 0.1)' : 'rgba(255, 252, 210, 0.18)'
+            };
+        }
+
+        if (isRainy) {
+            fogColor.lerp(new THREE.Color(isNight ? 0x0d1824 : 0x6f7f82), isNight ? 0.38 : 0.34);
+            skyColor.lerp(new THREE.Color(isNight ? 0x08101d : 0x67797d), isNight ? 0.42 : 0.3);
+            fogDensity *= isNight ? 1.32 : 1.42;
+            skyOverlay = {
+                color: isNight ? 'rgba(4, 9, 17, 0.76)' : 'rgba(60, 73, 76, 0.34)',
+                horizon: isNight ? 'rgba(44, 72, 91, 0.28)' : 'rgba(132, 146, 142, 0.22)'
+            };
+        }
+
+        return { fogColor, fogDensity, skyColor, skyOverlay };
+    }
+
+    function adaptSkyTexture(texture, atmosphere) {
+        const canvas = texture?.image;
+        const context = canvas?.getContext?.('2d');
+        if (!context || !atmosphere?.skyOverlay) {
+            return texture;
+        }
+
+        context.save();
+        context.globalCompositeOperation = 'multiply';
+        context.fillStyle = atmosphere.skyOverlay.color;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.globalCompositeOperation = 'screen';
+        const horizon = context.createLinearGradient(0, canvas.height * 0.36, 0, canvas.height);
+        horizon.addColorStop(0, 'rgba(255,255,255,0)');
+        horizon.addColorStop(0.7, atmosphere.skyOverlay.horizon);
+        horizon.addColorStop(1, atmosphere.skyOverlay.horizon);
+        context.fillStyle = horizon;
+        context.fillRect(0, canvas.height * 0.36, canvas.width, canvas.height * 0.64);
+        context.restore();
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    const atmosphere = getAtmosphereSettings();
     if (scene.background?.isTexture) {
         scene.background.dispose();
     }
-    scene.background = environment.id === 'lakes'
+    const stageSkyTexture = environment.id === 'lakes'
         ? createLakeSkyTexture()
         : environment.id === 'coastal'
             ? createCoastalSkyTexture()
             : environment.id === 'jungle'
-                ? createJungleSkyTexture()
-                : new THREE.Color(environment.fogColor);
-    scene.fog = new THREE.FogExp2(environment.fogColor, environment.fogDensity || 0.00115);
+                ? createJungleSkyTexture(environment)
+                : null;
+    scene.background = stageSkyTexture
+        ? adaptSkyTexture(stageSkyTexture, atmosphere)
+        : atmosphere.skyColor;
+    scene.fog = environment.disableFog ? null : new THREE.FogExp2(atmosphere.fogColor, atmosphere.fogDensity);
 
     function createBannerTexture(label) {
         const canvas = document.createElement('canvas');

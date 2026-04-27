@@ -18,6 +18,27 @@
 
     const gameManager = new GameManager(scene, camera, renderer);
     window.rallyRushGame = gameManager;
+    window.rallyRushPerf = function () {
+        const diagnostics = gameManager.getPerformanceDiagnostics?.() || null;
+        if (diagnostics) {
+            console.table({
+                stage: diagnostics.stage,
+                timeOfDay: diagnostics.timeOfDay,
+                rainEnabled: diagnostics.rainEnabled,
+                activeLights: diagnostics.activeLights,
+                sceneChildren: diagnostics.sceneChildren,
+                visibleScenery: diagnostics.scenery.visible,
+                totalScenery: diagnostics.scenery.total,
+                drawCalls: diagnostics.renderer?.calls,
+                triangles: diagnostics.renderer?.triangles,
+                geometries: diagnostics.renderer?.geometries,
+                textures: diagnostics.renderer?.textures,
+                jungleAssetBatches: diagnostics.jungleBatches?.length || 0
+            });
+            console.info('rallyRushPerf details', diagnostics);
+        }
+        return diagnostics;
+    };
 
     const controls = { left: false, right: false, accelerate: false, brake: false, handbrake: false };
 
@@ -28,6 +49,8 @@
     const circuitSelect = document.getElementById('circuitSelect');
     const difficultySelect = document.getElementById('difficultySelect');
     const assistSelect = document.getElementById('assistSelect');
+    const timeOfDaySelect = document.getElementById('timeOfDaySelect');
+    const weatherSelect = document.getElementById('weatherSelect');
     const startButton = document.getElementById('startButton');
     const restartButton = document.getElementById('restartButton');
     const changeCircuitButton = document.getElementById('changeCircuitButton');
@@ -35,6 +58,16 @@
     const selectedCarName = document.getElementById('selectedCarName');
     const selectedCarClass = document.getElementById('selectedCarClass');
     const selectedCarStats = document.getElementById('selectedCarStats');
+    const timeOfDayStorageKey = 'rallyRushIITimeOfDay';
+    const rainStorageKey = 'rallyRushIIRainEnabled';
+    const timeOfDayOptions = [
+        { id: 'day', label: 'Day' },
+        { id: 'night', label: 'Night' }
+    ];
+    const rainOptions = [
+        { id: 'on', label: 'On' },
+        { id: 'off', label: 'Off' }
+    ];
     const garagePreviewCanvas = document.getElementById('garagePreviewCanvas');
     const garagePreviewStatus = document.getElementById('garagePreviewStatus');
     const loadingStageName = document.getElementById('loadingStageName');
@@ -273,6 +306,22 @@
         });
     }
 
+    function getTimeOfDayMode() {
+        return localStorage.getItem(timeOfDayStorageKey) === 'night' ? 'night' : 'day';
+    }
+
+    function setTimeOfDayMode(id) {
+        localStorage.setItem(timeOfDayStorageKey, id === 'night' ? 'night' : 'day');
+    }
+
+    function getRainMode() {
+        return localStorage.getItem(rainStorageKey) === 'off' ? 'off' : 'on';
+    }
+
+    function setRainMode(id) {
+        localStorage.setItem(rainStorageKey, id === 'off' ? 'off' : 'on');
+    }
+
     function updateRaceSetupUi() {
         if (gameManager.getDifficultyOptions) {
             renderModeSelect(
@@ -291,6 +340,20 @@
                 id => gameManager.setDrivingAssistLevel(id)
             );
         }
+
+        renderModeSelect(
+            timeOfDaySelect,
+            timeOfDayOptions,
+            getTimeOfDayMode(),
+            setTimeOfDayMode
+        );
+
+        renderModeSelect(
+            weatherSelect,
+            rainOptions,
+            getRainMode(),
+            setRainMode
+        );
     }
 
     function disposeObject3d(object) {
