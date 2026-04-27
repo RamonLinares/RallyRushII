@@ -162,9 +162,11 @@ const environments = {
             treeCount: 24,
             treeMultiplier: 3,
             branchMultiplier: 1,
+            postFinishVegetation: 720,
             understoryHeight: 6.5,
             understoryMultiplier: 10,
-            rockCount: 24,
+            rockCount: 48,
+            roadsideRockDensity: 1.8,
             vines: 12
         }
     },
@@ -281,6 +283,17 @@ class GameManager {
         this.controls = { left: false, right: false, accelerate: false, brake: false, handbrake: false };
         this.cameraModes = [
             {
+                id: 'close',
+                label: 'Close Chase',
+                type: 'chase',
+                fov: 78,
+                distance: 6.2,
+                height: 2.55,
+                lookAhead: 9,
+                lookHeight: 0.9,
+                occlusion: true
+            },
+            {
                 id: 'chase',
                 label: 'Chase',
                 type: 'chase',
@@ -290,19 +303,6 @@ class GameManager {
                 lookAhead: 10,
                 lookHeight: 0.55,
                 occlusion: true
-            },
-            {
-                id: 'heightCheck',
-                label: 'Height Check',
-                type: 'chase',
-                fov: 68,
-                distance: 6.6,
-                distanceDirection: -1,
-                lateral: 2.2,
-                height: 1.15,
-                lookAhead: 3.8,
-                lookHeight: 0.08,
-                occlusion: false
             },
             {
                 id: 'cockpit',
@@ -331,17 +331,6 @@ class GameManager {
                 lookHeight: 0.96,
                 occlusion: false,
                 hideVehicle: false
-            },
-            {
-                id: 'close',
-                label: 'Close Chase',
-                type: 'chase',
-                fov: 78,
-                distance: 6.2,
-                height: 2.55,
-                lookAhead: 9,
-                lookHeight: 0.9,
-                occlusion: true
             },
             {
                 id: 'topDown',
@@ -1104,7 +1093,7 @@ class GameManager {
             stageEffects: [],
             sceneryCullObjects: [],
             sceneryCullWindow: {
-                ahead: environment.id === 'jungle' ? 760 : 900,
+                ahead: environment.id === 'jungle' ? 1050 : 900,
                 behind: environment.id === 'jungle' ? 90 : 220
             },
             startTime: null,
@@ -1142,9 +1131,11 @@ class GameManager {
             treeCount: 24,
             treeMultiplier: 3,
             branchMultiplier: 1,
+            postFinishVegetation: 720,
             understoryHeight: 6.5,
             understoryMultiplier: 10,
-            rockCount: 24,
+            rockCount: 48,
+            roadsideRockDensity: 1.8,
             vines: 12,
             ...(environment.jungleGeneration || {})
         };
@@ -1160,9 +1151,11 @@ class GameManager {
             jungleTrees: ['treeCount', 0, 70],
             jungleTreeMultiplier: ['treeMultiplier', 0, 6],
             jungleBranchMultiplier: ['branchMultiplier', 0, 12],
+            junglePostFinishVegetation: ['postFinishVegetation', 0, 900],
             jungleUnderstory: ['understoryHeight', 0, 14],
             jungleUnderstoryMultiplier: ['understoryMultiplier', 0, 14],
-            jungleRocks: ['rockCount', 0, 70],
+            jungleRocks: ['rockCount', 0, 120],
+            jungleRoadsideRocks: ['roadsideRockDensity', 0, 4],
             jungleVines: ['vines', 0, 40]
         };
 
@@ -5526,7 +5519,7 @@ class GameManager {
             return null;
         }
 
-        this.setCameraMode('heightCheck');
+        this.setCameraMode('close');
         const target = this.carPosition.clone().add(new THREE.Vector3(0, this.debugFreeCamera.targetYOffset, 0));
         const offset = this.camera.position.clone().sub(target);
         const distance = THREE.MathUtils.clamp(offset.length() || 7.5, 2.2, 45);

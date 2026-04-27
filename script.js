@@ -654,7 +654,7 @@
         }
 
         const mode = gameManager.getCameraMode();
-        cameraButton.dataset.active = mode.id === 'chase' ? 'false' : 'true';
+        cameraButton.dataset.active = mode.id === 'close' ? 'false' : 'true';
         cameraButton.setAttribute('aria-label', `Camera view: ${mode.label}`);
         cameraButton.setAttribute('title', `Camera view: ${mode.label}`);
     }

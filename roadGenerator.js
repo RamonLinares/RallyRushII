@@ -3364,7 +3364,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         const rockScale = THREE.MathUtils.clamp(generation.rockCount / 30, 0, 2.2);
         const scaledStep = (base, scale) => base / Math.max(0.22, scale);
         const startZ = game.startLine + 70;
-        const endZ = game.finishLine + 150;
+        const postFinishVegetation = Math.max(0, generation.postFinishVegetation ?? 720);
+        const endZ = game.finishLine - postFinishVegetation;
         const jungleAssetCache = environment.assetCache || {};
         const tallTreeAssets = ['tallTreeA', 'tallTreeB', 'tallTreeC']
             .map(key => jungleAssetCache[key])
@@ -4777,6 +4778,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const understoryHeight = Math.max(0, generation.understoryHeight ?? 6.5);
             const understoryMultiplier = Math.max(0, generation.understoryMultiplier ?? 1);
             const requestedRocks = Math.max(0, generation.rockCount ?? 24);
+            const roadsideRockDensity = THREE.MathUtils.clamp(generation.roadsideRockDensity ?? 1.8, 0, 4);
             const requestedVines = Math.max(0, generation.vines ?? 12);
             const chunkLength = 90;
             const chunkStep = 90;
@@ -4786,14 +4788,15 @@ function generateRoadAndTerrain(scene, game, environment) {
             const clamp01 = value => Math.max(0, Math.min(1, value));
             const localDetail = (min, max) => Math.max(min, Math.round(min + (max - min) * complexity));
             const bankWidth = Math.max(5, width * 1.4);
+            const roadEdgeOffset = width * 0.5;
             const sideOffset = (min, max) => width * rand(min, max);
 
             const mossMat = new THREE.MeshLambertMaterial({ color: 0x2d5a25, side: THREE.DoubleSide });
             const trunkMat = new THREE.MeshLambertMaterial({ color: 0x70401c });
             const barkDarkMat = new THREE.MeshLambertMaterial({ color: 0x3d1d0c });
             const vineMat = new THREE.MeshLambertMaterial({ color: 0x2f2418 });
-            const rockMat = new THREE.MeshLambertMaterial({ color: 0x686b67, flatShading: true });
-            const mossRockMat = new THREE.MeshLambertMaterial({ color: 0x555852, flatShading: true });
+            const rockMat = new THREE.MeshLambertMaterial({ color: 0x625b3d, flatShading: true });
+            const mossRockMat = new THREE.MeshLambertMaterial({ color: 0x465635, flatShading: true });
             const leafMats = [
                 new THREE.MeshLambertMaterial({ color: 0x173f1f, side: THREE.DoubleSide, flatShading: true }),
                 new THREE.MeshLambertMaterial({ color: 0x235f28, side: THREE.DoubleSide, flatShading: true }),
@@ -5176,6 +5179,35 @@ function generateRoadAndTerrain(scene, game, environment) {
                     (mossy ? mossRockPlacements : rockPlacements).push(placement);
                 };
 
+                const addRoadsideRockCluster = (baseT, sideSign, scale = 1) => {
+                    const clusterRocks = Math.max(1, Math.round(rand(1.2, 4.8) * scale));
+                    const anchorLateral = roadEdgeOffset + rand(0.85, 5.8);
+                    for (let r = 0; r < clusterRocks; r++) {
+                        const t = clamp01(baseT + rand(-5.8, 5.8) / Math.max(1, length));
+                        const roll = Math.random();
+                        const size = roll < 0.12
+                            ? rand(1.25, 2.45)
+                            : roll < 0.58
+                                ? rand(0.45, 1.2)
+                                : rand(0.16, 0.46);
+                        const lateralDistance = Math.max(
+                            Math.max(roadEdgeOffset, pathWidthAt(t) * 0.5) + 0.75 + size * 1.15,
+                            anchorLateral + rand(-0.85, 1.75)
+                        );
+                        const point = terrainPoint(t, sideSign * lateralDistance, rand(0.08, 0.2)).point;
+                        addRock(point, size * scale, Math.random() < 0.58);
+                    }
+                    const fernClumps = Math.max(1, Math.round(rand(1.8, 4.2) * scale * (0.55 + density * 0.45)));
+                    for (let f = 0; f < fernClumps; f++) {
+                        const t = clamp01(baseT + rand(-6.4, 6.4) / Math.max(1, length));
+                        const lateralDistance = Math.max(
+                            Math.max(roadEdgeOffset, pathWidthAt(t) * 0.5) + 0.7,
+                            anchorLateral + rand(-0.65, 1.55)
+                        );
+                        addFernCluster(t, sideSign * lateralDistance, sideSign, rand(0.34, 0.72) * scale);
+                    }
+                };
+
                 const addFernCluster = (baseT, baseLateral, sideSign, scale = 1) => {
                     const fronds = Math.round(localDetail(2, 6) * density * scale);
                     for (let f = 0; f < fronds; f++) {
@@ -5307,6 +5339,13 @@ function generateRoadAndTerrain(scene, game, environment) {
                     addCanopyCluster(top.clone().add(new THREE.Vector3(0, rand(1.2, 3), 0)), rand(3.2, 6.4), 0.9, rand(0.42, 0.68));
                 }
 
+                const roadsideRockClusters = Math.round(roadsideRockDensity * density * localDetail(9, 26) * chunkScale);
+                for (let i = 0; i < roadsideRockClusters; i++) {
+                    const sideSign = i % 2 === 0 ? -1 : 1;
+                    const t = (i + rand(0.05, 0.95)) / Math.max(1, roadsideRockClusters);
+                    addRoadsideRockCluster(t, sideSign, rand(0.72, 1.35));
+                }
+
                 const understoryCount = Math.round(density * understoryMultiplier * localDetail(14, 62) * Math.max(0.3, understoryHeight / 6) * chunkScale);
                 for (let i = 0; i < understoryCount; i++) {
                     const sideSign = Math.random() < 0.5 ? -1 : 1;
@@ -5338,7 +5377,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                     }
                 }
 
-                const rockCount = Math.round(requestedRocks * 0.65 * (0.45 + complexity * 0.55) * chunkScale);
+                const rockCount = Math.round(requestedRocks * 0.85 * (0.45 + complexity * 0.55) * chunkScale);
                 for (let i = 0; i < rockCount; i++) {
                     const sideSign = Math.random() < 0.5 ? -1 : 1;
                     const pos = terrainPoint(Math.random(), sideSign * sideOffset(0.85, 2.55), rand(0.08, 0.18)).point;
@@ -5417,8 +5456,9 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
 
             function ensureChunksAround(carZ) {
+                const lookAhead = Number.isFinite(game.sceneryCullWindow?.ahead) ? game.sceneryCullWindow.ahead : 760;
                 const firstIndex = Math.max(0, Math.floor((startZ - (carZ + 140)) / chunkStep));
-                const lastIndex = Math.min(maxChunkIndex, Math.ceil((startZ - (carZ - 760)) / chunkStep));
+                const lastIndex = Math.min(maxChunkIndex, Math.ceil((startZ - (carZ - lookAhead)) / chunkStep));
                 for (let index = firstIndex; index <= lastIndex; index++) {
                     ensureChunk(index);
                 }
