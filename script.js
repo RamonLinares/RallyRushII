@@ -100,6 +100,7 @@
     const jumpButton = document.getElementById('jumpButton');
     const leftButton = document.getElementById('leftButton');
     const rightButton = document.getElementById('rightButton');
+    accelerateButton.setAttribute('aria-pressed', 'false');
 
     window.render_game_to_text = function () {
         const isLoading = loadingScreen.style.display !== 'none';
@@ -238,10 +239,19 @@
     function resetControls() {
         controls.left = false;
         controls.right = false;
-        controls.accelerate = false;
+        setAcceleratorLatched(false, false);
         controls.brake = false;
         controls.handbrake = false;
         gameManager.setControls(controls);
+    }
+
+    function setAcceleratorLatched(isLatched, syncControls = true) {
+        controls.accelerate = Boolean(isLatched);
+        accelerateButton.classList.toggle('isLatched', controls.accelerate);
+        accelerateButton.setAttribute('aria-pressed', controls.accelerate ? 'true' : 'false');
+        if (syncControls) {
+            gameManager.setControls(controls);
+        }
     }
 
     function isGameplayActive() {
@@ -1137,13 +1147,13 @@
     accelerateButton.addEventListener('touchstart', event => {
         preventTouchDefault(event);
         if (!canDrive()) { return; }
-        controls.accelerate = true;
-        gameManager.setControls(controls);
+        setAcceleratorLatched(!controls.accelerate);
     }, touchControlOptions);
 
     brakeButton.addEventListener('touchstart', event => {
         preventTouchDefault(event);
         if (!canDrive()) { return; }
+        setAcceleratorLatched(false, false);
         controls.brake = true;
         gameManager.setControls(controls);
     }, touchControlOptions);
@@ -1170,8 +1180,6 @@
 
     accelerateButton.addEventListener('touchend', event => {
         preventTouchDefault(event);
-        controls.accelerate = false;
-        gameManager.setControls(controls);
     }, touchControlOptions);
 
     brakeButton.addEventListener('touchend', event => {

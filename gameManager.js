@@ -2,24 +2,29 @@
 const environments = {
     scotland: {
         id: 'scotland',
-        terrainStyle: 'meadow',
-        roadStyle: 'country-asphalt',
-        shoulderStyle: 'grass-gravel',
-        roadWidth: 25,
-        terrainColor: 0x3f7c47,
-        terrainTint: 0xd6ead0,
-        treeDensity: 0.2,
-        treeColor: 0x2f7d3b,
-        trunkColor: 0x6d4b2d,
-        maxMountainHeight: 15,
-        mountainHeightRange: 20,
-        mountainHeightPower: 1.25,
-        mountainNoiseScale: 0.0065,
-        mountainNoiseGain: 0.32,
-        mountainRoadsideDelay: 0.2,
-        mountainRoadsidePower: 1.35,
-        fogColor: 0x73b6cf,
-        fogDensity: 0.00115
+        terrainStyle: 'highland',
+        roadStyle: 'highland-asphalt',
+        shoulderStyle: 'moor-gravel',
+        roadWidth: 22.5,
+        terrainColor: 0x587a3f,
+        terrainTint: 0xffffff,
+        treeDensity: 0.018,
+        treeColor: 0x2f5a33,
+        trunkColor: 0x56442e,
+        roadElevationAmplitude: 7.2,
+        maxMountainHeight: 84,
+        mountainHeightRange: 96,
+        mountainHeightPower: 1.14,
+        mountainNoiseScale: 0.0058,
+        mountainNoiseGain: 0.28,
+        mountainRoadsideDelay: 0.1,
+        mountainRoadsidePower: 1.08,
+        shoulderWidth: 4.2,
+        terrainTextureMetersPerTile: 560,
+        terrainTextureLateralMetersPerTile: 210,
+        roadTextureMetersPerTile: 58,
+        fogColor: 0x9fb9c0,
+        fogDensity: 0.00105
     },
     desert: {
         id: 'desert',
@@ -27,18 +32,24 @@ const environments = {
         roadStyle: 'sun-baked-asphalt',
         shoulderStyle: 'sand-gravel',
         roadWidth: 28,
-        terrainColor: 0xC2B280,
-        terrainTint: 0xc69a58,
+        terrainColor: 0xb87842,
+        terrainTint: 0xd49a5b,
         treeDensity: 0,
-        maxMountainHeight: 40,
-        mountainHeightRange: 34,
-        mountainHeightPower: 1.4,
-        mountainNoiseScale: 0.0048,
-        mountainNoiseGain: 0.3,
-        mountainRoadsideDelay: 0.24,
-        mountainRoadsidePower: 1.45,
-        fogColor: 0xd99d4f,
-        fogDensity: 0.00105
+        roadElevationAmplitude: 4.2,
+        maxMountainHeight: 54,
+        mountainHeightRange: 48,
+        mountainHeightPower: 1.25,
+        mountainNoiseScale: 0.0042,
+        mountainNoiseGain: 0.34,
+        mountainRoadsideDelay: 0.18,
+        mountainRoadsidePower: 1.22,
+        fogColor: 0xd98c47,
+        fogDensity: 0.00128,
+        terrainTextureUrl: 'assets/textures/desert_terrain_texture.png',
+        terrainTextureMetersPerTile: 420,
+        terrainTextureLateralMetersPerTile: 260,
+        terrainTextureTint: 0xffffff,
+        roadTextureMetersPerTile: 46
     },
     alpine: {
         id: 'alpine',
@@ -2669,7 +2680,7 @@ class GameManager {
         };
 
         if (type === 'rally' && /(^|\s)interior steering cylinder(?=\s|$)/.test(normalized)) {
-            config.direction = -1;
+            config.direction = 1;
             config.baseAxisValue = 0;
         } else if (type === 'apexGt' && normalized === 'steering wheel') {
             config.direction = -1;
@@ -4418,7 +4429,7 @@ class GameManager {
 
         this.game.stageEffects.forEach(effect => {
             if (typeof effect.update === 'function') {
-                effect.update(deltaSeconds, this.game, this.camera);
+                effect.update(deltaSeconds, this.game, this.camera, this.getActiveCameraMode());
             }
         });
     }

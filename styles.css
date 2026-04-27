@@ -909,8 +909,7 @@ button:focus-visible {
 }
 
 .primaryButton::after,
-.secondaryButton::after,
-.controlButton::after {
+.secondaryButton::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -934,8 +933,7 @@ button:focus-visible {
 }
 
 .primaryButton:hover::after,
-.secondaryButton:hover::after,
-.controlButton:hover::after {
+.secondaryButton:hover::after {
     transform: translateX(120%);
 }
 
@@ -1203,9 +1201,7 @@ button:focus-visible {
     color: var(--ui-text);
     border: 1px solid var(--ui-border);
     border-radius: 8px;
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 44%),
-        var(--ui-bg);
+    background: rgba(6, 12, 18, 0.86);
     box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
     backdrop-filter: blur(16px) saturate(1.25);
     font-size: 16px;
@@ -1227,6 +1223,14 @@ button:focus-visible {
     background:
         linear-gradient(145deg, rgba(95, 226, 255, 0.22), transparent 44%),
         rgba(6, 12, 18, 0.86);
+}
+
+.controlButton.isLatched,
+.controlButton[aria-pressed="true"] {
+    border-color: var(--ui-green);
+    background:
+        linear-gradient(145deg, rgba(104, 255, 154, 0.24), rgba(6, 12, 18, 0.9));
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
 .controlButtonPrimary {
