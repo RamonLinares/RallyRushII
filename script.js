@@ -699,7 +699,12 @@
     }
 
     function setCameraTunerEnabled(isEnabled) {
-        cameraTunerEnabled = Boolean(isEnabled && isGameplayActive() && gameManager.getCockpitTunerState);
+        cameraTunerEnabled = Boolean(
+            isEnabled
+            && isGameplayActive()
+            && gameManager.getCockpitTunerState
+            && (!gameManager.canUseCameraMode || gameManager.canUseCameraMode('cockpitInterior'))
+        );
         if (cameraTunerEnabled) {
             resetControls();
             gameManager.setCameraMode('cockpitInterior');

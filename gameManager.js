@@ -361,6 +361,9 @@ class GameManager {
         ];
         this.cameraModeIndex = 0;
         this.cameraMode = this.cameraModes[this.cameraModeIndex];
+        this.vehicleCameraModeExclusions = {
+            apexGt: ['cockpit', 'cockpitInterior']
+        };
         this.debugFreeCamera = {
             active: false,
             targetYOffset: 0.65,
@@ -382,15 +385,15 @@ class GameManager {
                 hideVehicle: false
             },
             apexGt: {
-                fov: 74,
-                near: 0.025,
-                lateral: -0.4,
-                forward: 0.12,
-                height: 1.05,
-                lookAhead: 10,
-                lookHeight: 0.9,
-                lookLateral: -0.1,
-                hideVehicle: false
+                fov: 82,
+                near: 0.1,
+                lateral: -0.38,
+                forward: 1.2,
+                height: 1.55,
+                lookAhead: 26,
+                lookHeight: 1.25,
+                lookLateral: -0.38,
+                hideVehicle: true
             },
         };
         this.defaultCockpitInteriorRigs = JSON.parse(JSON.stringify(this.cockpitInteriorRigs));
@@ -423,8 +426,8 @@ class GameManager {
         this.vehicleModelLoadState = {};
         this.vehicleModelAssets = {
             carConcept: { url: 'assets/models/car_concept.glb' },
-            milkTruck: { url: 'assets/models/cesium_milk_truck.glb' },
-            ferrariGt: { url: 'assets/models/ferrari_gt.glb' }
+            apexConcept: { url: 'assets/models/free_ai_based_conceptcar_050_public_domain_cc0.glb' },
+            passengerPack: { url: 'assets/models/generic_passenger_car_pack_low.glb' }
         };
         this.environmentModelCache = {};
         this.environmentModelLoadState = {};
@@ -602,55 +605,69 @@ class GameManager {
                 contactPointYOffset: 0.06
             },
             apexGt: {
-                asset: 'ferrariGt',
+                asset: 'apexConcept',
                 width: 3.05,
                 length: 5.86,
-                height: 1.36,
-                yaw: 0,
-                groundOffset: -0.12
+                height: 1.55,
+                yaw: Math.PI,
+                groundOffset: -0.04,
+                omitNames: ['shadow'],
+                contactPointYOffset: 0.02
             },
             supercar: {
-                asset: 'carConcept',
-                width: 3.12,
-                length: 6.12,
-                height: 1.58,
+                asset: 'passengerPack',
+                variant: 'sport',
+                width: 3.45,
+                length: 6.55,
+                height: 1.72,
                 yaw: Math.PI,
-                groundOffset: -0.2,
-                contactPointYOffset: 0.06
+                scaleBasis: 'height',
+                groundOffset: -0.08,
+                contactPointYOffset: 0.03
             },
             muscle: {
-                asset: 'carConcept',
-                width: 3.12,
-                length: 6.12,
-                height: 1.7,
-                yaw: Math.PI,
-                groundOffset: -0.2,
-                contactPointYOffset: 0.06
+                asset: 'passengerPack',
+                variant: 'sedan',
+                width: 3.45,
+                length: 6.6,
+                height: 1.9,
+                yaw: 0,
+                scaleBasis: 'height',
+                groundOffset: -0.08,
+                contactPointYOffset: 0.03
             },
             hatchback: {
-                asset: 'carConcept',
-                width: 2.82,
-                length: 5.52,
-                height: 1.7,
+                asset: 'passengerPack',
+                variant: 'hatchback',
+                width: 3.2,
+                length: 6.15,
+                height: 1.85,
                 yaw: Math.PI,
-                groundOffset: -0.2,
-                contactPointYOffset: 0.06
+                scaleBasis: 'height',
+                groundOffset: -0.08,
+                contactPointYOffset: 0.03
             },
             suv: {
-                asset: 'milkTruck',
-                width: 3.18,
-                length: 6.58,
-                height: 2.36,
-                yaw: Math.PI,
-                groundOffset: -0.2
+                asset: 'passengerPack',
+                variant: 'suv',
+                width: 3.55,
+                length: 7.35,
+                height: 2.35,
+                yaw: 0,
+                scaleBasis: 'height',
+                groundOffset: -0.08,
+                contactPointYOffset: 0.03
             },
             pickup: {
-                asset: 'milkTruck',
-                width: 3.08,
-                length: 6.62,
-                height: 2.28,
+                asset: 'passengerPack',
+                variant: 'pickup',
+                width: 3.45,
+                length: 7.25,
+                height: 2.3,
                 yaw: Math.PI,
-                groundOffset: -0.2
+                scaleBasis: 'height',
+                groundOffset: -0.08,
+                contactPointYOffset: 0.03
             }
         };
         this.trafficPaints = [
@@ -1481,6 +1498,7 @@ class GameManager {
         const option = this.getPlayerVehicleOption(type);
         this.playerVehicleType = option.type;
         localStorage.setItem('selectedPlayerVehicleType', option.type);
+        this.ensureCameraModeForVehicle(option.type);
         return option;
     }
 
@@ -2153,7 +2171,7 @@ class GameManager {
 
     isAssetHeadlightName(name = '') {
         const normalized = this.normalizeAssetName(name);
-        return /head\s*light|headlight|front\s*light|(^|\s)lights?(?=\s|$)/.test(normalized)
+        return /head\s*light|headlight|front\s*light|(^|\s)(lights?|optics)(?=\s|$|_|\d)/.test(normalized)
             && !/tail|brake|rear|signal|indicator|interior|red|steering/.test(normalized);
     }
 
@@ -2166,8 +2184,8 @@ class GameManager {
     getVehicleAssetLabel(assetName) {
         const labels = {
             carConcept: 'Sports fleet model',
-            milkTruck: 'Utility fleet model',
-            ferrariGt: 'Apex GT model'
+            apexConcept: 'Apex concept model',
+            passengerPack: 'Passenger traffic pack'
         };
         return labels[assetName] || assetName;
     }
@@ -2594,6 +2612,10 @@ class GameManager {
 
     prepareAssetVehicleModel(model, type, palette, assetSpec) {
         model.name = `${type}-mesh-model`;
+        this.removeAssetNodesByName(model, assetSpec.omitNames || []);
+        if (assetSpec.asset === 'passengerPack' && assetSpec.variant) {
+            this.extractPassengerPackVariant(model, assetSpec.variant);
+        }
         model.rotation.y = assetSpec.yaw || 0;
 
         model.traverse(child => {
@@ -2640,6 +2662,176 @@ class GameManager {
         this.normalizeAssetVehicle(model, assetSpec);
     }
 
+    removeAssetNodesByName(root, names = []) {
+        if (!names.length) {
+            return;
+        }
+
+        const normalizedNames = names.map(name => this.normalizeAssetName(name));
+        const removals = [];
+        root.traverse(child => {
+            if (child === root) {
+                return;
+            }
+
+            const normalized = this.normalizeAssetName(child.name || '');
+            if (normalizedNames.some(name => normalized === name || normalized.startsWith(`${name} `))) {
+                removals.push(child);
+            }
+        });
+
+        removals.forEach(child => {
+            if (child.parent) {
+                child.parent.remove(child);
+            }
+        });
+    }
+
+    extractPassengerPackVariant(model, variant) {
+        const variantConfig = this.getPassengerPackVariantConfig(variant);
+        if (!variantConfig) {
+            return;
+        }
+
+        model.updateMatrixWorld(true);
+        const body = this.findAssetObjectByNormalizedName(model, variantConfig.body);
+        if (!body || !body.parent) {
+            console.warn(`Passenger car pack variant not found: ${variant}`);
+            return;
+        }
+
+        const packRoot = body.parent;
+        const bodyBox = new THREE.Box3().setFromObject(body);
+        if (bodyBox.isEmpty()) {
+            return;
+        }
+
+        const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
+        const wheelGroups = [];
+        packRoot.children.forEach(child => {
+            if (child === body || !this.isPassengerPackWheelGroup(child)) {
+                return;
+            }
+
+            const box = new THREE.Box3().setFromObject(child);
+            if (box.isEmpty()) {
+                return;
+            }
+
+            const center = box.getCenter(new THREE.Vector3());
+            const xzDistance = Math.hypot(center.x - bodyCenter.x, center.z - bodyCenter.z);
+            wheelGroups.push({ object: child, xzDistance });
+        });
+
+        const selectedWheels = wheelGroups
+            .sort((a, b) => a.xzDistance - b.xzDistance)
+            .slice(0, 4)
+            .map(entry => entry.object);
+        const keep = new Set([body, ...selectedWheels]);
+
+        [...packRoot.children].forEach(child => {
+            if (!keep.has(child)) {
+                packRoot.remove(child);
+            }
+        });
+
+        this.normalizePassengerPackOrientation(packRoot, selectedWheels, variantConfig);
+    }
+
+    getPassengerPackVariantConfig(variant) {
+        const variants = {
+            compact: { body: 'compact body', frontHint: [0, 1] },
+            coupe: { body: 'coupe body', frontHint: [1, 0] },
+            hatchback: { body: 'hatchback body', frontHint: [0, 1] },
+            minivan: { body: 'minivan body', frontHint: [1, 0] },
+            offroad: { body: 'offroad body', frontHint: [1, 0] },
+            pickup: { body: 'pickup body', frontHint: [0, 1] },
+            sedan: { body: 'sedan body', frontHint: [0, 1] },
+            sport: { body: 'sport body', frontHint: [-0.58, 0.82] },
+            suv: { body: 'suv body', frontHint: [1, -0.25] },
+            wagon: { body: 'wagon body', frontHint: [0.58, 0.82] }
+        };
+        return variants[variant] || null;
+    }
+
+    findAssetObjectByNormalizedName(root, targetName) {
+        const normalizedTarget = this.normalizeAssetName(targetName);
+        let found = null;
+        root.traverse(child => {
+            if (!found && this.normalizeAssetName(child.name || '') === normalizedTarget) {
+                found = child;
+            }
+        });
+        return found;
+    }
+
+    isPassengerPackWheelGroup(object) {
+        if (!object || object.isMesh) {
+            return false;
+        }
+
+        return /^wheel/i.test(object.name || '')
+            && object.children?.some(child => this.isAssetWheelName(`${child.name || ''} ${child.material?.name || ''}`));
+    }
+
+    normalizePassengerPackOrientation(packRoot, wheelGroups, variantConfig) {
+        if (!packRoot || !wheelGroups?.length) {
+            return;
+        }
+
+        packRoot.updateMatrixWorld(true);
+        const wheelCenters = wheelGroups.map(wheel => {
+            const box = new THREE.Box3().setFromObject(wheel);
+            return box.getCenter(new THREE.Vector3());
+        });
+        const longAxis = this.getPassengerPackLongAxis(wheelCenters);
+        if (!longAxis) {
+            return;
+        }
+
+        const frontHint = new THREE.Vector2(
+            variantConfig.frontHint?.[0] || 0,
+            variantConfig.frontHint?.[1] || 0
+        );
+        if (frontHint.lengthSq() > 0.000001) {
+            frontHint.normalize();
+            if (longAxis.dot(frontHint) < 0) {
+                longAxis.multiplyScalar(-1);
+            }
+        }
+
+        const sourceFrontAngle = Math.atan2(longAxis.x, longAxis.y);
+        packRoot.rotation.y -= sourceFrontAngle;
+        packRoot.updateMatrixWorld(true);
+    }
+
+    getPassengerPackLongAxis(points) {
+        if (!points || points.length < 2) {
+            return null;
+        }
+
+        const center = points.reduce((sum, point) => {
+            sum.x += point.x;
+            sum.y += point.z;
+            return sum;
+        }, new THREE.Vector2()).multiplyScalar(1 / points.length);
+        let xx = 0;
+        let xz = 0;
+        let zz = 0;
+
+        points.forEach(point => {
+            const x = point.x - center.x;
+            const z = point.z - center.y;
+            xx += x * x;
+            xz += x * z;
+            zz += z * z;
+        });
+
+        const angle = 0.5 * Math.atan2(2 * xz, xx - zz);
+        const axis = new THREE.Vector2(Math.cos(angle), Math.sin(angle));
+        return axis.lengthSq() > 0.000001 ? axis.normalize() : null;
+    }
+
     normalizeAssetName(name = '') {
         return name
             .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -2657,9 +2849,14 @@ class GameManager {
 
     isAssetWheelName(name) {
         const normalized = this.normalizeAssetName(name);
+        if (/(^|\s)(body|glass|optics)(?=\s|$|\d)/.test(normalized)
+            && !this.hasAssetNameToken(normalized, ['tire', 'tyre', 'rubber', 'rim', 'wheek'])) {
+            return false;
+        }
+
         return !/(^|\s)steering(?=\s|$)/.test(normalized)
             && (
-                this.hasAssetNameToken(normalized, ['wheel', 'tire', 'tyre', 'rim'])
+                this.hasAssetNameToken(normalized, ['wheel', 'wheek', 'tire', 'tyre', 'rim'])
                 || /(^|\s)tire\s*tread(?=\s|$|\d)/.test(normalized)
                 || /(^|\s)tiretread(?=\s|$|\d)/.test(normalized)
                 || /(^|\s)(front|rear|back)\s*wheels?(?=\s|$|\d)/.test(normalized)
@@ -2682,8 +2879,6 @@ class GameManager {
         if (type === 'rally' && /(^|\s)interior steering cylinder(?=\s|$)/.test(normalized)) {
             config.direction = 1;
             config.baseAxisValue = 0;
-        } else if (type === 'apexGt' && normalized === 'steering wheel') {
-            config.direction = -1;
         }
 
         return config;
@@ -2964,9 +3159,9 @@ class GameManager {
         cloned.envMapIntensity = Math.max(cloned.envMapIntensity || 0, 0.9);
 
         const isGlass = /glass|window|windshield/.test(normalizedName);
-        const isTire = this.hasAssetNameToken(name, ['tire', 'tyre', 'rubber', 'wheel']);
+        const isTire = this.hasAssetNameToken(name, ['tire', 'tyre', 'rubber', 'wheel', 'wheek']);
         const isRim = this.hasAssetNameToken(name, ['rim', 'disc', 'brake']);
-        const isLight = /headlight|brakelight|signallight|taillight/.test(normalizedName);
+        const isLight = /headlight|brakelight|signallight|taillight|optics|lights/.test(normalizedName);
         const isPaint = /paint|body|panel|toycar|truck|sportscar|suv|orange|white|body color/.test(normalizedName)
             && !isGlass
             && !isTire
@@ -3070,7 +3265,11 @@ class GameManager {
         const widthScale = assetSpec.width / Math.max(sourceSize.x, 0.001);
         const lengthScale = assetSpec.length / Math.max(sourceSize.z, 0.001);
         const heightScale = (assetSpec.height || sourceSize.y) / Math.max(sourceSize.y, 0.001);
-        const scale = Math.min(widthScale, lengthScale, heightScale);
+        const scale = assetSpec.scaleBasis === 'height'
+            ? heightScale
+            : assetSpec.scaleBasis === 'length'
+                ? lengthScale
+                : Math.min(widthScale, lengthScale, heightScale);
 
         model.scale.multiplyScalar(scale);
         model.updateMatrixWorld(true);
@@ -3969,6 +4168,7 @@ class GameManager {
         this.isPaused = false;
         this.pauseStartedAt = 0;
         this.pausedDuration = 0;
+        this.ensureCameraModeForVehicle(this.getPlayerVehicleType());
         // Stop all music
         this.stopAllMusic();
 
@@ -5257,7 +5457,50 @@ class GameManager {
     }
 
     getCameraMode() {
-        return this.cameraMode || this.cameraModes[this.cameraModeIndex] || this.cameraModes[0];
+        const mode = this.cameraMode || this.cameraModes[this.cameraModeIndex] || this.cameraModes[0];
+        if (this.isCameraModeAvailableForVehicle(mode, this.getPlayerVehicleType())) {
+            return mode;
+        }
+
+        return this.cameraModes[this.getFallbackCameraModeIndex(this.getPlayerVehicleType())] || this.cameraModes[0];
+    }
+
+    isCameraModeAvailableForVehicle(mode, vehicleType = this.getPlayerVehicleType()) {
+        const modeId = typeof mode === 'string' ? mode : mode?.id;
+        if (!modeId) {
+            return false;
+        }
+
+        const excluded = this.vehicleCameraModeExclusions?.[vehicleType] || [];
+        return !excluded.includes(modeId);
+    }
+
+    getFallbackCameraModeIndex(vehicleType = this.getPlayerVehicleType()) {
+        const index = this.cameraModes.findIndex(mode => this.isCameraModeAvailableForVehicle(mode, vehicleType));
+        return index >= 0 ? index : 0;
+    }
+
+    ensureCameraModeForVehicle(vehicleType = this.getPlayerVehicleType()) {
+        const current = this.cameraModes[this.cameraModeIndex] || this.cameraMode || this.cameraModes[0];
+        if (this.isCameraModeAvailableForVehicle(current, vehicleType)) {
+            return current;
+        }
+
+        const fallbackIndex = this.getFallbackCameraModeIndex(vehicleType);
+        this.cameraModeIndex = fallbackIndex;
+        this.cameraMode = this.cameraModes[fallbackIndex];
+        if (this.camera) {
+            this.applyCameraModeSettings();
+            if (this.game) {
+                this.updateCameraPosition();
+            }
+        }
+        return this.cameraMode;
+    }
+
+    canUseCameraMode(modeId, vehicleType = this.getPlayerVehicleType()) {
+        return this.cameraModes.some(mode => mode.id === modeId)
+            && this.isCameraModeAvailableForVehicle(modeId, vehicleType);
     }
 
     getActiveCameraMode() {
@@ -5281,6 +5524,10 @@ class GameManager {
             return this.getCameraMode();
         }
 
+        if (!this.isCameraModeAvailableForVehicle(this.cameraModes[nextIndex], this.getPlayerVehicleType())) {
+            return this.ensureCameraModeForVehicle(this.getPlayerVehicleType());
+        }
+
         this.cameraModeIndex = nextIndex;
         this.cameraMode = this.cameraModes[nextIndex];
         this.applyCameraModeSettings();
@@ -5292,7 +5539,16 @@ class GameManager {
 
     cycleCameraMode() {
         this.disableDebugFreeCamera();
-        return this.setCameraMode(this.cameraModeIndex + 1);
+        const vehicleType = this.getPlayerVehicleType();
+        let nextIndex = this.cameraModeIndex;
+        for (let i = 0; i < this.cameraModes.length; i++) {
+            nextIndex = THREE.MathUtils.euclideanModulo(nextIndex + 1, this.cameraModes.length);
+            if (this.isCameraModeAvailableForVehicle(this.cameraModes[nextIndex], vehicleType)) {
+                return this.setCameraMode(nextIndex);
+            }
+        }
+
+        return this.ensureCameraModeForVehicle(vehicleType);
     }
 
     applyCameraModeSettings() {

@@ -3754,8 +3754,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                             );
                             building.rotation.y = pose.yaw + (Math.random() - 0.5) * 0.028;
                             addTokyoObject(building, 'buildings', {
-                                cullRadius: row.cullRadius,
-                                castShadow: rowIndex === 0 && Math.random() < 0.16
+                                cullRadius: row.cullRadius
                             });
                         });
                     });

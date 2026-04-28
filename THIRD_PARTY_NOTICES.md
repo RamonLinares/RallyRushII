@@ -1,5 +1,14 @@
 # Third Party Notices
 
+## Sketchfab Vehicle Models
+
+Selected player and traffic vehicle GLB assets are vendored under `assets/models/`.
+
+- "FREE Ai based ConceptCar 050 public domain (CC0)" by Unity Fan youtube channel / @unityfan777. Source: https://sketchfab.com/3d-models/free-ai-based-conceptcar-050-public-domain-cc0-3f7a98a53efe48068adddf0c0f3ddbae
+- "Generic passenger car pack" by Comrade1280. Licensed under Creative Commons Attribution 4.0 International. Source: https://sketchfab.com/3d-models/generic-passenger-car-pack-20f9af9b8a404d5cb022ac6fe87f21f5
+
+Per-file vehicle credits are listed in `assets/models/CREDITS.md`.
+
 ## jbouny/ocean
 
 The Lakes water shader is adapted from concepts and GLSL structure in `jbouny/ocean`.
