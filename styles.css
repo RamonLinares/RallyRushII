@@ -1482,6 +1482,1189 @@ button:focus-visible {
     }
 }
 
+/* Reference-inspired start screen */
+#startScreen {
+    display: grid;
+    place-items: stretch;
+    overflow: auto;
+    padding: 14px;
+    background: #020306;
+}
+
+#startScreen::before,
+#startScreen::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+}
+
+#startScreen::before {
+    z-index: -2;
+    background:
+        radial-gradient(circle at 72% 42%, rgba(255, 86, 48, 0.4), transparent 24%),
+        radial-gradient(circle at 48% 42%, rgba(255, 207, 99, 0.28), transparent 22%),
+        linear-gradient(135deg, #101a29 0%, #07090e 48%, #020305 100%);
+}
+
+#startScreen::after {
+    z-index: -1;
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.22) 34%, rgba(0, 0, 0, 0.2) 64%, rgba(0, 0, 0, 0.66)),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.88));
+}
+
+body[data-menu-stage="scotland"] #startScreen::before {
+    background:
+        radial-gradient(circle at 72% 26%, rgba(117, 178, 94, 0.42), transparent 23%),
+        linear-gradient(150deg, rgba(47, 77, 61, 0.75), transparent 44%),
+        repeating-linear-gradient(170deg, rgba(186, 140, 82, 0.2) 0 36px, rgba(104, 148, 83, 0.22) 36px 72px),
+        linear-gradient(135deg, #101b22, #090c10 58%, #020304);
+}
+
+body[data-menu-stage="desert"] #startScreen::before {
+    background:
+        radial-gradient(circle at 54% 34%, rgba(255, 185, 94, 0.56), transparent 22%),
+        linear-gradient(170deg, rgba(172, 82, 45, 0.6), transparent 48%),
+        repeating-linear-gradient(8deg, rgba(232, 156, 76, 0.22) 0 42px, rgba(91, 54, 36, 0.18) 42px 96px),
+        linear-gradient(135deg, #31231c, #100b0a 58%, #030202);
+}
+
+body[data-menu-stage="alpine"] #startScreen::before {
+    background:
+        radial-gradient(circle at 70% 28%, rgba(193, 230, 255, 0.46), transparent 24%),
+        linear-gradient(150deg, rgba(97, 136, 159, 0.62), transparent 46%),
+        repeating-linear-gradient(166deg, rgba(240, 250, 255, 0.22) 0 32px, rgba(50, 67, 82, 0.24) 32px 78px),
+        linear-gradient(135deg, #12202c, #070b12 58%, #020306);
+}
+
+body[data-menu-stage="city"] #startScreen::before {
+    background:
+        radial-gradient(circle at 70% 30%, rgba(255, 63, 151, 0.34), transparent 18%),
+        radial-gradient(circle at 48% 34%, rgba(66, 228, 255, 0.26), transparent 20%),
+        repeating-linear-gradient(90deg, rgba(126, 179, 210, 0.14) 0 12px, rgba(2, 7, 14, 0.18) 12px 42px),
+        linear-gradient(135deg, #132233, #06080f 58%, #020305);
+}
+
+body[data-menu-stage="lakes"] #startScreen::before {
+    background:
+        radial-gradient(circle at 60% 34%, rgba(78, 178, 202, 0.4), transparent 24%),
+        linear-gradient(160deg, rgba(45, 94, 61, 0.72), transparent 48%),
+        repeating-linear-gradient(168deg, rgba(44, 96, 90, 0.2) 0 42px, rgba(26, 46, 35, 0.22) 42px 86px),
+        linear-gradient(135deg, #0c1c23, #060b0e 58%, #020303);
+}
+
+body[data-menu-stage="jungle"] #startScreen::before {
+    background:
+        radial-gradient(circle at 64% 32%, rgba(71, 202, 113, 0.34), transparent 21%),
+        linear-gradient(155deg, rgba(23, 74, 39, 0.82), transparent 48%),
+        repeating-linear-gradient(78deg, rgba(45, 105, 57, 0.24) 0 34px, rgba(8, 23, 17, 0.28) 34px 68px),
+        linear-gradient(135deg, #0b1d17, #040807 58%, #010202);
+}
+
+body[data-menu-stage="coastal"] #startScreen::before {
+    background:
+        radial-gradient(circle at 68% 30%, rgba(66, 196, 218, 0.44), transparent 22%),
+        radial-gradient(circle at 46% 38%, rgba(255, 221, 135, 0.28), transparent 19%),
+        linear-gradient(165deg, rgba(75, 113, 76, 0.52), transparent 46%),
+        repeating-linear-gradient(172deg, rgba(228, 214, 161, 0.18) 0 36px, rgba(52, 111, 131, 0.16) 36px 80px),
+        linear-gradient(135deg, #0e2530, #061014 58%, #020304);
+}
+
+.raceMenuShell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 14px;
+    min-height: calc(100vh - 28px);
+    color: var(--ui-text);
+}
+
+.raceMenuTop {
+    display: grid;
+    grid-template-columns: 58px minmax(180px, 1fr);
+    align-items: center;
+    gap: 16px;
+}
+
+.menuIconButton {
+    display: grid;
+    place-content: center;
+    gap: 7px;
+    width: 58px;
+    height: 58px;
+    color: var(--ui-text);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.42);
+}
+
+.menuIconButton span {
+    display: block;
+    width: 24px;
+    height: 3px;
+    border-radius: 3px;
+    background: currentColor;
+}
+
+.raceMenuBrand {
+    display: block;
+    align-content: center;
+    width: fit-content;
+    min-width: 280px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.7));
+}
+
+.raceMenuBrand strong,
+.raceMenuBrand span {
+    display: inline-block;
+    color: #ffffff;
+    font-size: clamp(38px, 4.4vw, 62px);
+    font-style: italic;
+    font-weight: 900;
+    line-height: 0.78;
+    letter-spacing: 0;
+}
+
+.raceMenuBrand span {
+    margin-left: 4px;
+    color: #e71921;
+}
+
+.raceMenuBrand small {
+    display: block;
+    margin: 7px 0 0 30px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    font-style: italic;
+    font-weight: 800;
+    letter-spacing: 5px;
+    white-space: normal;
+}
+
+.raceMenuGrid {
+    display: grid;
+    grid-template-columns: minmax(280px, 330px) minmax(390px, 1fr) minmax(320px, 380px);
+    grid-template-rows: minmax(248px, 0.74fr) minmax(0, auto);
+    gap: 14px;
+    min-height: 0;
+}
+
+.glassPanel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 8px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 44%, rgba(0, 0, 0, 0.32)),
+        rgba(4, 6, 10, 0.68);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 20px 58px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(16px) saturate(1.25);
+}
+
+.panelTitle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 32px;
+    color: #f8fbff;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.panelPin,
+.panelCar {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+}
+
+.panelPin::before {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 1px;
+    width: 10px;
+    height: 10px;
+    border: 3px solid currentColor;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+}
+
+.panelCar::before {
+    content: "";
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 8px;
+    height: 8px;
+    border: 2px solid currentColor;
+    border-radius: 8px 8px 3px 3px;
+}
+
+.panelCar::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    bottom: 1px;
+    height: 5px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px currentColor, 12px 0 0 2px currentColor;
+}
+
+.stageSelectPanel {
+    grid-row: 1 / 3;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+    padding: 12px;
+}
+
+.nativeStageLabel,
+.nativeStageSelect {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.stageCardSelect {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.stageCard {
+    position: relative;
+    min-height: 76px;
+    overflow: hidden;
+    color: var(--ui-text);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 4px;
+    background: #0a0e14;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.stageCardImage {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.2)),
+        linear-gradient(135deg, #22384a, #0a1018);
+    filter: saturate(1.16) contrast(1.08);
+}
+
+.stageCard[data-stage-id="scotland"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.24)),
+        repeating-linear-gradient(165deg, rgba(119, 165, 79, 0.62) 0 22px, rgba(151, 109, 71, 0.45) 22px 46px),
+        linear-gradient(135deg, #425d44, #0a1110);
+}
+
+.stageCard[data-stage-id="desert"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.76), rgba(0, 0, 0, 0.2)),
+        repeating-linear-gradient(8deg, rgba(232, 154, 74, 0.75) 0 18px, rgba(128, 64, 42, 0.48) 18px 44px),
+        linear-gradient(135deg, #c07a3d, #23110c);
+}
+
+.stageCard[data-stage-id="alpine"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.22)),
+        repeating-linear-gradient(158deg, rgba(241, 250, 255, 0.82) 0 18px, rgba(56, 74, 91, 0.62) 18px 46px),
+        linear-gradient(135deg, #688499, #080d13);
+}
+
+.stageCard[data-stage-id="city"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.2)),
+        repeating-linear-gradient(90deg, rgba(37, 55, 76, 0.92) 0 18px, rgba(4, 8, 15, 0.95) 18px 42px),
+        radial-gradient(circle at 72% 38%, rgba(255, 66, 156, 0.62), transparent 20%),
+        linear-gradient(135deg, #0a1826, #03050a);
+}
+
+.stageCard[data-stage-id="lakes"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.2)),
+        radial-gradient(circle at 68% 58%, rgba(78, 183, 209, 0.78), transparent 26%),
+        repeating-linear-gradient(160deg, rgba(54, 104, 65, 0.72) 0 22px, rgba(26, 43, 39, 0.52) 22px 48px),
+        linear-gradient(135deg, #17362f, #030809);
+}
+
+.stageCard[data-stage-id="jungle"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.2)),
+        repeating-linear-gradient(82deg, rgba(45, 117, 59, 0.76) 0 18px, rgba(6, 24, 16, 0.86) 18px 40px),
+        linear-gradient(135deg, #133920, #020604);
+}
+
+.stageCard[data-stage-id="coastal"] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.2)),
+        radial-gradient(circle at 72% 58%, rgba(66, 196, 218, 0.82), transparent 28%),
+        repeating-linear-gradient(160deg, rgba(217, 203, 150, 0.66) 0 20px, rgba(67, 115, 74, 0.44) 20px 46px),
+        linear-gradient(135deg, #226675, #060d10);
+}
+
+.stageCard[data-stage-id] .stageCardImage {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.2) 62%, rgba(0, 0, 0, 0.38)),
+        var(--stage-card-image, linear-gradient(135deg, #22384a, #0a1018));
+    background-position: center;
+    background-size: cover;
+}
+
+.stageCard::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.32));
+}
+
+.stageCardCopy {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 4px;
+    padding: 18px 44px 12px 14px;
+}
+
+.stageCardCopy strong {
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.stageCardCopy span {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.stageCardCheck {
+    position: absolute;
+    right: 14px;
+    bottom: 16px;
+    z-index: 1;
+    width: 18px;
+    height: 10px;
+    border-bottom: 4px solid var(--ui-accent-2);
+    border-left: 4px solid var(--ui-accent-2);
+    opacity: 0;
+    transform: rotate(-45deg);
+}
+
+.stageCard.isSelected {
+    border-color: var(--ui-accent-2);
+    box-shadow:
+        inset 0 0 0 1px var(--ui-accent-2),
+        0 0 22px rgba(255, 212, 71, 0.22);
+}
+
+.stageCard.isSelected .stageCardCheck {
+    opacity: 1;
+}
+
+.stageHeroPanel {
+    grid-column: 2;
+    position: relative;
+    min-height: 286px;
+    overflow: hidden;
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.46) 34%, rgba(0, 0, 0, 0.16) 66%, rgba(0, 0, 0, 0.24)),
+        var(--stage-hero-image, linear-gradient(135deg, #102133, #05070c));
+    background-position: center;
+    background-size: cover;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.stageHeroPanel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at 72% 64%, rgba(255, 255, 255, 0.13), transparent 32%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.64), transparent 48%),
+        linear-gradient(180deg, transparent 52%, rgba(0, 0, 0, 0.56));
+}
+
+.stageHeroCopy {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 500px);
+    grid-template-areas:
+        "title"
+        "subtitle"
+        "copy"
+        "facts";
+    align-content: center;
+    align-items: center;
+    justify-items: start;
+    max-width: 560px;
+    min-height: 100%;
+    padding: 22px 24px;
+    text-transform: uppercase;
+}
+
+.stageHeroCopy h1,
+.stageHeroCopy h2,
+.stageHeroCopy p {
+    margin: 0;
+}
+
+.stageHeroCopy h1 {
+    grid-area: title;
+    font-size: clamp(34px, 3.8vw, 54px);
+    font-style: italic;
+    font-weight: 900;
+    line-height: 0.86;
+    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.9);
+}
+
+.stageHeroCopy h2 {
+    grid-area: subtitle;
+    margin-top: 8px;
+    font-size: clamp(20px, 2vw, 28px);
+    font-style: italic;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.stageHeroCopy p {
+    grid-area: copy;
+    max-width: 360px;
+    margin-top: 12px;
+    color: rgba(255, 255, 255, 0.86);
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.38;
+    text-transform: none;
+}
+
+.stageFacts {
+    grid-area: facts;
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 18px;
+    margin: 10px 0 0;
+}
+
+.stageFacts div {
+    display: grid;
+    gap: 3px;
+}
+
+.stageFacts dt,
+.stageFacts dd {
+    margin: 0;
+}
+
+.stageFacts dt {
+    color: var(--ui-muted);
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.stageFacts dd {
+    color: #ffffff;
+    font-size: 19px;
+    font-weight: 900;
+}
+
+.garageSelect {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    gap: 8px;
+    padding: 9px;
+}
+
+.garageFeature {
+    display: grid;
+    grid-template-columns: 0.52fr 1fr;
+    gap: 10px;
+    min-height: 164px;
+}
+
+.garageHeader {
+    min-height: 0;
+    padding: 10px 12px;
+    border-left: 0;
+    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.22));
+}
+
+.garageHeader h2 {
+    font-size: clamp(26px, 2.5vw, 38px);
+    line-height: 0.9;
+}
+
+.garagePreview {
+    height: 164px;
+    border-radius: 6px;
+    background:
+        radial-gradient(ellipse at 58% 54%, rgba(255, 255, 255, 0.16), transparent 36%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent 42%),
+        #090c11;
+}
+
+.garageGrid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(112px, 1fr);
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.garageCar {
+    grid-template-columns: 1fr;
+    grid-template-rows: 58px auto;
+    gap: 6px;
+    min-height: 108px;
+    padding: 6px;
+    border-radius: 5px;
+}
+
+.garageCarThumb {
+    position: relative;
+    display: block;
+    min-height: 58px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+    background:
+        radial-gradient(ellipse at 50% 78%, rgba(255, 255, 255, 0.18), transparent 46%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.03)),
+        rgba(0, 0, 0, 0.42);
+}
+
+.garageCarImage {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.garageCarImage + .garageCarSilhouette {
+    display: none;
+}
+
+.garageCarSilhouette {
+    position: absolute;
+    right: 11px;
+    bottom: 12px;
+    left: 11px;
+    height: 20px;
+    border-radius: 16px 22px 8px 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 38%),
+        var(--car-body, var(--ui-accent));
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.45);
+}
+
+.garageCarSilhouette::before {
+    content: "";
+    position: absolute;
+    left: 21%;
+    top: -12px;
+    width: 42%;
+    height: 16px;
+    border-radius: 18px 20px 4px 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(6, 11, 16, 0.7));
+}
+
+.garageCarSilhouette::after {
+    content: "";
+    position: absolute;
+    left: 13%;
+    right: 13%;
+    bottom: -6px;
+    height: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 0 6px #020305, 58px 0 0 6px #020305;
+}
+
+.garageCarCopy {
+    min-width: 0;
+    padding: 0 2px;
+}
+
+.garageCarCopy strong {
+    font-size: 13px;
+}
+
+.garageCarCopy span {
+    font-size: 10px;
+}
+
+.garageCarRank {
+    position: absolute;
+    top: 9px;
+    left: 9px;
+    display: inline-grid;
+    place-items: center;
+    min-width: 34px;
+    height: 20px;
+    color: #ffffff;
+    border: 1px solid rgba(255, 212, 71, 0.7);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.68);
+    font-size: 11px;
+}
+
+.garageTelemetry {
+    grid-template-columns: repeat(5, minmax(62px, 1fr));
+    gap: 6px;
+}
+
+.setupColumn {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+}
+
+.setupPanel {
+    min-height: 100px;
+    padding: 8px 10px;
+}
+
+.setupPanel .panelTitle {
+    min-height: 18px;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.modeSelect {
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.difficultyModeSelect {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.assistModeSelect {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tileModeSelect {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modeOption {
+    display: grid;
+    grid-template-rows: 26px min-content;
+    place-items: center;
+    gap: 5px;
+    min-height: 58px;
+    padding: 5px 7px;
+    overflow: visible;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 3px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.24)),
+        rgba(3, 5, 9, 0.55);
+    color: rgba(255, 255, 255, 0.76);
+}
+
+.modeOption:hover,
+.modeOption.isSelected {
+    border-color: var(--ui-accent-2);
+    color: #ffffff;
+    background:
+        linear-gradient(145deg, rgba(255, 212, 71, 0.18), rgba(0, 0, 0, 0.28)),
+        rgba(3, 5, 9, 0.62);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 212, 71, 0.55),
+        0 0 18px rgba(255, 212, 71, 0.22);
+}
+
+.difficultyModeSelect .modeOption.isSelected {
+    border-color: #ff2d24;
+    background:
+        linear-gradient(145deg, rgba(255, 38, 31, 0.58), rgba(80, 0, 0, 0.72)),
+        #450506;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 70, 55, 0.8),
+        0 0 18px rgba(255, 34, 30, 0.34);
+}
+
+.modeGlyph {
+    position: relative;
+    display: block;
+    width: 26px;
+    height: 26px;
+    color: currentColor;
+}
+
+.difficultyModeSelect .modeGlyph,
+.assistModeSelect .modeGlyph {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 24px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.difficultyModeSelect .modeGlyph::before,
+.assistModeSelect .modeGlyph::before {
+    content: attr(data-short);
+}
+
+.modeGlyph-day::before,
+.modeGlyph-off::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow:
+        0 -10px 0 -6px currentColor,
+        0 10px 0 -6px currentColor,
+        10px 0 0 -6px currentColor,
+        -10px 0 0 -6px currentColor,
+        7px 7px 0 -6px currentColor,
+        -7px -7px 0 -6px currentColor,
+        7px -7px 0 -6px currentColor,
+        -7px 7px 0 -6px currentColor;
+}
+
+.modeGlyph-night::before {
+    content: "";
+    position: absolute;
+    inset: 4px 7px 4px 3px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.modeGlyph-night::after {
+    content: "";
+    position: absolute;
+    inset: 2px 2px 4px 9px;
+    border-radius: 50%;
+    background: #0a0d12;
+}
+
+.modeGlyph-on::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 3px;
+    top: 8px;
+    height: 13px;
+    border-radius: 14px;
+    background: currentColor;
+    box-shadow: 7px -5px 0 -1px currentColor, 14px -2px 0 -4px currentColor;
+}
+
+.modeGlyph-on::after {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 22px;
+    width: 3px;
+    height: 6px;
+    background: currentColor;
+    box-shadow: 8px 0 0 currentColor, 16px 0 0 currentColor;
+    transform: skewX(-18deg);
+}
+
+.modeLabel {
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.startRaceButton {
+    display: grid;
+    grid-template-columns: 78px 1fr 24px;
+    align-items: center;
+    gap: 16px;
+    min-height: 72px;
+    padding: 0 22px;
+    color: #ffffff;
+    border: 1px solid rgba(255, 75, 68, 0.9);
+    border-radius: 5px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 36%),
+        linear-gradient(90deg, #8f0507, #e01618 60%, #98070a);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 16px 32px rgba(120, 0, 0, 0.38);
+    text-align: left;
+}
+
+.startButtonFlag {
+    width: 56px;
+    height: 32px;
+    background:
+        linear-gradient(45deg, #ffffff 25%, transparent 25% 50%, #ffffff 50% 75%, transparent 75%) 0 0 / 18px 18px,
+        linear-gradient(45deg, transparent 25%, #ffffff 25% 50%, transparent 50% 75%, #ffffff 75%) 9px 9px / 18px 18px;
+    transform: skewX(-14deg);
+}
+
+.startButtonCopy {
+    display: grid;
+    gap: 5px;
+}
+
+.startButtonText {
+    font-size: clamp(25px, 2.7vw, 34px);
+    font-style: italic;
+    font-weight: 900;
+    line-height: 0.9;
+}
+
+.startButtonSub {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.startButtonArrow {
+    width: 16px;
+    height: 16px;
+    border-top: 4px solid currentColor;
+    border-right: 4px solid currentColor;
+    transform: rotate(45deg);
+}
+
+@media (max-width: 1120px) {
+    .raceMenuTop {
+        grid-template-columns: 52px minmax(260px, 1fr);
+        gap: 12px;
+    }
+
+    .raceMenuBrand strong,
+    .raceMenuBrand span {
+        font-size: clamp(34px, 5.4vw, 54px);
+    }
+
+    .raceMenuBrand small {
+        margin-top: 6px;
+        margin-left: 20px;
+        font-size: 10px;
+        letter-spacing: 4px;
+    }
+
+    .raceMenuGrid {
+        grid-template-columns: minmax(240px, 280px) minmax(360px, 1fr) minmax(258px, 300px);
+        grid-template-rows: minmax(230px, 0.55fr) minmax(285px, 1fr);
+    }
+
+    .stageSelectPanel {
+        grid-row: 1 / 3;
+    }
+
+    .stageHeroPanel {
+        grid-column: 2;
+        grid-row: 1;
+        min-height: 230px;
+    }
+
+    .stageHeroCopy {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: none;
+        padding: 18px 18px;
+    }
+
+    .stageHeroCopy h1 {
+        font-size: clamp(32px, 5vw, 46px);
+    }
+
+    .stageHeroCopy h2 {
+        font-size: clamp(19px, 2.8vw, 25px);
+    }
+
+    .stageHeroCopy p {
+        margin-top: 10px;
+        font-size: 14px;
+        line-height: 1.3;
+    }
+
+    .stageFacts {
+        gap: 14px;
+        margin-top: 8px;
+    }
+
+    .garageSelect {
+        grid-column: 2;
+        grid-row: 2;
+        min-height: 0;
+    }
+
+    .garageFeature {
+        grid-template-columns: 0.48fr 1fr;
+        min-height: 124px;
+    }
+
+    .garageHeader {
+        padding: 9px 10px;
+    }
+
+    .garageHeader h2 {
+        font-size: clamp(20px, 2.2vw, 28px);
+        white-space: nowrap;
+    }
+
+    .garagePreview {
+        height: 124px;
+    }
+
+    .garageCar {
+        grid-template-rows: 46px auto;
+        min-height: 90px;
+    }
+
+    .garageCarThumb {
+        min-height: 46px;
+    }
+
+    .garageTelemetry {
+        display: none;
+    }
+
+    .setupColumn {
+        grid-column: 3;
+        grid-row: 1 / 3;
+        grid-template-columns: 1fr;
+        align-content: start;
+    }
+
+    .setupPanel {
+        min-height: 96px;
+        padding: 7px;
+    }
+
+    .setupPanel .panelTitle {
+        font-size: 13px;
+    }
+
+    .modeOption {
+        min-height: 56px;
+    }
+
+    .startRaceButton {
+        grid-column: auto;
+    }
+
+}
+
+@media (max-width: 780px) {
+    #startScreen {
+        padding: 12px;
+    }
+
+    .raceMenuShell {
+        gap: 10px;
+        min-height: auto;
+    }
+
+    .raceMenuTop {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .menuIconButton {
+        display: none;
+    }
+
+    .raceMenuBrand {
+        min-width: 0;
+    }
+
+    .raceMenuBrand strong,
+    .raceMenuBrand span {
+        font-size: clamp(36px, 11vw, 58px);
+    }
+
+    .raceMenuBrand small {
+        margin-left: 10px;
+        font-size: 10px;
+        letter-spacing: 3px;
+    }
+
+    .raceMenuGrid {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-rows: auto;
+        gap: 10px;
+    }
+
+    .stageHeroPanel,
+    .stageSelectPanel,
+    .garageSelect,
+    .setupColumn {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .stageHeroPanel {
+        min-height: 430px;
+        order: 0;
+    }
+
+    .stageHeroCopy {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "title"
+            "subtitle"
+            "copy"
+            "facts";
+        column-gap: 0;
+        align-content: start;
+        max-width: 330px;
+        padding: 24px 18px;
+    }
+
+    .stageHeroCopy h1 {
+        font-size: clamp(42px, 13vw, 62px);
+    }
+
+    .stageHeroCopy h2 {
+        font-size: clamp(24px, 7vw, 32px);
+    }
+
+    .stageHeroCopy p {
+        max-width: 270px;
+        font-size: 16px;
+    }
+
+    .stageSelectPanel {
+        order: 1;
+    }
+
+    .stageCardSelect {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(136px, 1fr);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .stageCard {
+        min-height: 155px;
+    }
+
+    .stageCardCopy {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 0 10px 12px;
+    }
+
+    .garageSelect {
+        order: 2;
+    }
+
+    .garageTelemetry {
+        display: grid;
+    }
+
+    .garageFeature {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+
+    .garagePreview {
+        height: 220px;
+    }
+
+    .setupColumn {
+        order: 3;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .setupPanel {
+        min-width: 0;
+    }
+
+    .difficultyModeSelect,
+    .assistModeSelect {
+        grid-template-columns: 1fr;
+    }
+
+    .startRaceButton {
+        grid-column: 1 / -1;
+        min-height: 88px;
+    }
+
+}
+
+@media (max-width: 500px) {
+    .stageHeroPanel {
+        min-height: 520px;
+    }
+
+    .stageFacts {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .garageTelemetry {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .setupColumn {
+        grid-template-columns: 1fr;
+    }
+
+    .difficultyModeSelect,
+    .assistModeSelect,
+    .tileModeSelect {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tileModeSelect {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .startRaceButton {
+        grid-template-columns: 56px 1fr 16px;
+        gap: 12px;
+        padding: 0 16px;
+    }
+
+    .startButtonFlag {
+        width: 48px;
+        height: 30px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

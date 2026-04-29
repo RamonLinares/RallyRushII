@@ -51,6 +51,13 @@
     const assistSelect = document.getElementById('assistSelect');
     const timeOfDaySelect = document.getElementById('timeOfDaySelect');
     const weatherSelect = document.getElementById('weatherSelect');
+    const stageCardSelect = document.getElementById('stageCardSelect');
+    const selectedStageTitle = document.getElementById('selectedStageTitle');
+    const selectedStageSubtitle = document.getElementById('selectedStageSubtitle');
+    const selectedStageDescription = document.getElementById('selectedStageDescription');
+    const selectedStageLength = document.getElementById('selectedStageLength');
+    const selectedStageLaps = document.getElementById('selectedStageLaps');
+    const stageHeroPanel = document.querySelector('.stageHeroPanel');
     const startButton = document.getElementById('startButton');
     const restartButton = document.getElementById('restartButton');
     const changeCircuitButton = document.getElementById('changeCircuitButton');
@@ -65,9 +72,71 @@
         { id: 'night', label: 'Night' }
     ];
     const rainOptions = [
-        { id: 'on', label: 'On' },
-        { id: 'off', label: 'Off' }
+        { id: 'off', label: 'Sunny' },
+        { id: 'on', label: 'Rain' }
     ];
+    const stageMenuData = {
+        scotland: {
+            title: 'Scotland',
+            subtitle: 'Highland Run',
+            description: 'Wet blacktop through green valleys, stone walls, and rolling Highland slopes.',
+            image: 'assets/menu/stage-scotland.jpg',
+            length: '6.10 KM',
+            laps: '1'
+        },
+        desert: {
+            title: 'Desert',
+            subtitle: 'Dust Mesa',
+            description: 'Wide sun-baked highway across dunes, dry washes, and warm red-rock mesas.',
+            image: 'assets/menu/stage-desert.jpg',
+            length: '6.40 KM',
+            laps: '1'
+        },
+        alpine: {
+            title: 'Alpine',
+            subtitle: 'Snow Pass',
+            description: 'Narrow mountain asphalt with steep grade changes, snow banks, and tight bends.',
+            image: 'assets/menu/stage-alpine.jpg',
+            length: '5.80 KM',
+            laps: '1'
+        },
+        city: {
+            title: 'Tokyo',
+            subtitle: 'Shuto Expressway',
+            description: 'Dense neon towers, elevated highway ramps, wet pavement, and urban speed.',
+            image: 'assets/menu/stage-city.jpg',
+            length: '5.95 KM',
+            laps: '1'
+        },
+        lakes: {
+            title: 'Lakes',
+            subtitle: 'Forest Shore',
+            description: 'Fast lakeside road with dark water, forest belts, shore rocks, and open curves.',
+            image: 'assets/menu/stage-lakes.jpg',
+            length: '6.25 KM',
+            laps: '1'
+        },
+        jungle: {
+            title: 'Rainforest',
+            subtitle: 'Mud Night',
+            description: 'A humid night run under dense jungle growth, wet road spray, and tight visibility.',
+            image: 'assets/menu/stage-jungle.jpg',
+            length: '5.70 KM',
+            laps: '1'
+        },
+        coastal: {
+            title: 'Mediterranean',
+            subtitle: 'Coast Road',
+            description: 'Cliffside sea views, low white guard walls, pine hillsides, and bright coastal bends.',
+            image: 'assets/menu/stage-coastal.jpg',
+            length: '6.05 KM',
+            laps: '1'
+        }
+    };
+    const vehicleMenuImages = {
+        rally: 'assets/menu/car-rally.jpg',
+        apexGt: 'assets/menu/car-apexGt.jpg'
+    };
     const garagePreviewCanvas = document.getElementById('garagePreviewCanvas');
     const garagePreviewStatus = document.getElementById('garagePreviewStatus');
     const loadingStageName = document.getElementById('loadingStageName');
@@ -293,6 +362,81 @@
         return stat;
     }
 
+    function getStageMenuInfo(stageId = circuitSelect.value) {
+        return stageMenuData[stageId] || stageMenuData.scotland;
+    }
+
+    function updateStageMenuUi() {
+        if (!circuitSelect) {
+            return;
+        }
+
+        const stageId = circuitSelect.value;
+        const info = getStageMenuInfo(stageId);
+        document.body.dataset.menuStage = stageId;
+
+        if (selectedStageTitle) {
+            selectedStageTitle.textContent = info.title;
+        }
+        if (selectedStageSubtitle) {
+            selectedStageSubtitle.textContent = info.subtitle;
+        }
+        if (selectedStageDescription) {
+            selectedStageDescription.textContent = info.description;
+        }
+        if (selectedStageLength) {
+            selectedStageLength.textContent = info.length;
+        }
+        if (selectedStageLaps) {
+            selectedStageLaps.textContent = info.laps;
+        }
+        if (stageHeroPanel && info.image) {
+            stageHeroPanel.style.setProperty('--stage-hero-image', `url("${info.image}")`);
+        }
+
+        if (stageCardSelect) {
+            Array.from(stageCardSelect.querySelectorAll('.stageCard')).forEach(card => {
+                const isSelected = card.dataset.stageId === stageId;
+                card.classList.toggle('isSelected', isSelected);
+                card.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+            });
+        }
+    }
+
+    function renderStageCards() {
+        if (!stageCardSelect || !circuitSelect) {
+            return;
+        }
+
+        stageCardSelect.innerHTML = '';
+        Array.from(circuitSelect.options).forEach(option => {
+            const info = getStageMenuInfo(option.value);
+            const card = document.createElement('button');
+            card.className = 'stageCard';
+            card.type = 'button';
+            card.dataset.stageId = option.value;
+            if (info.image) {
+                card.style.setProperty('--stage-card-image', `url("${info.image}")`);
+            }
+            card.setAttribute('role', 'radio');
+            card.innerHTML = `
+                <span class="stageCardImage" aria-hidden="true"></span>
+                <span class="stageCardCopy">
+                    <strong>${info.title}</strong>
+                    <span>${info.subtitle}</span>
+                </span>
+                <span class="stageCardCheck" aria-hidden="true"></span>
+            `;
+            card.addEventListener('click', () => {
+                circuitSelect.value = option.value;
+                updateStageMenuUi();
+            });
+            stageCardSelect.appendChild(card);
+        });
+
+        updateStageMenuUi();
+    }
+
     function renderModeSelect(container, options, selectedId, onSelect) {
         if (!container || !options) {
             return;
@@ -307,7 +451,21 @@
             button.setAttribute('role', 'radio');
             button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
             button.dataset.optionId = option.id;
-            button.textContent = option.label;
+            const glyph = document.createElement('span');
+            glyph.className = `modeGlyph modeGlyph-${option.id}`;
+            glyph.dataset.short = {
+                rookie: 'I',
+                pro: 'II',
+                expert: 'III',
+                full: 'F',
+                sport: 'S',
+                manual: 'M'
+            }[option.id] || '';
+            glyph.setAttribute('aria-hidden', 'true');
+            const label = document.createElement('span');
+            label.className = 'modeLabel';
+            label.textContent = option.label;
+            button.append(glyph, label);
             button.addEventListener('click', () => {
                 onSelect(option.id);
                 updateRaceSetupUi();
@@ -472,14 +630,14 @@
             stage.add(line);
         });
 
-        const hemi = new THREE.HemisphereLight(0xddeffd, 0x0f1820, 1.18);
+        const hemi = new THREE.HemisphereLight(0xf4f1ea, 0x101419, 1.08);
         previewScene.add(hemi);
 
-        const key = new THREE.DirectionalLight(0xfafcff, 1.6);
+        const key = new THREE.DirectionalLight(0xfffaf0, 1.62);
         key.position.set(-4.5, 5, 5.5);
         previewScene.add(key);
 
-        const rim = new THREE.DirectionalLight(0xa9d6ee, 0.78);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.46);
         rim.position.set(4.2, 2.1, -3.6);
         previewScene.add(rim);
 
@@ -611,13 +769,19 @@
             button.setAttribute('role', 'radio');
             button.dataset.vehicleType = option.type;
             button.style.setProperty('--car-accent', `#${option.palette.stripe.toString(16).padStart(6, '0')}`);
+            button.style.setProperty('--car-body', `#${option.color.toString(16).padStart(6, '0')}`);
             button.innerHTML = `
-                <span class="garageCarPaint" aria-hidden="true" style="background:#${option.color.toString(16).padStart(6, '0')}"></span>
+                <span class="garageCarThumb" aria-hidden="true">
+                    <img class="garageCarImage" src="${vehicleMenuImages[option.type] || ''}" alt="">
+                    <span class="garageCarSilhouette"></span>
+                </span>
                 <span class="garageCarCopy">
                     <strong>${option.name}</strong>
                     <span>${option.className}</span>
                 </span>
-                <span class="garageCarMeter" aria-hidden="true"><span style="width:${option.stats.speed}%"></span></span>
+                <span class="garageCarRank" aria-hidden="true">
+                    <strong>${Math.round((option.stats.speed + option.stats.handling + option.stats.stability) / 3)}</strong>
+                </span>
             `;
             button.addEventListener('click', () => {
                 gameManager.setPlayerVehicleType(option.type);
@@ -847,7 +1011,12 @@
     function setStartButtonsLoading(isLoading) {
         startButton.disabled = isLoading;
         restartButton.disabled = isLoading;
-        startButton.textContent = isLoading ? 'Loading grid' : 'Start race';
+        const startButtonLabel = startButton.querySelector('.startButtonText');
+        if (startButtonLabel) {
+            startButtonLabel.textContent = isLoading ? 'Loading grid' : 'Start race';
+        } else {
+            startButton.textContent = isLoading ? 'Loading grid' : 'Start race';
+        }
         restartButton.textContent = isLoading ? 'Loading grid' : 'Restart';
     }
 
@@ -959,6 +1128,8 @@
         resetRaceSessionForMenu();
         startScreen.style.display = 'grid';
         updateRaceSetupUi();
+        renderStageCards();
+        updateStageMenuUi();
         renderGarageOptions();
         garagePreview?.resume();
         renderer.render(scene, camera);
@@ -1214,6 +1385,8 @@
 
     restartButton.addEventListener('click', startRaceWithPreload);
 
+    circuitSelect.addEventListener('change', updateStageMenuUi);
+
     cameraButton.addEventListener('click', event => {
         event.stopPropagation();
         cycleCameraMode();
@@ -1259,6 +1432,8 @@
     hideMobileControls();
     garagePreview = createGaragePreview();
     updateRaceSetupUi();
+    renderStageCards();
+    updateStageMenuUi();
     renderGarageOptions();
 
     // Override the end game logic to hide controls

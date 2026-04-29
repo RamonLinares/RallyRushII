@@ -7,7 +7,7 @@
     <title>RallyRushII</title>
     <meta name="description" content="RallyRushII, a standalone continuation of RallyRush.">
     <link rel="icon" href="assets/game_logo.jpeg">
-    <link rel="stylesheet" href="styles.css?v=20260427-mobile-toggle-controls">
+    <link rel="stylesheet" href="styles.css?v=20260428-menu-profile-apex-glass">
 </head>
 
 <body>
@@ -79,55 +79,109 @@
     </div>
     <!-- Start Screen -->
     <div id="startScreen" class="screenOverlay">
-        <div class="menuPanel garageMenuPanel">
-            <div class="menuIntro">
-                <div class="gameLogo" role="img" aria-label="RallyRushII logo">
-                    <img src="assets/game_logo.jpeg" alt="" aria-hidden="true" />
-                    <span class="gameLogoTitle">RallyRush<span>II</span></span>
+        <div class="raceMenuShell">
+            <header class="raceMenuTop">
+                <button class="menuIconButton" type="button" aria-label="Menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="raceMenuBrand" aria-label="RallyRush II">
+                    <strong>RallyRush</strong> <span>II</span>
+                    <small>Drive to dominate</small>
                 </div>
-                <div class="menuCopy">
-                    <p class="eyebrow">Stage select</p>
-                    <h1>Choose your route</h1>
-                    <p>Telemetry online.</p>
-                </div>
-                <label class="selectLabel" for="circuitSelect">Circuit</label>
-                <div class="selectShell">
-                    <select id="circuitSelect">
-                        <option value="scotland">Scotland</option>
-                        <option value="desert">Desert</option>
-                        <option value="alpine">Alpine</option>
-                        <option value="city">Tokyo</option>
-                        <option value="lakes">Lakes</option>
-                        <option value="jungle">Rainforest Mud</option>
-                        <option value="coastal">Mediterranean Coast</option>
-                    </select>
-                </div>
-                <label class="selectLabel" for="difficultySelect">Difficulty</label>
-                <div id="difficultySelect" class="modeSelect" role="radiogroup" aria-label="Difficulty"></div>
-                <label class="selectLabel" for="assistSelect">Assist</label>
-                <div id="assistSelect" class="modeSelect assistModeSelect" role="radiogroup" aria-label="Driving assist"></div>
-                <label class="selectLabel" for="timeOfDaySelect">Time</label>
-                <div id="timeOfDaySelect" class="modeSelect binaryModeSelect" role="radiogroup" aria-label="Time of day"></div>
-                <label class="selectLabel" for="weatherSelect">Rain</label>
-                <div id="weatherSelect" class="modeSelect binaryModeSelect" role="radiogroup" aria-label="Rain"></div>
-                <button id="startButton" class="primaryButton">Start race</button>
-            </div>
-            <div class="garageSelect" aria-label="Car selection">
-                <div class="garageHeader">
-                    <p class="eyebrow">Garage</p>
-                    <h2 id="selectedCarName">Rally R</h2>
-                    <span id="selectedCarClass">Balanced Rally</span>
-                </div>
-                <div class="garagePreview" aria-hidden="true">
-                    <canvas id="garagePreviewCanvas"></canvas>
-                    <div class="garagePreviewMeta">
-                        <span class="garagePreviewSignal"></span>
-                        <span id="garagePreviewStatus">Vehicle ready</span>
+            </header>
+
+            <main class="raceMenuGrid">
+                <section class="stageSelectPanel glassPanel">
+                    <div class="panelTitle">
+                        <span class="panelPin" aria-hidden="true"></span>
+                        <span>Stage select</span>
                     </div>
-                </div>
-                <div id="carSelect" class="garageGrid" role="radiogroup" aria-label="Car selection"></div>
-                <div id="selectedCarStats" class="garageTelemetry" aria-label="Selected car telemetry"></div>
-            </div>
+                    <label class="selectLabel nativeStageLabel" for="circuitSelect">Circuit</label>
+                    <div class="selectShell nativeStageSelect">
+                        <select id="circuitSelect">
+                            <option value="scotland">Scotland</option>
+                            <option value="desert">Desert</option>
+                            <option value="alpine">Alpine</option>
+                            <option value="city">Tokyo</option>
+                            <option value="lakes">Lakes</option>
+                            <option value="jungle">Rainforest Mud</option>
+                            <option value="coastal">Mediterranean Coast</option>
+                        </select>
+                    </div>
+                    <div id="stageCardSelect" class="stageCardSelect" role="radiogroup" aria-label="Stage selection"></div>
+                </section>
+
+                <section class="stageHeroPanel">
+                    <div class="stageHeroCopy">
+                        <h1 id="selectedStageTitle">Scotland</h1>
+                        <h2 id="selectedStageSubtitle">Highland Run</h2>
+                        <p id="selectedStageDescription">Fast open roads through wet valleys and steep green hills.</p>
+                        <dl class="stageFacts">
+                            <div>
+                                <dt>Track length</dt>
+                                <dd id="selectedStageLength">6.10 KM</dd>
+                            </div>
+                            <div>
+                                <dt>Laps</dt>
+                                <dd id="selectedStageLaps">1</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </section>
+
+                <section class="garageSelect glassPanel" aria-label="Car selection">
+                    <div class="panelTitle">
+                        <span class="panelCar" aria-hidden="true"></span>
+                        <span>Car select</span>
+                    </div>
+                    <div class="garageFeature">
+                        <div class="garageHeader">
+                            <p class="eyebrow">Selected car</p>
+                            <h2 id="selectedCarName">Rally R</h2>
+                            <span id="selectedCarClass">Balanced Rally</span>
+                        </div>
+                        <div class="garagePreview" aria-hidden="true">
+                            <canvas id="garagePreviewCanvas"></canvas>
+                            <div class="garagePreviewMeta">
+                                <span class="garagePreviewSignal"></span>
+                                <span id="garagePreviewStatus">Vehicle ready</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="carSelect" class="garageGrid" role="radiogroup" aria-label="Car selection"></div>
+                    <div id="selectedCarStats" class="garageTelemetry" aria-label="Selected car telemetry"></div>
+                </section>
+
+                <aside class="setupColumn">
+                    <section class="setupPanel glassPanel">
+                        <div class="panelTitle">Time of day</div>
+                        <div id="timeOfDaySelect" class="modeSelect binaryModeSelect tileModeSelect" role="radiogroup" aria-label="Time of day"></div>
+                    </section>
+                    <section class="setupPanel glassPanel">
+                        <div class="panelTitle">Weather</div>
+                        <div id="weatherSelect" class="modeSelect binaryModeSelect tileModeSelect" role="radiogroup" aria-label="Rain"></div>
+                    </section>
+                    <section class="setupPanel glassPanel">
+                        <div class="panelTitle">Difficulty</div>
+                        <div id="difficultySelect" class="modeSelect difficultyModeSelect" role="radiogroup" aria-label="Difficulty"></div>
+                    </section>
+                    <section class="setupPanel glassPanel">
+                        <div class="panelTitle">Driving assist</div>
+                        <div id="assistSelect" class="modeSelect assistModeSelect" role="radiogroup" aria-label="Driving assist"></div>
+                    </section>
+                    <button id="startButton" class="primaryButton startRaceButton">
+                        <span class="startButtonFlag" aria-hidden="true"></span>
+                        <span class="startButtonCopy">
+                            <span class="startButtonText">Start race</span>
+                            <span class="startButtonSub">Tap to confirm</span>
+                        </span>
+                        <span class="startButtonArrow" aria-hidden="true"></span>
+                    </button>
+                </aside>
+            </main>
+
         </div>
     </div>
 
@@ -199,8 +253,8 @@
     <script src="vendor/GLTFLoader.js"></script>
     <script src="vendor/DRACOLoader.js"></script>
     <script src="roadGenerator.js?v=20260428-tokyo-consistent-building-light"></script>
-    <script src="gameManager.js?v=20260428-traffic-variant-orientation"></script>
-    <script src="script.js?v=20260428-camera-mode-skip"></script>
+    <script src="gameManager.js?v=20260428-apex-dark-glass"></script>
+    <script src="script.js?v=20260428-menu-profile-apex-glass"></script>
 </body>
 
 </html>

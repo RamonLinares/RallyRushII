@@ -3162,10 +3162,31 @@ class GameManager {
         const isTire = this.hasAssetNameToken(name, ['tire', 'tyre', 'rubber', 'wheel', 'wheek']);
         const isRim = this.hasAssetNameToken(name, ['rim', 'disc', 'brake']);
         const isLight = /headlight|brakelight|signallight|taillight|optics|lights/.test(normalizedName);
+        const isApexDarkCanopyTrim = type === 'apexGt'
+            && /plastic smooth|blocker/.test(normalizedName);
         const isPaint = /paint|body|panel|toycar|truck|sportscar|suv|orange|white|body color/.test(normalizedName)
             && !isGlass
             && !isTire
             && !isLight;
+
+        if (type === 'apexGt' && isGlass) {
+            const glass = new THREE.MeshBasicMaterial({
+                color: 0x02070b,
+                transparent: false,
+                opacity: 1,
+                depthWrite: true,
+                side: cloned.side
+            });
+            glass.name = cloned.name || 'glass';
+            glass.userData.keepTextureMaps = true;
+            glass.userData.isVehicleGlass = true;
+            glass.userData.cockpitBaseOpacity = glass.opacity;
+            glass.userData.cockpitBaseTransparent = glass.transparent;
+            glass.userData.cockpitBaseDepthWrite = glass.depthWrite;
+            glass.needsUpdate = true;
+            cloned.dispose?.();
+            return glass;
+        }
 
         if (isPaint && cloned.color) {
             cloned.map = null;
@@ -3191,20 +3212,38 @@ class GameManager {
                 cloned.emissiveIntensity = 0;
             }
             cloned.envMapIntensity = 1.15;
+        } else if (isApexDarkCanopyTrim && cloned.color) {
+            cloned.map = null;
+            cloned.color.setHex(0x020407);
+            cloned.transparent = false;
+            cloned.opacity = 1;
+            cloned.depthWrite = true;
+            cloned.envMapIntensity = 0;
+            if ('roughness' in cloned) {
+                cloned.roughness = 0.92;
+            }
+            if ('metalness' in cloned) {
+                cloned.metalness = 0;
+            }
         } else if (isGlass && cloned.color) {
-            cloned.color.setHex(0x172b3d);
-            cloned.transparent = true;
-            cloned.opacity = Math.min(cloned.opacity || 0.8, 0.68);
+            const useOpaqueDarkGlass = type === 'apexGt';
+            if (useOpaqueDarkGlass) {
+                cloned.map = null;
+            }
+            cloned.color.setHex(useOpaqueDarkGlass ? 0x02070b : 0x172b3d);
+            cloned.transparent = !useOpaqueDarkGlass;
+            cloned.opacity = useOpaqueDarkGlass ? 1 : Math.min(cloned.opacity || 0.8, 0.68);
+            cloned.depthWrite = useOpaqueDarkGlass;
             cloned.userData.isVehicleGlass = true;
             cloned.userData.cockpitBaseOpacity = cloned.opacity;
             cloned.userData.cockpitBaseTransparent = cloned.transparent;
             cloned.userData.cockpitBaseDepthWrite = cloned.depthWrite;
-            cloned.envMapIntensity = 1.7;
+            cloned.envMapIntensity = useOpaqueDarkGlass ? 0 : 1.7;
             if ('roughness' in cloned) {
-                cloned.roughness = 0.05;
+                cloned.roughness = useOpaqueDarkGlass ? 0.95 : 0.05;
             }
             if ('metalness' in cloned) {
-                cloned.metalness = Math.max(cloned.metalness || 0, 0.08);
+                cloned.metalness = useOpaqueDarkGlass ? 0 : Math.max(cloned.metalness || 0, 0.08);
             }
         } else if (isTire && cloned.color) {
             cloned.color.offsetHSL(0, -0.04, -0.05);
