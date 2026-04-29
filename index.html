@@ -7,7 +7,7 @@
     <title>RallyRushII</title>
     <meta name="description" content="RallyRushII, a standalone continuation of RallyRush.">
     <link rel="icon" href="assets/game_logo.jpeg">
-    <link rel="stylesheet" href="styles.css?v=20260429-fog-weather-mode">
+    <link rel="stylesheet" href="styles.css?v=20260429-race-modes">
 </head>
 
 <body>
@@ -28,6 +28,10 @@
             <div class="metric">
                 <span class="metricLabel">Time</span>
                 <span class="metricReadout"><span id="timerValue">0.00</span><span class="metricUnit">s</span></span>
+            </div>
+            <div class="metric metricSector">
+                <span class="metricLabel">Sector</span>
+                <span class="metricReadout"><span id="sectorValue">S1</span></span>
             </div>
         </div>
     </div>
@@ -156,6 +160,10 @@
 
                 <aside class="setupColumn">
                     <section class="setupPanel glassPanel">
+                        <div class="panelTitle">Race type</div>
+                        <div id="raceModeSelect" class="modeSelect raceTypeModeSelect" role="radiogroup" aria-label="Race type"></div>
+                    </section>
+                    <section class="setupPanel glassPanel">
                         <div class="panelTitle">Time of day</div>
                         <div id="timeOfDaySelect" class="modeSelect binaryModeSelect tileModeSelect" role="radiogroup" aria-label="Time of day"></div>
                     </section>
@@ -252,9 +260,9 @@
     <script src="vendor/three.min.js"></script>
     <script src="vendor/GLTFLoader.js"></script>
     <script src="vendor/DRACOLoader.js"></script>
-    <script src="roadGenerator.js?v=20260429-slip-drift"></script>
-    <script src="gameManager.js?v=20260429-slip-drift"></script>
-    <script src="script.js?v=20260429-slip-drift"></script>
+    <script src="roadGenerator.js?v=20260429-race-modes"></script>
+    <script src="gameManager.js?v=20260429-race-modes"></script>
+    <script src="script.js?v=20260429-race-modes"></script>
 </body>
 
 </html>

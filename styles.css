@@ -110,6 +110,10 @@ button {
     min-width: 116px;
 }
 
+.metricSector {
+    min-width: 92px;
+}
+
 .metricLabel {
     color: var(--ui-muted);
     font-size: 11px;
@@ -130,6 +134,13 @@ button {
     font-size: 32px;
     font-weight: 900;
     line-height: 0.9;
+    text-shadow: 0 3px 16px rgba(95, 226, 255, 0.35);
+}
+
+#sectorValue {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
     text-shadow: 0 3px 16px rgba(95, 226, 255, 0.35);
 }
 
@@ -2188,11 +2199,19 @@ body[data-menu-stage="coastal"] #startScreen::before {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.raceTypeModeSelect {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .tileModeSelect {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 #weatherSelect {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#timeOfDaySelect {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -2243,7 +2262,8 @@ body[data-menu-stage="coastal"] #startScreen::before {
 }
 
 .difficultyModeSelect .modeGlyph,
-.assistModeSelect .modeGlyph {
+.assistModeSelect .modeGlyph,
+.raceTypeModeSelect .modeGlyph {
     display: grid;
     place-items: center;
     width: 32px;
@@ -2255,7 +2275,8 @@ body[data-menu-stage="coastal"] #startScreen::before {
 }
 
 .difficultyModeSelect .modeGlyph::before,
-.assistModeSelect .modeGlyph::before {
+.assistModeSelect .modeGlyph::before,
+.raceTypeModeSelect .modeGlyph::before {
     content: attr(data-short);
 }
 
@@ -2291,6 +2312,30 @@ body[data-menu-stage="coastal"] #startScreen::before {
     inset: 2px 2px 4px 9px;
     border-radius: 50%;
     background: #0a0d12;
+}
+
+.modeGlyph-sunset::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    bottom: 4px;
+    height: 8px;
+    border-top: 2px solid currentColor;
+    border-radius: 50% 50% 0 0;
+    background: linear-gradient(180deg, currentColor 0 48%, transparent 50%);
+}
+
+.modeGlyph-sunset::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 10px 0 -7px #0a0d12;
 }
 
 .modeGlyph-on::before {
@@ -2693,7 +2738,8 @@ body[data-menu-stage="coastal"] #startScreen::before {
     }
 
     .difficultyModeSelect,
-    .assistModeSelect {
+    .assistModeSelect,
+    .raceTypeModeSelect {
         grid-template-columns: 1fr;
     }
 
@@ -2724,6 +2770,7 @@ body[data-menu-stage="coastal"] #startScreen::before {
 
     .difficultyModeSelect,
     .assistModeSelect,
+    .raceTypeModeSelect,
     .tileModeSelect {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }

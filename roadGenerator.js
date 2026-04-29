@@ -211,16 +211,24 @@ function createJungleBarkTexture(width = 256, height = 512, repeatX = 1.2, repea
     });
 }
 
-function createLakeSkyTexture() {
+function createLakeSkyTexture(environment = {}) {
+    const isSunset = environment.timeOfDay === 'sunset';
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const context = canvas.getContext('2d');
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#78b7cb');
-    skyGradient.addColorStop(0.42, '#a6ccd4');
-    skyGradient.addColorStop(0.72, '#c7d9d7');
-    skyGradient.addColorStop(1, '#d6dfd7');
+    if (isSunset) {
+        skyGradient.addColorStop(0, '#516f9d');
+        skyGradient.addColorStop(0.42, '#d48a67');
+        skyGradient.addColorStop(0.74, '#f2b071');
+        skyGradient.addColorStop(1, '#66503d');
+    } else {
+        skyGradient.addColorStop(0, '#78b7cb');
+        skyGradient.addColorStop(0.42, '#a6ccd4');
+        skyGradient.addColorStop(0.72, '#c7d9d7');
+        skyGradient.addColorStop(1, '#d6dfd7');
+    }
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -306,16 +314,24 @@ function createLakeSkyTexture() {
     return texture;
 }
 
-function createCoastalSkyTexture() {
+function createCoastalSkyTexture(environment = {}) {
+    const isSunset = environment.timeOfDay === 'sunset';
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const context = canvas.getContext('2d');
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#5faed2');
-    skyGradient.addColorStop(0.36, '#94c8dd');
-    skyGradient.addColorStop(0.68, '#c6dcd9');
-    skyGradient.addColorStop(1, '#e5e0c6');
+    if (isSunset) {
+        skyGradient.addColorStop(0, '#4b76a8');
+        skyGradient.addColorStop(0.36, '#cb7a62');
+        skyGradient.addColorStop(0.68, '#f0aa63');
+        skyGradient.addColorStop(1, '#d2a06f');
+    } else {
+        skyGradient.addColorStop(0, '#5faed2');
+        skyGradient.addColorStop(0.36, '#94c8dd');
+        skyGradient.addColorStop(0.68, '#c6dcd9');
+        skyGradient.addColorStop(1, '#e5e0c6');
+    }
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -407,6 +423,7 @@ function createCoastalSkyTexture() {
 
 function createJungleSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -418,6 +435,11 @@ function createJungleSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.34, '#1b2a35');
         skyGradient.addColorStop(0.68, '#253c3a');
         skyGradient.addColorStop(1, '#173421');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#4e6c8e');
+        skyGradient.addColorStop(0.34, '#b8755b');
+        skyGradient.addColorStop(0.68, '#d89b62');
+        skyGradient.addColorStop(1, '#3f6f3a');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#66797b');
         skyGradient.addColorStop(0.32, '#879794');
@@ -520,6 +542,7 @@ function createJungleSkyTexture(environment = {}) {
 
 function createTokyoSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -531,6 +554,11 @@ function createTokyoSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.32, '#17253a');
         skyGradient.addColorStop(0.62, '#2e4052');
         skyGradient.addColorStop(1, '#111923');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#405f91');
+        skyGradient.addColorStop(0.32, '#b96d62');
+        skyGradient.addColorStop(0.62, '#e09b62');
+        skyGradient.addColorStop(1, '#53505c');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#647681');
         skyGradient.addColorStop(0.38, '#87949b');
@@ -715,6 +743,7 @@ function createTokyoSkylineTexture(variant = 0, environment = {}) {
 
 function createDesertSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -727,6 +756,11 @@ function createDesertSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.42, '#1c2940');
         skyGradient.addColorStop(0.74, '#4c342a');
         skyGradient.addColorStop(1, '#1b100d');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#3d5f9c');
+        skyGradient.addColorStop(0.38, '#b66158');
+        skyGradient.addColorStop(0.68, '#f08a45');
+        skyGradient.addColorStop(1, '#934326');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#8c9aa0');
         skyGradient.addColorStop(0.4, '#c0b09a');
@@ -818,6 +852,7 @@ function createDesertSkyTexture(environment = {}) {
 
 function createHighlandSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -830,6 +865,11 @@ function createHighlandSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.44, '#1e3441');
         skyGradient.addColorStop(0.72, '#33443e');
         skyGradient.addColorStop(1, '#1b241d');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#4d6d9a');
+        skyGradient.addColorStop(0.42, '#c07b66');
+        skyGradient.addColorStop(0.72, '#e3aa70');
+        skyGradient.addColorStop(1, '#6a744a');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#728895');
         skyGradient.addColorStop(0.42, '#a4b4b9');
@@ -8556,6 +8596,7 @@ function generateRoadAndTerrain(scene, game, environment) {
     function getAtmosphereSettings() {
         const baseFog = new THREE.Color(environment.fogColor || 0x73b6cf);
         const isNight = Boolean(environment.nightRace);
+        const isSunset = environment.timeOfDay === 'sunset';
         const isRainy = !environment.disableRain;
         const isFoggy = environment.weatherMode === 'fog';
         const fogColor = baseFog.clone();
@@ -8574,6 +8615,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                 color: 'rgba(3, 10, 22, 0.66)',
                 horizon: 'rgba(62, 95, 122, 0.24)'
             };
+        } else if (isSunset) {
+            fogColor.lerp(new THREE.Color(0xe58a4a), 0.42);
+            skyColor.copy(baseFog).lerp(new THREE.Color(0xc16a55), 0.5);
+            fogDensity *= isRainy ? 1.05 : 0.72;
+            skyOverlay = {
+                color: 'rgba(255, 138, 76, 0.2)',
+                horizon: 'rgba(255, 185, 94, 0.36)'
+            };
         } else {
             skyColor.copy(baseFog);
             if (!isRainy) {
@@ -8587,12 +8636,12 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         if (isRainy) {
-            fogColor.lerp(new THREE.Color(isNight ? 0x0d1824 : 0x6f7f82), isNight ? 0.38 : 0.34);
-            skyColor.lerp(new THREE.Color(isNight ? 0x08101d : 0x67797d), isNight ? 0.42 : 0.3);
-            fogDensity *= isNight ? 1.32 : 1.42;
+            fogColor.lerp(new THREE.Color(isNight ? 0x0d1824 : isSunset ? 0x8f6f63 : 0x6f7f82), isNight ? 0.38 : isSunset ? 0.26 : 0.34);
+            skyColor.lerp(new THREE.Color(isNight ? 0x08101d : isSunset ? 0x7e6768 : 0x67797d), isNight ? 0.42 : isSunset ? 0.24 : 0.3);
+            fogDensity *= isNight ? 1.32 : isSunset ? 1.22 : 1.42;
             skyOverlay = {
-                color: isNight ? 'rgba(4, 9, 17, 0.76)' : 'rgba(60, 73, 76, 0.34)',
-                horizon: isNight ? 'rgba(44, 72, 91, 0.28)' : 'rgba(132, 146, 142, 0.22)'
+                color: isNight ? 'rgba(4, 9, 17, 0.76)' : isSunset ? 'rgba(96, 70, 68, 0.28)' : 'rgba(60, 73, 76, 0.34)',
+                horizon: isNight ? 'rgba(44, 72, 91, 0.28)' : isSunset ? 'rgba(205, 132, 84, 0.28)' : 'rgba(132, 146, 142, 0.22)'
             };
         }
 
@@ -8614,15 +8663,15 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         if (isFoggy) {
             fogMode = 'linear';
-            const fogWeatherColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1d252b : 0x7f8f8c), isNight ? 0.46 : 0.38);
-            const skyFogColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1a242c : 0x81918f), isNight ? 0.58 : 0.44);
+            const fogWeatherColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1d252b : isSunset ? 0xa27b6f : 0x7f8f8c), isNight ? 0.46 : isSunset ? 0.34 : 0.38);
+            const skyFogColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1a242c : isSunset ? 0x98756f : 0x81918f), isNight ? 0.58 : isSunset ? 0.46 : 0.44);
             fogColor.copy(fogWeatherColor);
             skyColor.lerp(skyFogColor, isNight ? 0.62 : 0.48);
             fogNear = isNight ? 18 : 24;
             fogFar = isNight ? 190 : 225;
             skyOverlay = {
-                color: isNight ? 'rgba(12, 18, 22, 0.52)' : 'rgba(88, 104, 102, 0.16)',
-                horizon: isNight ? 'rgba(84, 104, 110, 0.32)' : 'rgba(118, 134, 130, 0.26)'
+                color: isNight ? 'rgba(12, 18, 22, 0.52)' : isSunset ? 'rgba(103, 82, 80, 0.2)' : 'rgba(88, 104, 102, 0.16)',
+                horizon: isNight ? 'rgba(84, 104, 110, 0.32)' : isSunset ? 'rgba(180, 126, 88, 0.3)' : 'rgba(118, 134, 130, 0.26)'
             };
         }
 
@@ -8657,9 +8706,9 @@ function generateRoadAndTerrain(scene, game, environment) {
         scene.background.dispose();
     }
     const stageSkyTexture = environment.id === 'lakes'
-        ? createLakeSkyTexture()
+        ? createLakeSkyTexture(environment)
         : environment.id === 'coastal'
-            ? createCoastalSkyTexture()
+            ? createCoastalSkyTexture(environment)
             : environment.id === 'jungle'
                 ? createJungleSkyTexture(environment)
                 : environment.id === 'city'
@@ -8856,6 +8905,104 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         scene.add(structureGroup);
+    }
+
+    function createSectorBoardTexture(sectorId) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 384;
+        const context = canvas.getContext('2d');
+        const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#071017');
+        gradient.addColorStop(0.55, '#10283a');
+        gradient.addColorStop(1, '#061018');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        context.fillStyle = '#ffd447';
+        context.fillRect(0, 0, canvas.width, 34);
+        context.fillRect(0, canvas.height - 34, canvas.width, 34);
+
+        context.strokeStyle = '#f8fbff';
+        context.lineWidth = 10;
+        context.strokeRect(26, 26, canvas.width - 52, canvas.height - 52);
+
+        context.fillStyle = '#5fe2ff';
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        context.font = '900 72px Arial Black, Impact, sans-serif';
+        context.fillText('RALLY SECTOR', 68, 105);
+
+        context.fillStyle = '#f8fbff';
+        context.font = '900 164px Arial Black, Impact, sans-serif';
+        context.fillText(`S${sectorId}`, 68, 242);
+
+        context.fillStyle = '#ffd447';
+        context.textAlign = 'right';
+        context.font = '900 58px Arial Black, Impact, sans-serif';
+        context.fillText('TIMING', canvas.width - 70, 244);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
+        return texture;
+    }
+
+    function createRallySectorBoard(scene, game, sector) {
+        const boardZ = sector.id === 3 ? Math.min(game.startLine - 240, sector.z + 260) : sector.z;
+        const roadData = getRoadDataAtZ(boardZ, game);
+        const boardWidth = Math.max(13, Math.min(game.road.width * 0.76, 21));
+        const boardHeight = 4.2;
+        const boardY = roadData.y + 8.6;
+        const group = new THREE.Group();
+        group.name = `rally-sector-${sector.id}-board`;
+        group.position.set(roadData.curve, boardY, boardZ);
+        group.rotation.y = -roadData.curvatureAngle;
+
+        const boardMaterial = new THREE.MeshBasicMaterial({
+            map: createSectorBoardTexture(sector.id),
+            side: THREE.DoubleSide,
+            transparent: true
+        });
+        const board = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), boardMaterial);
+        board.rotation.y = Math.PI;
+        group.add(board);
+
+        const frameMaterial = new THREE.MeshBasicMaterial({ color: 0xf8fbff });
+        const accentMaterial = new THREE.MeshBasicMaterial({ color: 0xffd447 });
+        const topFrame = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.8, 0.28, 0.28), frameMaterial);
+        topFrame.position.y = boardHeight * 0.5 + 0.18;
+        const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.8, 0.24, 0.24), frameMaterial);
+        bottomFrame.position.y = -boardHeight * 0.5 - 0.18;
+        const leftCap = new THREE.Mesh(new THREE.BoxGeometry(0.26, boardHeight + 0.62, 0.26), accentMaterial);
+        leftCap.position.x = -boardWidth * 0.5 - 0.24;
+        const rightCap = new THREE.Mesh(new THREE.BoxGeometry(0.26, boardHeight + 0.62, 0.26), accentMaterial);
+        rightCap.position.x = boardWidth * 0.5 + 0.24;
+        group.add(topFrame, bottomFrame, leftCap, rightCap);
+
+        const glow = new THREE.Mesh(
+            new THREE.PlaneGeometry(boardWidth + 1.6, boardHeight + 1.1),
+            new THREE.MeshBasicMaterial({
+                color: 0x5fe2ff,
+                transparent: true,
+                opacity: 0.16,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            })
+        );
+        glow.position.z = -0.1;
+        glow.rotation.y = Math.PI;
+        group.add(glow);
+
+        scene.add(group);
+    }
+
+    if (game.settings?.raceModeId === 'rally' && Array.isArray(game.sectors)) {
+        game.sectors.forEach(sector => createRallySectorBoard(scene, game, sector));
     }
     
     createRallyStructure(scene, game, game.finishLine, true); // Place at the finish line

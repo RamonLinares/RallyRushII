@@ -244,7 +244,37 @@ class GameManager {
         this.startCountdown = null;
         this.difficultyStorageKey = 'rallyRushIIDifficultyLevel';
         this.assistStorageKey = 'rallyRushIIDrivingAssistLevel';
+        this.raceModeStorageKey = 'rallyRushIIRaceMode';
         this.bestTimesStorageKey = 'rallyRushIIBestTimesByStageDifficulty';
+        this.raceModeProfiles = {
+            traffic: {
+                id: 'traffic',
+                label: 'Traffic',
+                description: 'Against incoming traffic',
+                lengthMultiplier: 1,
+                hasIncomingTraffic: true,
+                hasRaceCompetitors: false,
+                hasSectorTiming: false
+            },
+            rally: {
+                id: 'rally',
+                label: 'Rally',
+                description: 'Long time trial',
+                lengthMultiplier: 3,
+                hasIncomingTraffic: false,
+                hasRaceCompetitors: false,
+                hasSectorTiming: true
+            },
+            race: {
+                id: 'race',
+                label: 'Grid',
+                description: 'Same-direction race',
+                lengthMultiplier: 1,
+                hasIncomingTraffic: false,
+                hasRaceCompetitors: true,
+                hasSectorTiming: false
+            }
+        };
         this.difficultyProfiles = {
             rookie: {
                 id: 'rookie',
@@ -300,6 +330,9 @@ class GameManager {
         this.drivingAssistLevel = this.drivingAssistProfiles[localStorage.getItem(this.assistStorageKey)]
             ? localStorage.getItem(this.assistStorageKey)
             : 'full';
+        this.raceMode = this.raceModeProfiles[localStorage.getItem(this.raceModeStorageKey)]
+            ? localStorage.getItem(this.raceModeStorageKey)
+            : 'traffic';
         this.currentStageId = 'scotland';
         this.bestTimes = this.loadBestTimes();
         this.controls = { left: false, right: false, accelerate: false, brake: false, handbrake: false };
@@ -692,6 +725,7 @@ class GameManager {
         this.lastCollisionType = null;
         this.currentEnvironment = null;
         this.nightRace = false;
+        this.timeOfDayMode = 'day';
         // Audio elements
         this.desertMusic = document.getElementById('desertMusic');
         this.alpineMusic = document.getElementById('alpineMusic');
@@ -742,6 +776,25 @@ class GameManager {
         return profile;
     }
 
+    getRaceModeOptions() {
+        return Object.values(this.raceModeProfiles);
+    }
+
+    getRaceModeProfile(id = this.raceMode) {
+        return this.raceModeProfiles[id] || this.raceModeProfiles.traffic;
+    }
+
+    getRaceMode() {
+        return this.getRaceModeProfile(this.raceMode).id;
+    }
+
+    setRaceMode(id) {
+        const profile = this.getRaceModeProfile(id);
+        this.raceMode = profile.id;
+        localStorage.setItem(this.raceModeStorageKey, profile.id);
+        return profile;
+    }
+
     getStageLabel(stageId = this.currentStageId) {
         const labels = {
             scotland: 'Scotland',
@@ -756,8 +809,8 @@ class GameManager {
         return labels[stageId] || stageId || 'Stage';
     }
 
-    getBestTimesKey(stageId = this.currentStageId, difficultyId = this.difficultyLevel, assistId = this.drivingAssistLevel) {
-        return `${stageId || 'scotland'}:${this.getDifficultyProfile(difficultyId).id}:${this.getDrivingAssistProfile(assistId).id}`;
+    getBestTimesKey(stageId = this.currentStageId, difficultyId = this.difficultyLevel, assistId = this.drivingAssistLevel, raceModeId = this.raceMode) {
+        return `${stageId || 'scotland'}:${this.getDifficultyProfile(difficultyId).id}:${this.getDrivingAssistProfile(assistId).id}:${this.getRaceModeProfile(raceModeId).id}`;
     }
 
     loadBestTimes() {
@@ -766,7 +819,11 @@ class GameManager {
             if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
                 return Object.entries(stored).reduce((bestTimes, [key, times]) => {
                     const keyParts = key.split(':');
-                    const normalizedKey = keyParts.length === 2 ? `${key}:full` : key;
+                    const normalizedKey = keyParts.length === 2
+                        ? `${key}:full:traffic`
+                        : keyParts.length === 3
+                            ? `${key}:traffic`
+                            : key;
                     const normalizedTimes = Array.isArray(times) ? times.filter(Number.isFinite) : [];
                     bestTimes[normalizedKey] = [
                         ...(bestTimes[normalizedKey] || []),
@@ -783,7 +840,7 @@ class GameManager {
             const legacyTimes = JSON.parse(localStorage.getItem('bestTimes') || '[]');
             if (Array.isArray(legacyTimes) && legacyTimes.length > 0) {
                 return {
-                    [this.getBestTimesKey('scotland', 'pro', 'full')]: legacyTimes
+                    [this.getBestTimesKey('scotland', 'pro', 'full', 'traffic')]: legacyTimes
                         .filter(Number.isFinite)
                         .sort((a, b) => a - b)
                         .slice(0, 5)
@@ -796,8 +853,8 @@ class GameManager {
         return {};
     }
 
-    getBestTimesFor(stageId = this.currentStageId, difficultyId = this.difficultyLevel, assistId = this.drivingAssistLevel) {
-        const key = this.getBestTimesKey(stageId, difficultyId, assistId);
+    getBestTimesFor(stageId = this.currentStageId, difficultyId = this.difficultyLevel, assistId = this.drivingAssistLevel, raceModeId = this.raceMode) {
+        const key = this.getBestTimesKey(stageId, difficultyId, assistId, raceModeId);
         const times = this.bestTimes[key];
         return Array.isArray(times) ? times : [];
     }
@@ -807,6 +864,11 @@ class GameManager {
     }
 
     getTrafficTargetCount() {
+        const mode = this.game?.settings?.raceModeId || this.raceMode;
+        if (!this.getRaceModeProfile(mode).hasIncomingTraffic) {
+            return 0;
+        }
+
         const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
         const stageId = this.game?.settings?.stageId || this.currentStageId;
         const stageScale = {
@@ -820,6 +882,16 @@ class GameManager {
         };
 
         return Math.max(4, Math.round(difficulty.trafficCount * (stageScale[stageId] || 1)));
+    }
+
+    getRaceCompetitorCount() {
+        const mode = this.game?.settings?.raceModeId || this.raceMode;
+        if (!this.getRaceModeProfile(mode).hasRaceCompetitors) {
+            return 0;
+        }
+
+        const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
+        return Math.max(5, Math.min(9, Math.round(difficulty.trafficCount * 0.62)));
     }
 
     getTrafficSpeed(vehicleType) {
@@ -938,6 +1010,13 @@ class GameManager {
     }
 
     configureSceneEnvironment(environment = {}) {
+        const timeOfDay = environment.timeOfDay || (environment.nightRace ? 'night' : 'day');
+        if (this.vehicleEnvironmentMapTimeOfDay !== timeOfDay) {
+            this.vehicleEnvironmentMap?.dispose?.();
+            this.vehicleEnvironmentMap = null;
+            this.vehicleEnvironmentMapTimeOfDay = timeOfDay;
+        }
+
         if (!this.vehicleEnvironmentMap) {
             this.vehicleEnvironmentMap = this.createVehicleEnvironmentMap(environment);
         }
@@ -945,8 +1024,9 @@ class GameManager {
         this.scene.environment = this.vehicleEnvironmentMap;
     }
 
-    createVehicleEnvironmentMap() {
+    createVehicleEnvironmentMap(environment = {}) {
         const size = 96;
+        const isSunset = environment.timeOfDay === 'sunset';
         const makeFace = (top, middle, bottom) => {
             const canvas = document.createElement('canvas');
             canvas.width = size;
@@ -968,14 +1048,23 @@ class GameManager {
             return canvas;
         };
 
-        const faces = [
-            makeFace('#d8f3ff', '#83d3f2', '#3f5361'),
-            makeFace('#d8f3ff', '#9fd9eb', '#2f443e'),
-            makeFace('#ffffff', '#c8efff', '#89c7dd'),
-            makeFace('#49674b', '#59685b', '#283031'),
-            makeFace('#e6f7ff', '#8ccfe8', '#36495b'),
-            makeFace('#f8fbff', '#a8dded', '#4e5a45')
-        ];
+        const faces = isSunset
+            ? [
+                makeFace('#ffdca4', '#f08a50', '#3b3d53'),
+                makeFace('#ffe1b3', '#d87355', '#26354a'),
+                makeFace('#fff0cf', '#ffc07c', '#8e5b43'),
+                makeFace('#2b3549', '#4d3d3e', '#251c20'),
+                makeFace('#ffd6a3', '#e58b5e', '#384359'),
+                makeFace('#fff2d2', '#c86d49', '#4a3b2e')
+            ]
+            : [
+                makeFace('#d8f3ff', '#83d3f2', '#3f5361'),
+                makeFace('#d8f3ff', '#9fd9eb', '#2f443e'),
+                makeFace('#ffffff', '#c8efff', '#89c7dd'),
+                makeFace('#49674b', '#59685b', '#283031'),
+                makeFace('#e6f7ff', '#8ccfe8', '#36495b'),
+                makeFace('#f8fbff', '#a8dded', '#4e5a45')
+            ];
         const cubeTexture = new THREE.CubeTexture(faces);
         if (THREE.sRGBEncoding) {
             cubeTexture.encoding = THREE.sRGBEncoding;
@@ -1001,19 +1090,21 @@ class GameManager {
 
         this.currentEnvironment = environment;
         this.nightRace = Boolean(environment.nightRace);
+        this.timeOfDayMode = environment.timeOfDay || (this.nightRace ? 'night' : 'day');
+        const sunsetRace = this.timeOfDayMode === 'sunset';
         const useVehicleOnlyNightLighting = this.nightRace && environment.id === 'city';
 
         this.ambientLight = new THREE.AmbientLight(
-            this.nightRace ? 0x476c86 : 0xffffff,
-            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.085 : 0.035
+            this.nightRace ? 0x476c86 : sunsetRace ? 0xffc18a : 0xffffff,
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.085 : sunsetRace ? 0.055 : 0.035
         );
         this.scene.add(this.ambientLight);
 
         this.directionalLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x8fb2ff : 0xffffff,
-            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.42 : 2.15
+            this.nightRace ? 0x8fb2ff : sunsetRace ? 0xff9b52 : 0xffffff,
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.42 : sunsetRace ? 1.28 : 2.15
         );
-        this.directionalLight.position.set(38, 96, 122);
+        this.directionalLight.position.set(sunsetRace ? -126 : 38, sunsetRace ? 24 : 96, sunsetRace ? 84 : 122);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 1024;
         this.directionalLight.shadow.mapSize.height = 1024;
@@ -1027,25 +1118,28 @@ class GameManager {
         this.scene.add(this.directionalLight);
 
         this.fillLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x2c7f8f : 0xddeeff,
-            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.26 : 0.14
+            this.nightRace ? 0x2c7f8f : sunsetRace ? 0x6e87bd : 0xddeeff,
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.26 : sunsetRace ? 0.1 : 0.14
         );
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
         this.rimLight = new THREE.DirectionalLight(
-            this.nightRace ? 0x66e0ff : 0xbdeaff,
-            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.9 : 0.58
+            this.nightRace ? 0x66e0ff : sunsetRace ? 0xffd09a : 0xbdeaff,
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.9 : sunsetRace ? 0.42 : 0.58
         );
-        this.rimLight.position.set(-24, 28, -42);
+        this.rimLight.position.set(sunsetRace ? 54 : -24, sunsetRace ? 18 : 28, sunsetRace ? -92 : -42);
         this.scene.add(this.rimLight);
 
         this.hemiLight = new THREE.HemisphereLight(
-            this.nightRace ? 0x18354e : 0xcde7f2,
-            this.nightRace ? 0x061409 : 0x334029,
-            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.52 : 0.3
+            this.nightRace ? 0x18354e : sunsetRace ? 0xffb16b : 0xcde7f2,
+            this.nightRace ? 0x061409 : sunsetRace ? 0x3a241b : 0x334029,
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.52 : sunsetRace ? 0.24 : 0.3
         );
-        if (!this.nightRace) {
+        if (sunsetRace) {
+            this.hemiLight.color.setHSL(0.08, 0.72, 0.58);
+            this.hemiLight.groundColor.setHSL(0.06, 0.44, 0.18);
+        } else if (!this.nightRace) {
             this.hemiLight.color.setHSL(0.58, 0.58, 0.62);
             this.hemiLight.groundColor.setHSL(0.12, 0.35, 0.24);
         }
@@ -1058,8 +1152,11 @@ class GameManager {
         environment.assetCache = this.getStageEnvironmentAssets(this.currentStageId);
         const difficulty = this.getDifficultyProfile(this.difficultyLevel);
         const drivingAssist = this.getDrivingAssistProfile(this.drivingAssistLevel);
+        const raceMode = this.getRaceModeProfile(this.raceMode);
         const playerVehicleType = this.playerVehicleType || 'rally';
         const playerSpec = this.getVehicleSpec(playerVehicleType);
+        const baseTrackLength = Math.abs(environment.jungleGeneration?.trailLength || environment.trackLength || 5900);
+        const trackLength = Math.round(baseTrackLength * (raceMode.lengthMultiplier || 1));
 
         // Initialize the game object
         this.game = {
@@ -1070,11 +1167,13 @@ class GameManager {
                 difficultyLabel: difficulty.label,
                 assistId: drivingAssist.id,
                 assistLabel: drivingAssist.label,
-                timeOfDay: environment.nightRace ? 'night' : 'day',
+                raceModeId: raceMode.id,
+                raceModeLabel: raceMode.label,
+                timeOfDay: this.timeOfDayMode,
                 rainEnabled: !environment.disableRain
             },
             road: {
-                length: Math.abs(environment.jungleGeneration?.trailLength || environment.trackLength || 5900),
+                length: trackLength,
                 width: environment.roadWidth || 25,
                 segments: []
             },
@@ -1127,6 +1226,14 @@ class GameManager {
             },
             terrain: { width: 300 },
             traffic: [],
+            raceResults: [],
+            sectorTimings: [],
+            sectors: raceMode.hasSectorTiming ? [
+                { id: 1, z: -trackLength / 3 },
+                { id: 2, z: -trackLength * 2 / 3 },
+                { id: 3, z: -trackLength }
+            ] : [],
+            nextSectorIndex: 0,
             stageEffects: [],
             sceneryCullObjects: [],
             sceneryCullWindow: {
@@ -1136,7 +1243,7 @@ class GameManager {
             startTime: null,
             finishTime: null,
             startLine: -100,
-            finishLine: -Math.abs(environment.jungleGeneration?.trailLength || environment.trackLength || 5900)
+            finishLine: -trackLength
         };
 
         // Generate the road and terrain based on the environment
@@ -1151,8 +1258,8 @@ class GameManager {
         this.setupStageVehicleLighting(this.playerCar, { player: true });
         this.applyCameraModeSettings();
 
-        this.createInitialTrafficCars();
         this.resetCarPosition();
+        this.createInitialTrafficCars();
         this.updateCameraPosition();
     }
 
@@ -3675,8 +3782,70 @@ class GameManager {
 
 
     createInitialTrafficCars() {
+        if (this.game?.settings?.raceModeId === 'race') {
+            this.createRaceGrid();
+            return;
+        }
+
         for (let i = 0; i < this.getTrafficTargetCount(); i++) {
             this.createTrafficCar();
+        }
+    }
+
+    createRaceGrid() {
+        const count = this.getRaceCompetitorCount();
+        const laneCount = 2;
+        const laneSpacing = Math.min(5.2, Math.max(3.6, this.game.road.width * 0.22));
+        const rowSpacing = 11.5;
+        const startZ = this.game.startLine + 7.5;
+        const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
+        const playerMaxSpeed = this.game?.car?.maxSpeed || this.getVehicleSpec(this.getPlayerVehicleType()).maxSpeed || 2.5;
+        const difficultyPace = {
+            rookie: 0.82,
+            pro: 0.91,
+            expert: 1
+        }[difficulty.id] || 0.91;
+
+        for (let i = 0; i < count; i++) {
+            const vehicleType = this.trafficVehicleTypes[i % this.trafficVehicleTypes.length];
+            const paint = this.trafficPaints[i % this.trafficPaints.length];
+            const raceCar = this.createCar(paint.body, vehicleType, { palette: paint });
+            const row = Math.floor(i / laneCount);
+            const lane = i % laneCount;
+            const side = lane === 0 ? -1 : 1;
+            const xOffset = side * laneSpacing * (0.5 + (row % 2) * 0.08);
+            const z = startZ + row * rowSpacing + (lane === 0 ? 0 : 3.4);
+            const speedBias = THREE.MathUtils.lerp(0.84, 1.08, i / Math.max(1, count - 1));
+            const typePace = {
+                supercar: 1.08,
+                muscle: 1.02,
+                hatchback: 1,
+                pickup: 0.92,
+                suv: 0.88
+            }[vehicleType] || 1;
+            const racePace = playerMaxSpeed * difficultyPace * speedBias * typePace;
+            const trafficState = {
+                mesh: raceCar,
+                speed: 0,
+                baseSpeed: racePace,
+                targetSpeed: racePace,
+                launchBoostFrames: 70 + Math.round(i * 5),
+                xOffset,
+                targetXOffset: xOffset,
+                lateralVelocity: 0,
+                headingOffset: 0,
+                yawVelocity: 0,
+                contactRecoveryFrames: 0,
+                vehicleType,
+                raceCompetitor: true,
+                raceName: `Rival ${i + 1}`,
+                finishedAt: null
+            };
+
+            this.placeTrafficCar(trafficState, z, xOffset, -1);
+            this.scene.add(raceCar);
+            this.setupStageVehicleLighting(raceCar, { player: false });
+            this.trafficCars.push(trafficState);
         }
     }
 
@@ -3734,8 +3903,8 @@ class GameManager {
         };
     }
 
-    placeTrafficCar(trafficCar, z, xOffset) {
-        const frame = this.getVehicleRoadFrame(z, 1, trafficCar.vehicleType);
+    placeTrafficCar(trafficCar, z, xOffset, travelDirection = 1, yawOffset = 0, roll = 0) {
+        const frame = this.getVehicleRoadFrame(z, travelDirection, trafficCar.vehicleType);
         const roadData = frame.roadData;
 
         trafficCar.xOffset = xOffset;
@@ -3744,7 +3913,7 @@ class GameManager {
             this.getVehicleGroundY(frame, trafficCar.vehicleType),
             z
         );
-        this.applyVehicleRoadPose(trafficCar.mesh, frame);
+        this.applyVehicleRoadPose(trafficCar.mesh, frame, yawOffset, roll);
         this.alignVehicleToRoadSurface(trafficCar.mesh);
     }
 
@@ -3769,9 +3938,10 @@ class GameManager {
     }
     resetCarPosition() {
         const playerType = this.getPlayerVehicleType();
-        const roadFrame = this.getVehicleRoadFrame(this.game.startLine, -1, playerType);
+        const startZ = this.getPlayerStartZ();
+        const roadFrame = this.getVehicleRoadFrame(startZ, -1, playerType);
         const roadData = roadFrame.roadData;
-        this.game.car.position.set(roadData.curve, this.getVehicleGroundY(roadFrame, playerType), this.game.startLine);
+        this.game.car.position.set(roadData.curve, this.getVehicleGroundY(roadFrame, playerType), startZ);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
         this.game.car.lateralVelocity = 0;
@@ -3809,6 +3979,18 @@ class GameManager {
         this.carPosition.copy(this.playerCar.position);
         this.game.car.position.copy(this.carPosition);
         this.animateVehicleSteeringWheel(this.playerCar, 0, this.game.car.maxSteeringAngle);
+    }
+
+    getPlayerStartZ() {
+        if (this.game?.settings?.raceModeId !== 'race') {
+            return this.game.startLine;
+        }
+
+        const competitorCount = this.getRaceCompetitorCount();
+        const laneCount = 2;
+        const rowSpacing = 11.5;
+        const playerRow = Math.ceil(competitorCount / laneCount);
+        return this.game.startLine + 7.5 + playerRow * rowSpacing + 3.8;
     }
 
     createCountdownTexture(label) {
@@ -4216,7 +4398,8 @@ class GameManager {
         }
 
         const selectedCircuit = document.getElementById('circuitSelect').value;
-        const timeOfDayMode = localStorage.getItem('rallyRushIITimeOfDay') === 'night' ? 'night' : 'day';
+        const storedTimeOfDayMode = localStorage.getItem('rallyRushIITimeOfDay');
+        const timeOfDayMode = ['day', 'sunset', 'night'].includes(storedTimeOfDayMode) ? storedTimeOfDayMode : 'day';
         const storedWeatherMode = localStorage.getItem('rallyRushIIWeatherMode');
         const weatherMode = ['clear', 'rain', 'fog'].includes(storedWeatherMode)
             ? storedWeatherMode
@@ -4225,8 +4408,9 @@ class GameManager {
         const environment = {
             ...environments[selectedCircuit],
             weatherMode,
+            timeOfDay: timeOfDayMode,
             disableRain: !rainEnabled,
-            disableVehicleLights: timeOfDayMode === 'day',
+            disableVehicleLights: timeOfDayMode !== 'night',
             nightRace: timeOfDayMode === 'night'
         }; // Use the selected environment
         this.currentStageId = selectedCircuit;
@@ -4372,8 +4556,35 @@ class GameManager {
         this.isPaused = false;
         this.pauseStartedAt = 0;
         this.clearStartCountdown();
+        if (this.game?.settings?.raceModeId === 'race') {
+            this.finalizeRaceResults(time);
+        }
         this.updateBestTimes(time);
         this.displayEndScreen(time);
+    }
+
+    finalizeRaceResults(playerTime) {
+        const results = this.game.raceResults || [];
+        const hasPlayer = results.some(result => result.player);
+        if (!hasPlayer) {
+            results.push({ name: 'You', time: playerTime, player: true });
+        }
+
+        const existingNames = new Set(results.map(result => result.name));
+        this.trafficCars.forEach(competitor => {
+            if (!competitor.raceCompetitor || existingNames.has(competitor.raceName)) {
+                return;
+            }
+
+            const remaining = Math.max(0, competitor.mesh.position.z - this.game.finishLine);
+            const estimatedTime = playerTime + remaining / Math.max(0.35, competitor.speed || competitor.baseSpeed || 0.6) / 60;
+            results.push({
+                name: competitor.raceName,
+                time: estimatedTime,
+                player: false
+            });
+        });
+        this.game.raceResults = results;
     }
 
     displayEndScreen(time) {
@@ -4391,17 +4602,46 @@ class GameManager {
             const stageLabel = this.game?.settings?.stageLabel || this.getStageLabel();
             const difficultyLabel = this.game?.settings?.difficultyLabel || this.getDifficultyProfile().label;
             const assistLabel = this.game?.settings?.assistLabel || this.getDrivingAssistProfile().label;
-            const times = this.getBestTimesFor(this.game?.settings?.stageId, this.game?.settings?.difficultyId, this.game?.settings?.assistId);
-            scoreboard.innerHTML = `<h2>Best times - ${stageLabel} - ${difficultyLabel} - ${assistLabel}</h2><ol></ol>`;
+            const raceModeLabel = this.game?.settings?.raceModeLabel || this.getRaceModeProfile().label;
+            const times = this.getBestTimesFor(
+                this.game?.settings?.stageId,
+                this.game?.settings?.difficultyId,
+                this.game?.settings?.assistId,
+                this.game?.settings?.raceModeId
+            );
+            const raceResults = this.game?.settings?.raceModeId === 'race'
+                ? [...(this.game.raceResults || [])].sort((a, b) => a.time - b.time)
+                : null;
+            scoreboard.innerHTML = `<h2>${raceResults ? 'Race result' : 'Best times'} - ${stageLabel} - ${raceModeLabel} - ${difficultyLabel} - ${assistLabel}</h2><ol></ol>`;
             const list = scoreboard.querySelector('ol');
-            times.forEach((t, i) => {
-                const item = document.createElement('li');
-                item.innerHTML = `<span>P${i + 1}</span><strong>${t.toFixed(2)} s</strong>`;
-                list.appendChild(item);
-            });
-            if (times.length === 0) {
+            if (raceResults) {
+                raceResults.forEach((result, i) => {
+                    const item = document.createElement('li');
+                    item.innerHTML = `<span>P${i + 1} ${result.player ? 'You' : result.name}</span><strong>${result.time.toFixed(2)} s</strong>`;
+                    list.appendChild(item);
+                });
+            } else {
+                times.forEach((t, i) => {
+                    const item = document.createElement('li');
+                    item.innerHTML = `<span>P${i + 1}</span><strong>${t.toFixed(2)} s</strong>`;
+                    list.appendChild(item);
+                });
+            }
+            if (this.game?.sectorTimings?.length) {
+                this.game.sectorTimings.forEach(sector => {
+                    const item = document.createElement('li');
+                    item.innerHTML = `<span>Sector ${sector.id}</span><strong>${sector.split.toFixed(2)} s</strong>`;
+                    list.appendChild(item);
+                });
+            }
+            if (!raceResults && times.length === 0) {
                 const item = document.createElement('li');
                 item.innerHTML = '<span>P1</span><strong>--.-- s</strong>';
+                list.appendChild(item);
+            }
+            if (raceResults && raceResults.length === 0) {
+                const item = document.createElement('li');
+                item.innerHTML = '<span>P1</span><strong>Pending</strong>';
                 list.appendChild(item);
             }
         }
@@ -4415,12 +4655,65 @@ class GameManager {
     }
 
     updateBestTimes(time) {
-        const key = this.getBestTimesKey(this.game?.settings?.stageId, this.game?.settings?.difficultyId, this.game?.settings?.assistId);
+        const key = this.getBestTimesKey(
+            this.game?.settings?.stageId,
+            this.game?.settings?.difficultyId,
+            this.game?.settings?.assistId,
+            this.game?.settings?.raceModeId
+        );
         const times = Array.isArray(this.bestTimes[key]) ? this.bestTimes[key] : [];
         times.push(time);
         times.sort((a, b) => a - b);
         this.bestTimes[key] = times.slice(0, 5);
         this.saveBestTimes();
+    }
+
+    getElapsedRaceTime() {
+        if (!this.game?.startTime) {
+            return 0;
+        }
+
+        const activePauseDuration = this.isPaused && this.pauseStartedAt ? Date.now() - this.pauseStartedAt : 0;
+        const endTime = this.game.finishTime || Date.now();
+        return Math.max(0, (endTime - this.game.startTime - this.pausedDuration - activePauseDuration) / 1000);
+    }
+
+    updateSectorTimings() {
+        if (!this.game?.sectors?.length || !this.game.startTime || this.game.finishTime) {
+            return;
+        }
+
+        while (this.game.nextSectorIndex < this.game.sectors.length) {
+            const sector = this.game.sectors[this.game.nextSectorIndex];
+            if (this.game.car.position.z > sector.z) {
+                break;
+            }
+
+            const elapsed = this.getElapsedRaceTime();
+            const previous = this.game.sectorTimings[this.game.sectorTimings.length - 1];
+            this.game.sectorTimings.push({
+                id: sector.id,
+                elapsed,
+                split: elapsed - (previous?.elapsed || 0)
+            });
+            this.game.nextSectorIndex++;
+        }
+    }
+
+    getPlayerRacePosition() {
+        if (this.game?.settings?.raceModeId !== 'race') {
+            return 1;
+        }
+
+        const playerProgress = this.game.startLine - this.game.car.position.z;
+        const ahead = this.trafficCars.filter(competitor => {
+            if (competitor.finishedAt) {
+                return !this.game.finishTime || competitor.finishedAt <= this.getElapsedRaceTime();
+            }
+            const competitorProgress = this.game.startLine - competitor.mesh.position.z;
+            return competitorProgress > playerProgress + 0.5;
+        }).length;
+        return ahead + 1;
     }
 
     updateVehicleDashboardDisplays() {
@@ -4457,16 +4750,29 @@ class GameManager {
     updateUI() {
         const speedValue = document.getElementById('speedValue');
         const timerValue = document.getElementById('timerValue');
+        const sectorValue = document.getElementById('sectorValue');
 
         if (speedValue) {
             speedValue.textContent = (this.game.car.speed * 100).toFixed(0);
         }
 
         if (this.game.startTime && !this.game.finishTime) {
-            const activePauseDuration = this.isPaused && this.pauseStartedAt ? Date.now() - this.pauseStartedAt : 0;
-            const elapsedTime = (Date.now() - this.game.startTime - this.pausedDuration - activePauseDuration) / 1000;
+            const elapsedTime = this.getElapsedRaceTime();
             if (timerValue) {
                 timerValue.textContent = elapsedTime.toFixed(2);
+            }
+        }
+
+        if (sectorValue) {
+            if (this.game.settings?.raceModeId === 'rally') {
+                const nextSector = Math.min((this.game.nextSectorIndex || 0) + 1, 3);
+                const lastSplit = this.game.sectorTimings?.[this.game.sectorTimings.length - 1];
+                sectorValue.textContent = lastSplit ? `S${lastSplit.id} ${lastSplit.split.toFixed(2)}` : `S${nextSector}`;
+            } else if (this.game.settings?.raceModeId === 'race') {
+                const position = this.getPlayerRacePosition();
+                sectorValue.textContent = `P${position}/${this.trafficCars.length + 1}`;
+            } else {
+                sectorValue.textContent = 'Traffic';
             }
         }
 
@@ -4653,8 +4959,11 @@ class GameManager {
             }
         }
 
-        if (!this.game.startTime && this.game.car.position.z <= this.game.startLine) {
-            this.game.startTime = Date.now();
+        if (!this.game.startTime) {
+            const gridRaceStarted = this.game.settings?.raceModeId === 'race' && !this.isStartCountdownBlocking();
+            if (gridRaceStarted || this.game.car.position.z <= this.game.startLine) {
+                this.game.startTime = Date.now();
+            }
         }
 
         if (this.activeCollision) {
@@ -4666,6 +4975,7 @@ class GameManager {
         this.updateCollisionEffects();
         this.updateCameraPosition();
         this.updateLightPosition(); // Add this line to update light position
+        this.updateSectorTimings();
 
         // Update the road
         if (this.roadUpdater) {
@@ -4674,7 +4984,14 @@ class GameManager {
 
         if (!this.game.finishTime && this.game.car.position.z <= this.game.finishLine) {
             this.game.finishTime = Date.now();
-            const totalTime = (this.game.finishTime - this.game.startTime - this.pausedDuration) / 1000;
+            const totalTime = this.getElapsedRaceTime();
+            if (this.game.settings?.raceModeId === 'race') {
+                this.game.raceResults.push({
+                    name: 'You',
+                    time: totalTime,
+                    player: true
+                });
+            }
             this.endGame(totalTime);
         }
 
@@ -4744,7 +5061,7 @@ class GameManager {
 
         return {
             stage: this.currentStageId,
-            timeOfDay: this.nightRace ? 'night' : 'day',
+            timeOfDay: this.timeOfDayMode || (this.nightRace ? 'night' : 'day'),
             rainEnabled: !this.currentEnvironment?.disableRain,
             sceneChildren: this.scene?.children?.length || 0,
             activeLights,
@@ -5435,6 +5752,44 @@ class GameManager {
         debrisGeometry.dispose();
     }
 
+    createRubBurst(position) {
+        if (!position) {
+            return;
+        }
+
+        const puffGeometry = new THREE.SphereGeometry(0.16, 12, 8);
+        for (let i = 0; i < 8; i++) {
+            const puff = new THREE.Mesh(
+                puffGeometry.clone(),
+                new THREE.MeshBasicMaterial({
+                    color: i % 2 ? 0xdfe8eb : 0xffd447,
+                    transparent: true,
+                    opacity: 0.42,
+                    depthWrite: false
+                })
+            );
+            puff.position.copy(position);
+            puff.position.y += 0.32;
+            this.scene.add(puff);
+            this.collisionEffects.push({
+                mesh: puff,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.08,
+                    0.035 + Math.random() * 0.035,
+                    (Math.random() - 0.5) * 0.08
+                ),
+                spin: new THREE.Vector3(0, 0, 0),
+                age: 0,
+                life: 16 + Math.floor(Math.random() * 8),
+                startOpacity: 0.42,
+                grow: 1.3,
+                gravity: 0.003,
+                drag: 0.96
+            });
+        }
+        puffGeometry.dispose();
+    }
+
     updateCollisionEffects() {
         this.collisionEffects = this.collisionEffects.filter(effect => {
             effect.age++;
@@ -5474,6 +5829,11 @@ class GameManager {
 
 
     updateTraffic() {
+        if (this.game?.settings?.raceModeId === 'race') {
+            this.updateRaceCompetitors();
+            return;
+        }
+
         if (this.game.car.trafficCollisionCooldown > 0) {
             this.game.car.trafficCollisionCooldown--;
         }
@@ -5515,6 +5875,196 @@ class GameManager {
         });
     }
 
+    updateRaceCompetitors() {
+        if (this.game.car.trafficCollisionCooldown > 0) {
+            this.game.car.trafficCollisionCooldown--;
+        }
+
+        const raceStarted = Boolean(this.game.startTime);
+        const roadLimit = this.game.road.width / 2 - 2.2;
+        const playerProgress = this.game.startLine - this.game.car.position.z;
+        const totalLength = this.game.startLine - this.game.finishLine;
+
+        this.trafficCars.forEach((competitor, index) => {
+            if (!competitor.raceCompetitor || competitor.finishedAt) {
+                return;
+            }
+
+            const competitorProgress = this.game.startLine - competitor.mesh.position.z;
+            const currentFrame = this.getVehicleRoadFrame(competitor.mesh.position.z, -1, competitor.vehicleType);
+            const lookAheadFrame = this.getVehicleRoadFrame(competitor.mesh.position.z - 95, -1, competitor.vehicleType);
+            const cornerDemand = THREE.MathUtils.clamp(Math.abs(this.getAngleDelta(currentFrame.yaw, lookAheadFrame.yaw)) / 0.16, 0, 1);
+            const catchup = THREE.MathUtils.clamp((playerProgress - competitorProgress) / Math.max(220, totalLength * 0.4), -0.02, 0.16);
+            const launchBoost = raceStarted && (competitor.launchBoostFrames || 0) > 0 ? 0.035 : 0;
+            const cornerCarry = raceStarted ? cornerDemand * 0.12 : 0;
+            const targetSpeed = raceStarted ? Math.max(0.92, competitor.baseSpeed + catchup + launchBoost + cornerCarry) : 0;
+            const response = targetSpeed > competitor.speed ? 0.038 : 0.014;
+            competitor.speed += (targetSpeed - competitor.speed) * response;
+            if (raceStarted && competitor.launchBoostFrames > 0) {
+                competitor.launchBoostFrames--;
+            }
+            const recoveryGrip = competitor.contactRecoveryFrames > 0 ? 0.018 : 0.04;
+            competitor.headingOffset = this.lerpAngle(competitor.headingOffset || 0, 0, recoveryGrip);
+            competitor.yawVelocity = (competitor.yawVelocity || 0) * (competitor.contactRecoveryFrames > 0 ? 0.92 : 0.86);
+            competitor.headingOffset += competitor.yawVelocity;
+            competitor.headingOffset = THREE.MathUtils.clamp(competitor.headingOffset || 0, -0.62, 0.62);
+            competitor.lateralVelocity = (competitor.lateralVelocity || 0) * (competitor.contactRecoveryFrames > 0 ? 0.94 : 0.9);
+            if (competitor.contactRecoveryFrames > 0) {
+                competitor.contactRecoveryFrames--;
+            }
+            const headingLateral = -Math.sin(competitor.headingOffset || 0) * competitor.speed * 0.96;
+            competitor.mesh.position.z -= Math.cos(competitor.headingOffset || 0) * competitor.speed;
+            competitor.targetXOffset += Math.sin((competitor.mesh.position.z * 0.006) + index) * 0.004;
+            competitor.targetXOffset = THREE.MathUtils.clamp(competitor.targetXOffset, -roadLimit, roadLimit);
+            const laneReturn = competitor.contactRecoveryFrames > 0 ? 0.026 : 0.04;
+            competitor.xOffset += (competitor.targetXOffset - competitor.xOffset) * laneReturn + headingLateral + (competitor.lateralVelocity || 0);
+            competitor.xOffset = THREE.MathUtils.clamp(competitor.xOffset, -roadLimit, roadLimit);
+
+            this.placeTrafficCar(
+                competitor,
+                competitor.mesh.position.z,
+                competitor.xOffset,
+                -1,
+                competitor.headingOffset || 0,
+                THREE.MathUtils.clamp(-(competitor.lateralVelocity || 0) * 0.6, -0.14, 0.14)
+            );
+            this.animateVehicleWheels(competitor.mesh, competitor.speed * 0.72, 0);
+
+            if (competitor.mesh.position.z <= this.game.finishLine) {
+                const elapsed = this.getElapsedRaceTime();
+                competitor.finishedAt = elapsed || 0;
+                this.game.raceResults.push({
+                    name: competitor.raceName,
+                    time: competitor.finishedAt,
+                    player: false
+                });
+            }
+        });
+
+        this.resolveTrafficSpacing();
+
+        this.trafficCars.forEach(competitor => {
+            if (competitor.finishedAt) {
+                return;
+            }
+
+            if (this.isPlayerCollidingWithTraffic(competitor) && this.game.car.trafficCollisionCooldown === 0) {
+                this.resolveRaceContact(competitor);
+            }
+        });
+    }
+
+    resolveRaceContact(competitor) {
+        const playerLimit = this.getPlayerRoadLimit();
+        const competitorLimit = this.game.road.width / 2 - 2.2;
+        const playerBounds = this.getVehicleCollisionBounds(this.getPlayerVehicleType());
+        const competitorBounds = this.getVehicleCollisionBounds(competitor.vehicleType);
+        const lateralLimit = (playerBounds.width + competitorBounds.width) * 0.58;
+        const longitudinalLimit = (playerBounds.length + competitorBounds.length) * 0.54;
+        const relativeZ = competitor.mesh.position.z - this.game.car.position.z;
+        const relativeX = competitor.xOffset - this.game.car.xOffset;
+        const lateralOverlap = Math.max(0, lateralLimit - Math.abs(this.game.car.xOffset - competitor.xOffset));
+        const longitudinalOverlap = Math.max(0, longitudinalLimit - Math.abs(relativeZ));
+        const normalLength = Math.max(0.001, Math.hypot(relativeX, relativeZ));
+        const normalX = relativeX / normalLength;
+        const normalZ = relativeZ / normalLength;
+        const playerVx = -Math.sin(this.game.car.travelAngle || 0) * this.game.car.speed + (this.game.car.lateralVelocity || 0);
+        const playerVz = -Math.cos(this.game.car.travelAngle || 0) * this.game.car.speed;
+        const competitorVx = -Math.sin(competitor.headingOffset || 0) * competitor.speed + (competitor.lateralVelocity || 0);
+        const competitorVz = -Math.cos(competitor.headingOffset || 0) * competitor.speed;
+        const relativeVx = playerVx - competitorVx;
+        const relativeVz = playerVz - competitorVz;
+        const closingSpeed = Math.max(0.16, relativeVx * normalX + relativeVz * normalZ);
+        const overlapImpulse = lateralOverlap * 0.18 + longitudinalOverlap * 0.12;
+        const impulse = THREE.MathUtils.clamp(closingSpeed * 0.48 + overlapImpulse, 0.22, 1.18);
+        const side = Math.sign(this.game.car.xOffset - competitor.xOffset) || (Math.random() < 0.5 ? -1 : 1);
+        const hitSide = Math.sign(this.game.car.xOffset - competitor.xOffset) || side;
+        const playerPush = THREE.MathUtils.clamp(lateralOverlap * 0.62 + impulse * 0.72, 0.28, 1.8);
+        const competitorPush = THREE.MathUtils.clamp(lateralOverlap * 0.72 + impulse * 0.86, 0.34, 2.05);
+        const playerBehind = this.game.car.position.z > competitor.mesh.position.z;
+        const zSeparation = longitudinalOverlap > 0 ? longitudinalOverlap + 0.85 : 0;
+        const rearQuarterHit = playerBehind ? 1 : -0.72;
+        const offCenter = THREE.MathUtils.clamp(Math.abs(relativeX) / Math.max(0.1, lateralLimit), 0.25, 1.15);
+        const torque = THREE.MathUtils.clamp(hitSide * rearQuarterHit * (impulse * 0.48 + longitudinalOverlap * 0.035) * offCenter, -0.58, 0.58);
+
+        this.game.car.xOffset = THREE.MathUtils.clamp(this.game.car.xOffset + side * playerPush, -playerLimit, playerLimit);
+        this.game.car.position.z += playerBehind ? zSeparation * 0.58 : -zSeparation * 0.42;
+        this.game.car.lateralVelocity -= normalX * impulse * 0.62;
+        this.game.car.angle -= torque * 1.18;
+        this.game.car.travelAngle -= torque * 0.88;
+        this.game.car.yawVelocity = (this.game.car.yawVelocity || 0) - torque * 0.34;
+        this.game.car.driftAmount = Math.max(this.game.car.driftAmount || 0, THREE.MathUtils.clamp(impulse * 0.95, 0.24, 0.86));
+        this.game.car.speed *= THREE.MathUtils.clamp(1 - impulse * 0.2, 0.76, 0.94);
+        competitor.xOffset = THREE.MathUtils.clamp(competitor.xOffset - side * competitorPush, -competitorLimit, competitorLimit);
+        competitor.targetXOffset = competitor.xOffset;
+        competitor.mesh.position.z += playerBehind ? -zSeparation * 0.42 : zSeparation * 0.58;
+        competitor.lateralVelocity = (competitor.lateralVelocity || 0) + normalX * impulse * 0.72;
+        competitor.yawVelocity = (competitor.yawVelocity || 0) + torque * 0.48;
+        competitor.headingOffset = THREE.MathUtils.clamp((competitor.headingOffset || 0) + torque * 1.22, -0.68, 0.68);
+        competitor.contactRecoveryFrames = 95;
+        competitor.speed *= THREE.MathUtils.clamp(1 - impulse * 0.15, 0.8, 0.95);
+        const playerFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, this.getPlayerVehicleType());
+        const playerRoadData = playerFrame.roadData;
+        this.game.car.position.x = playerRoadData.curve + this.game.car.xOffset;
+        this.game.car.position.y = this.getVehicleGroundY(playerFrame, this.getPlayerVehicleType());
+        this.playerCar.position.copy(this.game.car.position);
+        this.applyVehicleRoadPose(this.playerCar, playerFrame, this.getAngleDelta(playerFrame.yaw, this.game.car.visualYaw || playerFrame.yaw));
+        this.alignVehicleToRoadSurface(this.playerCar);
+        this.carPosition.copy(this.playerCar.position);
+        this.game.car.position.copy(this.carPosition);
+        this.placeTrafficCar(competitor, competitor.mesh.position.z, competitor.xOffset, -1, competitor.headingOffset || 0);
+        this.game.car.trafficCollisionCooldown = 8;
+        this.cameraShakeDuration = 17;
+        this.cameraShakeFrames = 17;
+        this.cameraShakeStrength = THREE.MathUtils.clamp(0.1 + impulse * 0.18, 0.14, 0.3);
+        this.createRubBurst(this.playerCar.position.clone().add(competitor.mesh.position).multiplyScalar(0.5));
+    }
+
+    resolveRaceCompetitorContact(a, b, lateralLimit, longitudinalLimit, xGap, zGap) {
+        const relativeX = b.xOffset - a.xOffset;
+        const relativeZ = b.mesh.position.z - a.mesh.position.z;
+        const normalLength = Math.max(0.001, Math.hypot(relativeX, relativeZ));
+        const normalX = relativeX / normalLength;
+        const normalZ = relativeZ / normalLength;
+        const lateralOverlap = Math.max(0, lateralLimit - xGap);
+        const longitudinalOverlap = Math.max(0, longitudinalLimit - zGap);
+        const aVx = -Math.sin(a.headingOffset || 0) * a.speed + (a.lateralVelocity || 0);
+        const aVz = -Math.cos(a.headingOffset || 0) * a.speed;
+        const bVx = -Math.sin(b.headingOffset || 0) * b.speed + (b.lateralVelocity || 0);
+        const bVz = -Math.cos(b.headingOffset || 0) * b.speed;
+        const closingSpeed = Math.max(0.08, (aVx - bVx) * normalX + (aVz - bVz) * normalZ);
+        const impulse = THREE.MathUtils.clamp(closingSpeed * 0.34 + lateralOverlap * 0.12 + longitudinalOverlap * 0.08, 0.12, 0.68);
+        const side = Math.sign(a.xOffset - b.xOffset) || 1;
+        const aBehind = a.mesh.position.z > b.mesh.position.z;
+        const rearQuarter = aBehind ? 1 : -1;
+        const offCenter = THREE.MathUtils.clamp(Math.abs(relativeX) / Math.max(0.1, lateralLimit), 0.2, 1);
+        const torque = THREE.MathUtils.clamp(side * rearQuarter * (impulse * 0.34 + longitudinalOverlap * 0.018) * offCenter, -0.34, 0.34);
+        const roadLimit = this.game.road.width / 2 - 2.2;
+        const lateralCorrection = lateralOverlap * 0.42 + impulse * 0.42;
+        const zCorrection = longitudinalOverlap > 0 ? longitudinalOverlap + 0.55 : 0;
+
+        a.xOffset = THREE.MathUtils.clamp(a.xOffset + side * lateralCorrection, -roadLimit, roadLimit);
+        b.xOffset = THREE.MathUtils.clamp(b.xOffset - side * lateralCorrection, -roadLimit, roadLimit);
+        a.targetXOffset = a.xOffset;
+        b.targetXOffset = b.xOffset;
+        a.mesh.position.z += aBehind ? zCorrection * 0.56 : -zCorrection * 0.44;
+        b.mesh.position.z += aBehind ? -zCorrection * 0.44 : zCorrection * 0.56;
+
+        a.lateralVelocity = (a.lateralVelocity || 0) - normalX * impulse * 0.46;
+        b.lateralVelocity = (b.lateralVelocity || 0) + normalX * impulse * 0.46;
+        a.yawVelocity = (a.yawVelocity || 0) - torque * 0.32;
+        b.yawVelocity = (b.yawVelocity || 0) + torque * 0.32;
+        a.headingOffset = THREE.MathUtils.clamp((a.headingOffset || 0) - torque * 0.86, -0.48, 0.48);
+        b.headingOffset = THREE.MathUtils.clamp((b.headingOffset || 0) + torque * 0.86, -0.48, 0.48);
+        a.contactRecoveryFrames = Math.max(a.contactRecoveryFrames || 0, 58);
+        b.contactRecoveryFrames = Math.max(b.contactRecoveryFrames || 0, 58);
+        a.speed *= THREE.MathUtils.clamp(1 - impulse * 0.1, 0.86, 0.96);
+        b.speed *= THREE.MathUtils.clamp(1 - impulse * 0.1, 0.86, 0.96);
+
+        this.placeTrafficCar(a, a.mesh.position.z, a.xOffset, -1, a.headingOffset || 0);
+        this.placeTrafficCar(b, b.mesh.position.z, b.xOffset, -1, b.headingOffset || 0);
+    }
+
     resolveTrafficSpacing() {
         for (let iteration = 0; iteration < 2; iteration++) {
             for (let i = 0; i < this.trafficCars.length; i++) {
@@ -5533,17 +6083,26 @@ class GameManager {
                     const bBounds = this.getVehicleCollisionBounds(b.vehicleType);
                     const xGap = Math.abs(a.xOffset - b.xOffset);
                     const zGap = Math.abs(a.mesh.position.z - b.mesh.position.z);
+                    const sameDirectionRace = this.game?.settings?.raceModeId === 'race';
                     const lateralLimit = (aBounds.width + bBounds.width) * 0.62;
-                    const longitudinalLimit = Math.max(30, (aBounds.length + bBounds.length) * 2.9);
+                    const longitudinalLimit = sameDirectionRace
+                        ? Math.max(8, (aBounds.length + bBounds.length) * 1.05)
+                        : Math.max(30, (aBounds.length + bBounds.length) * 2.9);
 
                     if (xGap >= lateralLimit || zGap >= longitudinalLimit) {
                         continue;
                     }
 
-                    const rearCar = a.mesh.position.z < b.mesh.position.z ? a : b;
+                    const rearCar = sameDirectionRace
+                        ? (a.mesh.position.z > b.mesh.position.z ? a : b)
+                        : (a.mesh.position.z < b.mesh.position.z ? a : b);
                     const correction = (longitudinalLimit - zGap) * 0.62 + 1.2;
-                    rearCar.mesh.position.z -= correction;
-                    this.placeTrafficCar(rearCar, rearCar.mesh.position.z, rearCar.xOffset);
+                    if (sameDirectionRace) {
+                        this.resolveRaceCompetitorContact(a, b, lateralLimit, longitudinalLimit, xGap, zGap);
+                    } else {
+                        rearCar.mesh.position.z -= correction;
+                        this.placeTrafficCar(rearCar, rearCar.mesh.position.z, rearCar.xOffset, 1);
+                    }
                 }
             }
         }
@@ -5554,7 +6113,7 @@ class GameManager {
         const trafficBounds = this.getVehicleCollisionBounds(trafficCar.vehicleType);
         const xGap = Math.abs(this.game.car.xOffset - trafficCar.xOffset);
         const relativeZ = trafficCar.mesh.position.z - this.game.car.position.z;
-        if (relativeZ > 1.5) {
+        if (this.game?.settings?.raceModeId !== 'race' && relativeZ > 1.5) {
             return false;
         }
 

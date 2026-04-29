@@ -49,6 +49,7 @@
     const circuitSelect = document.getElementById('circuitSelect');
     const difficultySelect = document.getElementById('difficultySelect');
     const assistSelect = document.getElementById('assistSelect');
+    const raceModeSelect = document.getElementById('raceModeSelect');
     const timeOfDaySelect = document.getElementById('timeOfDaySelect');
     const weatherSelect = document.getElementById('weatherSelect');
     const stageCardSelect = document.getElementById('stageCardSelect');
@@ -70,6 +71,7 @@
     const weatherStorageKey = 'rallyRushIIWeatherMode';
     const timeOfDayOptions = [
         { id: 'day', label: 'Day' },
+        { id: 'sunset', label: 'Sunset' },
         { id: 'night', label: 'Night' }
     ];
     const weatherOptions = [
@@ -84,6 +86,7 @@
             description: 'Wet blacktop through green valleys, stone walls, and rolling Highland slopes.',
             image: 'assets/menu/stage-scotland.jpg',
             length: '6.10 KM',
+            rallyLength: '18.30 KM',
             laps: '1'
         },
         desert: {
@@ -92,6 +95,7 @@
             description: 'Wide sun-baked highway across dunes, dry washes, and warm red-rock mesas.',
             image: 'assets/menu/stage-desert.jpg',
             length: '6.40 KM',
+            rallyLength: '19.20 KM',
             laps: '1'
         },
         alpine: {
@@ -100,6 +104,7 @@
             description: 'Narrow mountain asphalt with steep grade changes, snow banks, and tight bends.',
             image: 'assets/menu/stage-alpine.jpg',
             length: '5.80 KM',
+            rallyLength: '17.40 KM',
             laps: '1'
         },
         city: {
@@ -108,6 +113,7 @@
             description: 'Dense neon towers, elevated highway ramps, wet pavement, and urban speed.',
             image: 'assets/menu/stage-city.jpg',
             length: '5.95 KM',
+            rallyLength: '17.85 KM',
             laps: '1'
         },
         lakes: {
@@ -116,6 +122,7 @@
             description: 'Fast lakeside road with dark water, forest belts, shore rocks, and open curves.',
             image: 'assets/menu/stage-lakes.jpg',
             length: '6.25 KM',
+            rallyLength: '18.75 KM',
             laps: '1'
         },
         jungle: {
@@ -124,6 +131,7 @@
             description: 'A humid night run under dense jungle growth, wet road spray, and tight visibility.',
             image: 'assets/menu/stage-jungle.jpg',
             length: '5.70 KM',
+            rallyLength: '17.10 KM',
             laps: '1'
         },
         coastal: {
@@ -132,6 +140,7 @@
             description: 'Cliffside sea views, low white guard walls, pine hillsides, and bright coastal bends.',
             image: 'assets/menu/stage-coastal.jpg',
             length: '6.05 KM',
+            rallyLength: '18.15 KM',
             laps: '1'
         }
     };
@@ -193,6 +202,7 @@
             stage: circuitSelect.value,
             difficulty: gameManager.getDifficultyProfile ? gameManager.getDifficultyProfile(gameManager.getDifficultyLevel()).label : null,
             drivingAssist: gameManager.getDrivingAssistProfile ? gameManager.getDrivingAssistProfile(gameManager.getDrivingAssistLevel()).label : null,
+            raceMode: gameManager.getRaceModeProfile ? gameManager.getRaceModeProfile(gameManager.getRaceMode()).label : null,
             paused: Boolean(gameManager.isPaused),
             musicEnabled: Boolean(gameManager.musicEnabled),
             settingsOpen: settingsPanel.style.display !== 'none',
@@ -390,7 +400,8 @@
             selectedStageDescription.textContent = info.description;
         }
         if (selectedStageLength) {
-            selectedStageLength.textContent = info.length;
+            const raceMode = gameManager.getRaceMode ? gameManager.getRaceMode() : 'traffic';
+            selectedStageLength.textContent = raceMode === 'rally' ? info.rallyLength || info.length : info.length;
         }
         if (selectedStageLaps) {
             selectedStageLaps.textContent = info.laps;
@@ -464,7 +475,10 @@
                 expert: 'III',
                 full: 'F',
                 sport: 'S',
-                manual: 'M'
+                manual: 'M',
+                traffic: 'T',
+                rally: 'R',
+                race: 'G'
             }[option.id] || '';
             glyph.setAttribute('aria-hidden', 'true');
             const label = document.createElement('span');
@@ -480,11 +494,12 @@
     }
 
     function getTimeOfDayMode() {
-        return localStorage.getItem(timeOfDayStorageKey) === 'night' ? 'night' : 'day';
+        const stored = localStorage.getItem(timeOfDayStorageKey);
+        return ['day', 'sunset', 'night'].includes(stored) ? stored : 'day';
     }
 
     function setTimeOfDayMode(id) {
-        localStorage.setItem(timeOfDayStorageKey, id === 'night' ? 'night' : 'day');
+        localStorage.setItem(timeOfDayStorageKey, ['day', 'sunset', 'night'].includes(id) ? id : 'day');
     }
 
     function getWeatherMode() {
@@ -517,6 +532,18 @@
                 gameManager.getDrivingAssistOptions(),
                 gameManager.getDrivingAssistLevel(),
                 id => gameManager.setDrivingAssistLevel(id)
+            );
+        }
+
+        if (gameManager.getRaceModeOptions) {
+            renderModeSelect(
+                raceModeSelect,
+                gameManager.getRaceModeOptions(),
+                gameManager.getRaceMode(),
+                id => {
+                    gameManager.setRaceMode(id);
+                    updateStageMenuUi();
+                }
             );
         }
 
