@@ -3162,33 +3162,16 @@ class GameManager {
         const isTire = this.hasAssetNameToken(name, ['tire', 'tyre', 'rubber', 'wheel', 'wheek']);
         const isRim = this.hasAssetNameToken(name, ['rim', 'disc', 'brake']);
         const isLight = /headlight|brakelight|signallight|taillight|optics|lights/.test(normalizedName);
-        const isApexDarkCanopyTrim = type === 'apexGt'
-            && /plastic smooth|blocker/.test(normalizedName);
+        const isApexGraphitePanel = type === 'apexGt'
+            && /plastic smooth/.test(normalizedName);
+        const isApexDarkBlocker = type === 'apexGt'
+            && /blocker/.test(normalizedName);
         const isPaint = /paint|body|panel|toycar|truck|sportscar|suv|orange|white|body color/.test(normalizedName)
             && !isGlass
             && !isTire
             && !isLight;
 
-        if (type === 'apexGt' && isGlass) {
-            const glass = new THREE.MeshBasicMaterial({
-                color: 0x02070b,
-                transparent: false,
-                opacity: 1,
-                depthWrite: true,
-                side: cloned.side
-            });
-            glass.name = cloned.name || 'glass';
-            glass.userData.keepTextureMaps = true;
-            glass.userData.isVehicleGlass = true;
-            glass.userData.cockpitBaseOpacity = glass.opacity;
-            glass.userData.cockpitBaseTransparent = glass.transparent;
-            glass.userData.cockpitBaseDepthWrite = glass.depthWrite;
-            glass.needsUpdate = true;
-            cloned.dispose?.();
-            return glass;
-        }
-
-        if (isPaint && cloned.color) {
+        if (isPaint && cloned.color && type !== 'apexGt') {
             cloned.map = null;
             if (cloned.aoMap) {
                 cloned.aoMapIntensity = 1.05;
@@ -3212,7 +3195,24 @@ class GameManager {
                 cloned.emissiveIntensity = 0;
             }
             cloned.envMapIntensity = 1.15;
-        } else if (isApexDarkCanopyTrim && cloned.color) {
+        } else if (isApexGraphitePanel && cloned.color) {
+            cloned.map = null;
+            cloned.color.setHex(0x080d13);
+            cloned.transparent = false;
+            cloned.opacity = 1;
+            cloned.depthWrite = true;
+            cloned.envMapIntensity = 0.42;
+            if ('roughness' in cloned) {
+                cloned.roughness = 0.68;
+            }
+            if ('metalness' in cloned) {
+                cloned.metalness = 0.02;
+            }
+            if ('clearcoat' in cloned) {
+                cloned.clearcoat = Math.max(cloned.clearcoat || 0, 0.12);
+                cloned.clearcoatRoughness = Math.min(cloned.clearcoatRoughness || 0.5, 0.5);
+            }
+        } else if (isApexDarkBlocker && cloned.color) {
             cloned.map = null;
             cloned.color.setHex(0x020407);
             cloned.transparent = false;
@@ -3226,24 +3226,20 @@ class GameManager {
                 cloned.metalness = 0;
             }
         } else if (isGlass && cloned.color) {
-            const useOpaqueDarkGlass = type === 'apexGt';
-            if (useOpaqueDarkGlass) {
-                cloned.map = null;
-            }
-            cloned.color.setHex(useOpaqueDarkGlass ? 0x02070b : 0x172b3d);
-            cloned.transparent = !useOpaqueDarkGlass;
-            cloned.opacity = useOpaqueDarkGlass ? 1 : Math.min(cloned.opacity || 0.8, 0.68);
-            cloned.depthWrite = useOpaqueDarkGlass;
+            const useApexDarkGlass = type === 'apexGt';
+            cloned.color.setHex(useApexDarkGlass ? 0x03080c : 0x172b3d);
+            cloned.transparent = true;
+            cloned.opacity = useApexDarkGlass ? 0.86 : Math.min(cloned.opacity || 0.8, 0.68);
             cloned.userData.isVehicleGlass = true;
             cloned.userData.cockpitBaseOpacity = cloned.opacity;
             cloned.userData.cockpitBaseTransparent = cloned.transparent;
             cloned.userData.cockpitBaseDepthWrite = cloned.depthWrite;
-            cloned.envMapIntensity = useOpaqueDarkGlass ? 0 : 1.7;
+            cloned.envMapIntensity = useApexDarkGlass ? 1.15 : 1.7;
             if ('roughness' in cloned) {
-                cloned.roughness = useOpaqueDarkGlass ? 0.95 : 0.05;
+                cloned.roughness = useApexDarkGlass ? 0.18 : 0.05;
             }
             if ('metalness' in cloned) {
-                cloned.metalness = useOpaqueDarkGlass ? 0 : Math.max(cloned.metalness || 0, 0.08);
+                cloned.metalness = useApexDarkGlass ? 0.02 : Math.max(cloned.metalness || 0, 0.08);
             }
         } else if (isTire && cloned.color) {
             cloned.color.offsetHSL(0, -0.04, -0.05);

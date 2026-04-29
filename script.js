@@ -134,8 +134,8 @@
         }
     };
     const vehicleMenuImages = {
-        rally: 'assets/menu/car-rally.jpg',
-        apexGt: 'assets/menu/car-apexGt.jpg'
+        rally: 'assets/menu/car-rally.png',
+        apexGt: 'assets/menu/car-apexGt.png'
     };
     const garagePreviewCanvas = document.getElementById('garagePreviewCanvas');
     const garagePreviewStatus = document.getElementById('garagePreviewStatus');
@@ -557,13 +557,13 @@
         }
 
         const previewScene = new THREE.Scene();
-        const previewCamera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 80);
+        const previewCamera = new THREE.PerspectiveCamera(38, 16 / 9, 0.01, 1000);
         let previewRenderer = null;
         try {
             previewRenderer = new THREE.WebGLRenderer({
                 canvas: garagePreviewCanvas,
                 antialias: true,
-                alpha: true,
+                alpha: false,
                 preserveDrawingBuffer: true
             });
         } catch (error) {
@@ -582,76 +582,89 @@
             };
         }
         previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        previewRenderer.setClearColor(0x000000, 0);
-        if (THREE.sRGBEncoding) {
+        previewRenderer.setClearColor(0x070a0d, 1);
+        if (THREE.SRGBColorSpace && 'outputColorSpace' in previewRenderer) {
+            previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
+        } else if (THREE.sRGBEncoding) {
             previewRenderer.outputEncoding = THREE.sRGBEncoding;
         }
         if (THREE.ACESFilmicToneMapping) {
             previewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-            previewRenderer.toneMappingExposure = 0.92;
+            previewRenderer.toneMappingExposure = 0.4;
         }
 
         const stage = new THREE.Group();
         previewScene.add(stage);
+        previewScene.background = new THREE.Color(0x070a0d);
+        if (gameManager.createVehicleEnvironmentMap) {
+            previewScene.environment = gameManager.vehicleEnvironmentMap || gameManager.createVehicleEnvironmentMap();
+        }
 
         const turntable = new THREE.Group();
         stage.add(turntable);
 
-        const platformMaterial = new THREE.MeshStandardMaterial({
-            color: 0x111820,
-            metalness: 0.35,
-            roughness: 0.42,
-            transparent: true,
-            opacity: 0.92
-        });
-        const platform = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.95, 0.16, 72), platformMaterial);
-        platform.position.y = -0.14;
-        platform.receiveShadow = true;
-        stage.add(platform);
+        const ambient = new THREE.HemisphereLight(0xffffff, 0xc4cbd2, 0);
+        previewScene.add(ambient);
 
-        const ringMaterial = new THREE.MeshBasicMaterial({
-            color: 0x5fe2ff,
-            transparent: true,
-            opacity: 0.72
-        });
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.018, 8, 96), ringMaterial);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = -0.04;
-        stage.add(ring);
+        const overheadRing = new THREE.Group();
+        previewScene.add(overheadRing);
 
-        const gridMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.12
-        });
-        [-1.2, 0, 1.2].forEach(offset => {
-            const line = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.018, 4.6), gridMaterial);
-            line.position.set(offset, -0.03, 0);
-            stage.add(line);
-        });
+        for (let i = 0; i < 16; i++) {
+            const angle = (i / 16) * Math.PI * 2;
+            const light = new THREE.PointLight(0xffffff, 0.26, 0, 1.65);
+            light.position.set(Math.cos(angle), 0, Math.sin(angle));
+            overheadRing.add(light);
+        }
 
-        const hemi = new THREE.HemisphereLight(0xf4f1ea, 0x101419, 1.08);
-        previewScene.add(hemi);
+        const centerGlow = new THREE.PointLight(0xffffff, 0.34, 0, 1.7);
+        overheadRing.add(centerGlow);
 
-        const key = new THREE.DirectionalLight(0xfffaf0, 1.62);
-        key.position.set(-4.5, 5, 5.5);
-        previewScene.add(key);
+        const ringVisual = new THREE.Mesh(
+            new THREE.TorusGeometry(1, 0.012, 12, 160),
+            new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.18,
+                toneMapped: false
+            })
+        );
+        ringVisual.rotation.x = Math.PI / 2;
+        overheadRing.add(ringVisual);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.46);
-        rim.position.set(4.2, 2.1, -3.6);
-        previewScene.add(rim);
+        const lowFillLight = new THREE.DirectionalLight(0xd7e5f4, 0.42);
+        lowFillLight.position.set(-4, 2, -5);
+        previewScene.add(lowFillLight);
 
-        const fill = new THREE.DirectionalLight(0xfff0d9, 0.34);
-        fill.position.set(-0.8, 1.6, 4.2);
-        previewScene.add(fill);
+        const frontFillLight = new THREE.DirectionalLight(0xffffff, 0.36);
+        frontFillLight.position.set(3, 2.5, 5);
+        previewScene.add(frontFillLight);
 
-        previewCamera.position.set(0, 1.8, 6.9);
-        previewCamera.lookAt(0, 0.62, 0);
+        const floor = new THREE.Mesh(
+            new THREE.CircleGeometry(5, 96),
+            new THREE.MeshStandardMaterial({
+                color: 0x6d777d,
+                roughness: 0.72,
+                metalness: 0
+            })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.02;
+        floor.visible = false;
+        stage.add(floor);
+
+        const grid = new THREE.GridHelper(10, 20, 0x7d8a91, 0x606b71);
+        grid.position.y = -0.015;
+        grid.visible = false;
+        stage.add(grid);
+
+        previewCamera.position.set(4, 2.4, 5);
+        previewCamera.lookAt(0, 0, 0);
 
         let selectedType = null;
         let previewCar = null;
         let animationId = null;
         let isPaused = false;
+        let fittedVehicle = null;
 
         function resize() {
             const host = garagePreviewCanvas.parentElement;
@@ -661,6 +674,10 @@
             previewRenderer.setSize(width, height, false);
             previewCamera.aspect = width / height;
             previewCamera.updateProjectionMatrix();
+            if (previewCar && fittedVehicle === previewCar) {
+                fittedVehicle = null;
+                fitCameraToVehicle(previewCar);
+            }
         }
 
         function removePreviewCar() {
@@ -671,6 +688,70 @@
             turntable.remove(previewCar);
             disposeObject3d(previewCar);
             previewCar = null;
+            fittedVehicle = null;
+        }
+
+        function isDisplayMesh(mesh) {
+            if (!mesh?.isMesh || !mesh.visible || mesh.name === 'vehicle-collision-proxy') {
+                return false;
+            }
+
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            return materials.some(material => material && material.visible !== false)
+                && !mesh.name.toLowerCase().includes('shadow');
+        }
+
+        function getDisplayBox(object) {
+            const box = new THREE.Box3();
+            let hasDisplayMesh = false;
+
+            object.updateMatrixWorld(true);
+            object.traverse(child => {
+                if (!isDisplayMesh(child)) {
+                    return;
+                }
+
+                const childBox = new THREE.Box3().setFromObject(child);
+                if (!childBox.isEmpty()) {
+                    box.union(childBox);
+                    hasDisplayMesh = true;
+                }
+            });
+
+            return hasDisplayMesh ? box : new THREE.Box3().setFromObject(object);
+        }
+
+        function fitCameraToVehicle(vehicle) {
+            const box = getDisplayBox(vehicle);
+            if (box.isEmpty()) {
+                return;
+            }
+
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const sphere = box.getBoundingSphere(new THREE.Sphere());
+            const maxSize = Math.max(size.x, size.y, size.z);
+            const verticalFov = THREE.MathUtils.degToRad(previewCamera.fov);
+            const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * previewCamera.aspect);
+            const fitFov = Math.min(verticalFov, horizontalFov);
+            const fitDistance = sphere.radius / Math.sin(fitFov / 2);
+            const direction = new THREE.Vector3(1.15, 0.32, 0.58).normalize();
+
+            previewCamera.position.copy(center).add(direction.multiplyScalar(fitDistance * 0.68));
+            previewCamera.near = Math.max(maxSize / 1000, 0.01);
+            previewCamera.far = Math.max(maxSize * 100, 1000);
+            previewCamera.lookAt(center);
+            previewCamera.updateProjectionMatrix();
+
+            floor.position.y = box.min.y - Math.max(maxSize * 0.018, 0.02);
+            grid.position.y = floor.position.y + 0.002;
+
+            const ringRadius = Math.max(maxSize * 0.72, 1.2);
+            const ringHeight = box.max.y + Math.max(maxSize * 0.38, 0.75);
+            overheadRing.position.set(center.x, ringHeight, center.z);
+            overheadRing.scale.setScalar(ringRadius);
+            centerGlow.position.set(0, 0, 0);
+            fittedVehicle = vehicle;
         }
 
         function setVehicle(type) {
@@ -687,23 +768,28 @@
             const dimensions = gameManager.getVehicleDimensions(option.type);
             const scale = Math.min(0.95, 4.3 / Math.max(dimensions.length, 1));
             previewCar.scale.setScalar(scale);
-            previewCar.rotation.y = -Math.PI * 0.68;
-            previewCar.position.y = 0;
+            previewCar.rotation.y = -Math.PI * 0.42;
+            previewCar.position.y = -0.05;
             turntable.add(previewCar);
             resize();
+            fitCameraToVehicle(previewCar);
         }
 
         function render(time = 0) {
             if (!isPaused) {
-                const pulse = (Math.sin(time * 0.002) + 1) * 0.5;
-                ringMaterial.opacity = 0.42 + pulse * 0.3;
-                turntable.rotation.y = Math.sin(time * 0.0007) * 0.16;
+                turntable.rotation.y = Math.sin(time * 0.00055) * 0.08;
 
                 if (previewCar) {
                     const ready = !previewCar.userData.assetVehicle
                         || previewCar.userData.assetReady
                         || previewCar.userData.assetFallback;
                     setStatus(ready ? 'Vehicle ready' : 'Loading showroom model');
+                    if (garagePreviewStatus?.parentElement) {
+                        garagePreviewStatus.parentElement.style.display = ready ? 'none' : 'inline-flex';
+                    }
+                    if (ready && fittedVehicle !== previewCar) {
+                        fitCameraToVehicle(previewCar);
+                    }
                 }
 
                 previewRenderer.render(previewScene, previewCamera);
