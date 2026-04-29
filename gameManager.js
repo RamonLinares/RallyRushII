@@ -93,6 +93,12 @@ const environments = {
         mountainRoadsidePower: 2.2,
         fogColor: 0x90a4b2,
         fogDensity: 0.00135,
+        nightFogDensityMultiplier: 2.35,
+        nightFogColor: 0x050911,
+        nightSkyOverlay: {
+            color: 'rgba(1, 4, 10, 0.84)',
+            horizon: 'rgba(38, 68, 92, 0.18)'
+        },
         decorativeLightLimit: 4
     },
     lakes: {
@@ -4203,9 +4209,14 @@ class GameManager {
 
         const selectedCircuit = document.getElementById('circuitSelect').value;
         const timeOfDayMode = localStorage.getItem('rallyRushIITimeOfDay') === 'night' ? 'night' : 'day';
-        const rainEnabled = localStorage.getItem('rallyRushIIRainEnabled') !== 'off';
+        const storedWeatherMode = localStorage.getItem('rallyRushIIWeatherMode');
+        const weatherMode = ['clear', 'rain', 'fog'].includes(storedWeatherMode)
+            ? storedWeatherMode
+            : localStorage.getItem('rallyRushIIRainEnabled') === 'off' ? 'clear' : 'rain';
+        const rainEnabled = weatherMode === 'rain';
         const environment = {
             ...environments[selectedCircuit],
+            weatherMode,
             disableRain: !rainEnabled,
             disableVehicleLights: timeOfDayMode === 'day',
             nightRace: timeOfDayMode === 'night'

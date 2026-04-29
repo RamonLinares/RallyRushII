@@ -2192,6 +2192,10 @@ body[data-menu-stage="coastal"] #startScreen::before {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+#weatherSelect {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .modeOption {
     display: grid;
     grid-template-rows: 26px min-content;
@@ -2311,6 +2315,69 @@ body[data-menu-stage="coastal"] #startScreen::before {
     background: currentColor;
     box-shadow: 8px 0 0 currentColor, 16px 0 0 currentColor;
     transform: skewX(-18deg);
+}
+
+.modeGlyph-clear::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow:
+        0 -10px 0 -6px currentColor,
+        0 10px 0 -6px currentColor,
+        10px 0 0 -6px currentColor,
+        -10px 0 0 -6px currentColor,
+        7px 7px 0 -6px currentColor,
+        -7px -7px 0 -6px currentColor,
+        7px -7px 0 -6px currentColor,
+        -7px 7px 0 -6px currentColor;
+}
+
+.modeGlyph-rain::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 3px;
+    top: 8px;
+    height: 13px;
+    border-radius: 14px;
+    background: currentColor;
+    box-shadow: 7px -5px 0 -1px currentColor, 14px -2px 0 -4px currentColor;
+}
+
+.modeGlyph-rain::after {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 22px;
+    width: 3px;
+    height: 6px;
+    background: currentColor;
+    box-shadow: 8px 0 0 currentColor, 16px 0 0 currentColor;
+    transform: skewX(-18deg);
+}
+
+.modeGlyph-fog::before,
+.modeGlyph-fog::after {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    height: 3px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.modeGlyph-fog::before {
+    top: 8px;
+    box-shadow: 7px 7px 0 currentColor;
+}
+
+.modeGlyph-fog::after {
+    top: 18px;
+    right: 8px;
+    opacity: 0.72;
 }
 
 .modeLabel {

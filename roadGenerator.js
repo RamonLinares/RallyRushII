@@ -8557,10 +8557,14 @@ function generateRoadAndTerrain(scene, game, environment) {
         const baseFog = new THREE.Color(environment.fogColor || 0x73b6cf);
         const isNight = Boolean(environment.nightRace);
         const isRainy = !environment.disableRain;
+        const isFoggy = environment.weatherMode === 'fog';
         const fogColor = baseFog.clone();
         let fogDensity = environment.fogDensity || 0.00115;
         let skyColor = baseFog.clone();
         let skyOverlay = null;
+        let fogMode = 'exp2';
+        let fogNear = 0;
+        let fogFar = 0;
 
         if (isNight) {
             fogColor.lerp(new THREE.Color(0x071321), 0.7);
@@ -8592,7 +8596,37 @@ function generateRoadAndTerrain(scene, game, environment) {
             };
         }
 
-        return { fogColor, fogDensity, skyColor, skyOverlay };
+        if (isNight && environment.id === 'city') {
+            if (Number.isFinite(environment.nightFogDensityMultiplier)) {
+                fogDensity *= Math.max(0.1, environment.nightFogDensityMultiplier);
+            }
+            if (Number.isFinite(environment.nightFogColor)) {
+                fogColor.lerp(new THREE.Color(environment.nightFogColor), 0.78);
+                skyColor.lerp(new THREE.Color(environment.nightFogColor), 0.42);
+            }
+            if (environment.nightSkyOverlay) {
+                skyOverlay = {
+                    color: environment.nightSkyOverlay.color || skyOverlay?.color || 'rgba(3, 10, 22, 0.72)',
+                    horizon: environment.nightSkyOverlay.horizon || skyOverlay?.horizon || 'rgba(50, 80, 108, 0.22)'
+                };
+            }
+        }
+
+        if (isFoggy) {
+            fogMode = 'linear';
+            const fogWeatherColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1d252b : 0x7f8f8c), isNight ? 0.46 : 0.38);
+            const skyFogColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1a242c : 0x81918f), isNight ? 0.58 : 0.44);
+            fogColor.copy(fogWeatherColor);
+            skyColor.lerp(skyFogColor, isNight ? 0.62 : 0.48);
+            fogNear = isNight ? 18 : 24;
+            fogFar = isNight ? 190 : 225;
+            skyOverlay = {
+                color: isNight ? 'rgba(12, 18, 22, 0.52)' : 'rgba(88, 104, 102, 0.16)',
+                horizon: isNight ? 'rgba(84, 104, 110, 0.32)' : 'rgba(118, 134, 130, 0.26)'
+            };
+        }
+
+        return { fogColor, fogDensity, fogMode, fogNear, fogFar, skyColor, skyOverlay };
     }
 
     function adaptSkyTexture(texture, atmosphere) {
@@ -8638,7 +8672,11 @@ function generateRoadAndTerrain(scene, game, environment) {
     scene.background = stageSkyTexture
         ? adaptSkyTexture(stageSkyTexture, atmosphere)
         : atmosphere.skyColor;
-    scene.fog = environment.disableFog ? null : new THREE.FogExp2(atmosphere.fogColor, atmosphere.fogDensity);
+    scene.fog = environment.disableFog
+        ? null
+        : atmosphere.fogMode === 'linear'
+            ? new THREE.Fog(atmosphere.fogColor, atmosphere.fogNear, atmosphere.fogFar)
+            : new THREE.FogExp2(atmosphere.fogColor, atmosphere.fogDensity);
 
     function createBannerTexture(label, options = {}) {
         const highVisibility = Boolean(options.highVisibility);

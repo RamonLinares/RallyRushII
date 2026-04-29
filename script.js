@@ -67,13 +67,15 @@
     const selectedCarStats = document.getElementById('selectedCarStats');
     const timeOfDayStorageKey = 'rallyRushIITimeOfDay';
     const rainStorageKey = 'rallyRushIIRainEnabled';
+    const weatherStorageKey = 'rallyRushIIWeatherMode';
     const timeOfDayOptions = [
         { id: 'day', label: 'Day' },
         { id: 'night', label: 'Night' }
     ];
-    const rainOptions = [
-        { id: 'off', label: 'Clear' },
-        { id: 'on', label: 'Rain' }
+    const weatherOptions = [
+        { id: 'clear', label: 'Clear' },
+        { id: 'rain', label: 'Rain' },
+        { id: 'fog', label: 'Foggy' }
     ];
     const stageMenuData = {
         scotland: {
@@ -482,12 +484,18 @@
         localStorage.setItem(timeOfDayStorageKey, id === 'night' ? 'night' : 'day');
     }
 
-    function getRainMode() {
-        return localStorage.getItem(rainStorageKey) === 'off' ? 'off' : 'on';
+    function getWeatherMode() {
+        const stored = localStorage.getItem(weatherStorageKey);
+        if (['clear', 'rain', 'fog'].includes(stored)) {
+            return stored;
+        }
+        return localStorage.getItem(rainStorageKey) === 'off' ? 'clear' : 'rain';
     }
 
-    function setRainMode(id) {
-        localStorage.setItem(rainStorageKey, id === 'off' ? 'off' : 'on');
+    function setWeatherMode(id) {
+        const weatherMode = ['clear', 'rain', 'fog'].includes(id) ? id : 'rain';
+        localStorage.setItem(weatherStorageKey, weatherMode);
+        localStorage.setItem(rainStorageKey, weatherMode === 'rain' ? 'on' : 'off');
     }
 
     function updateRaceSetupUi() {
@@ -518,9 +526,9 @@
 
         renderModeSelect(
             weatherSelect,
-            rainOptions,
-            getRainMode(),
-            setRainMode
+            weatherOptions,
+            getWeatherMode(),
+            setWeatherMode
         );
     }
 
