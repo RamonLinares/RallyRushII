@@ -93,7 +93,7 @@ const environments = {
         mountainRoadsidePower: 2.2,
         fogColor: 0x90a4b2,
         fogDensity: 0.00135,
-        decorativeLightLimit: 14
+        decorativeLightLimit: 4
     },
     lakes: {
         id: 'lakes',
@@ -995,16 +995,17 @@ class GameManager {
 
         this.currentEnvironment = environment;
         this.nightRace = Boolean(environment.nightRace);
+        const useVehicleOnlyNightLighting = this.nightRace && environment.id === 'city';
 
         this.ambientLight = new THREE.AmbientLight(
             this.nightRace ? 0x476c86 : 0xffffff,
-            this.nightRace ? 0.085 : 0.035
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.085 : 0.035
         );
         this.scene.add(this.ambientLight);
 
         this.directionalLight = new THREE.DirectionalLight(
             this.nightRace ? 0x8fb2ff : 0xffffff,
-            this.nightRace ? 0.42 : 2.15
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.42 : 2.15
         );
         this.directionalLight.position.set(38, 96, 122);
         this.directionalLight.castShadow = true;
@@ -1021,14 +1022,14 @@ class GameManager {
 
         this.fillLight = new THREE.DirectionalLight(
             this.nightRace ? 0x2c7f8f : 0xddeeff,
-            this.nightRace ? 0.26 : 0.14
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.26 : 0.14
         );
         this.fillLight.position.set(-44, 46, 62);
         this.scene.add(this.fillLight);
 
         this.rimLight = new THREE.DirectionalLight(
             this.nightRace ? 0x66e0ff : 0xbdeaff,
-            this.nightRace ? 0.9 : 0.58
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.9 : 0.58
         );
         this.rimLight.position.set(-24, 28, -42);
         this.scene.add(this.rimLight);
@@ -1036,7 +1037,7 @@ class GameManager {
         this.hemiLight = new THREE.HemisphereLight(
             this.nightRace ? 0x18354e : 0xcde7f2,
             this.nightRace ? 0x061409 : 0x334029,
-            this.nightRace ? 0.52 : 0.3
+            useVehicleOnlyNightLighting ? 0 : this.nightRace ? 0.52 : 0.3
         );
         if (!this.nightRace) {
             this.hemiLight.color.setHSL(0.58, 0.58, 0.62);
@@ -2020,6 +2021,10 @@ class GameManager {
             return;
         }
 
+        if (!options.player) {
+            return;
+        }
+
         this.setupNightStageVehicleLighting(car, options);
     }
 
@@ -2042,15 +2047,19 @@ class GameManager {
         anchors.forEach(anchor => {
             const target = new THREE.Object3D();
             target.name = 'stage-headlight-target';
-            target.position.set(anchor.position.x * 0.55, Math.max(0.12, anchor.position.y - 0.32), anchor.position.z - (isPlayer ? 40 : 24));
+            target.position.set(
+                isPlayer ? anchor.position.x * 1.75 : anchor.position.x * 0.55,
+                Math.max(0.12, anchor.position.y - 0.32),
+                anchor.position.z - (isPlayer ? 54 : 32)
+            );
             rig.add(target);
 
             const headlight = new THREE.SpotLight(
                 0xdff6ff,
-                isPlayer ? 3.6 : 1.3,
-                isPlayer ? 74 : 42,
-                isPlayer ? 0.18 : 0.22,
-                0.76,
+                isPlayer ? 7.2 : 0.72,
+                isPlayer ? 108 : 46,
+                isPlayer ? 0.32 : 0.24,
+                isPlayer ? 0.88 : 0.76,
                 1.8
             );
             headlight.name = 'stage-headlight-spot';
@@ -2068,7 +2077,7 @@ class GameManager {
         rig.add(tailGlow);
 
         if (isPlayer) {
-            const roadFill = new THREE.PointLight(0xbdeeff, 0.14, 10, 2.3);
+            const roadFill = new THREE.PointLight(0xbdeeff, 0.32, 15, 2.1);
             roadFill.name = 'stage-road-focus-light';
             roadFill.position.set(0, Math.max(0.35, lightY * 0.7), frontZ - 5);
             roadFill.castShadow = false;
