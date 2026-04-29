@@ -3166,12 +3166,14 @@ class GameManager {
             && /plastic smooth/.test(normalizedName);
         const isApexDarkBlocker = type === 'apexGt'
             && /blocker/.test(normalizedName);
+        const usesAuthoredPaint = this.vehicleAssetSpecs[type]?.asset === 'passengerPack'
+            || type === 'apexGt';
         const isPaint = /paint|body|panel|toycar|truck|sportscar|suv|orange|white|body color/.test(normalizedName)
             && !isGlass
             && !isTire
             && !isLight;
 
-        if (isPaint && cloned.color && type !== 'apexGt') {
+        if (isPaint && cloned.color && !usesAuthoredPaint) {
             cloned.map = null;
             if (cloned.aoMap) {
                 cloned.aoMapIntensity = 1.05;

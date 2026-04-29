@@ -72,7 +72,7 @@
         { id: 'night', label: 'Night' }
     ];
     const rainOptions = [
-        { id: 'off', label: 'Sunny' },
+        { id: 'off', label: 'Clear' },
         { id: 'on', label: 'Rain' }
     ];
     const stageMenuData = {
@@ -556,6 +556,33 @@
             }
         }
 
+        const previewHost = garagePreviewCanvas.parentElement;
+        const fallbackImage = document.createElement('img');
+        fallbackImage.className = 'garagePreviewFallback';
+        fallbackImage.alt = '';
+        fallbackImage.setAttribute('aria-hidden', 'true');
+        previewHost?.insertBefore(fallbackImage, garagePreviewCanvas.nextSibling);
+
+        function setLoadingPreview(option) {
+            if (!fallbackImage || !option) {
+                return;
+            }
+
+            const fallbackSrc = vehicleMenuImages[option.type] || '';
+            fallbackImage.src = fallbackSrc;
+            fallbackImage.style.display = fallbackSrc ? 'block' : 'none';
+            if (garagePreviewStatus?.parentElement) {
+                garagePreviewStatus.parentElement.style.display = 'inline-flex';
+            }
+        }
+
+        function setModelReady(isReady) {
+            fallbackImage.style.display = isReady ? 'none' : 'block';
+            if (garagePreviewStatus?.parentElement) {
+                garagePreviewStatus.parentElement.style.display = isReady ? 'none' : 'inline-flex';
+            }
+        }
+
         const previewScene = new THREE.Scene();
         const previewCamera = new THREE.PerspectiveCamera(38, 16 / 9, 0.01, 1000);
         let previewRenderer = null;
@@ -762,6 +789,7 @@
 
             selectedType = option.type;
             removePreviewCar();
+            setLoadingPreview(option);
             setStatus('Loading showroom model');
 
             previewCar = gameManager.createCar(option.color, option.type, { palette: option.palette });
@@ -777,16 +805,14 @@
 
         function render(time = 0) {
             if (!isPaused) {
-                turntable.rotation.y = Math.sin(time * 0.00055) * 0.08;
+                turntable.rotation.y = Math.sin(time * 0.00042) * 0.42;
 
                 if (previewCar) {
                     const ready = !previewCar.userData.assetVehicle
                         || previewCar.userData.assetReady
                         || previewCar.userData.assetFallback;
                     setStatus(ready ? 'Vehicle ready' : 'Loading showroom model');
-                    if (garagePreviewStatus?.parentElement) {
-                        garagePreviewStatus.parentElement.style.display = ready ? 'none' : 'inline-flex';
-                    }
+                    setModelReady(ready);
                     if (ready && fittedVehicle !== previewCar) {
                         fitCameraToVehicle(previewCar);
                     }
