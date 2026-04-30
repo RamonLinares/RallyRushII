@@ -7,7 +7,7 @@
     <title>RallyRushII</title>
     <meta name="description" content="RallyRushII, a standalone continuation of RallyRush.">
     <link rel="icon" href="assets/game_logo.jpeg">
-    <link rel="stylesheet" href="styles.css?v=20260429-race-modes">
+    <link rel="stylesheet" href="styles.css?v=20260430-fps-counter">
 </head>
 
 <body>
@@ -30,11 +30,13 @@
                 <span class="metricReadout"><span id="timerValue">0.00</span><span class="metricUnit">s</span></span>
             </div>
             <div class="metric metricSector">
-                <span class="metricLabel">Sector</span>
+                <span id="raceStatusLabel" class="metricLabel">Sector</span>
                 <span class="metricReadout"><span id="sectorValue">S1</span></span>
+                <span id="sectorSplitsValue" class="metricSubline"></span>
             </div>
         </div>
     </div>
+    <div id="fpsCounter" class="fpsCounter" aria-live="polite" hidden>FPS 0</div>
     <div id="settingsHud" class="settingsHud" style="display:none;">
         <div class="hudButtonStack">
             <button id="cameraButton" class="iconButton" type="button" aria-label="Camera view" title="Camera view">
@@ -260,9 +262,9 @@
     <script src="vendor/three.min.js"></script>
     <script src="vendor/GLTFLoader.js"></script>
     <script src="vendor/DRACOLoader.js"></script>
-    <script src="roadGenerator.js?v=20260429-race-modes"></script>
-    <script src="gameManager.js?v=20260429-race-modes"></script>
-    <script src="script.js?v=20260429-race-modes"></script>
+    <script src="roadGenerator.js?v=20260430-tokyo-pole-lights"></script>
+    <script src="gameManager.js?v=20260430-remove-rally-ghost"></script>
+    <script src="script.js?v=20260430-remember-circuit"></script>
 </body>
 
 </html>

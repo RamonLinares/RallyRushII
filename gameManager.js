@@ -894,6 +894,71 @@ class GameManager {
         return Math.max(5, Math.min(9, Math.round(difficulty.trafficCount * 0.62)));
     }
 
+    getGridRaceTuning(difficultyId = this.game?.settings?.difficultyId || this.difficultyLevel) {
+        const tunings = {
+            rookie: {
+                pace: 0.78,
+                speedBiasMin: 0.9,
+                speedBiasMax: 1.02,
+                typePace: { supercar: 1.02, muscle: 1, hatchback: 0.98, pickup: 0.93, suv: 0.9 },
+                launchBoost: 0.012,
+                launchFrames: 38,
+                accelerationResponse: 0.022,
+                decelerationResponse: 0.018,
+                catchupMin: -0.05,
+                catchupMax: 0.06,
+                cornerCarry: 0.06,
+                minSpeed: 0.72,
+                laneChangeRate: 0.002,
+                laneReturn: 0.052,
+                defendStrength: 0,
+                overtakeStrength: 0.18,
+                awarenessDistance: 42
+            },
+            pro: {
+                pace: 0.87,
+                speedBiasMin: 0.88,
+                speedBiasMax: 1.08,
+                typePace: { supercar: 1.05, muscle: 1.02, hatchback: 1, pickup: 0.92, suv: 0.89 },
+                launchBoost: 0.02,
+                launchFrames: 52,
+                accelerationResponse: 0.03,
+                decelerationResponse: 0.016,
+                catchupMin: -0.035,
+                catchupMax: 0.1,
+                cornerCarry: 0.09,
+                minSpeed: 0.84,
+                laneChangeRate: 0.004,
+                laneReturn: 0.044,
+                defendStrength: 0.34,
+                overtakeStrength: 0.42,
+                awarenessDistance: 58
+            },
+            expert: {
+                pace: 0.91,
+                speedBiasMin: 0.88,
+                speedBiasMax: 1.07,
+                typePace: { supercar: 1.04, muscle: 1.02, hatchback: 1, pickup: 0.94, suv: 0.91 },
+                launchBoost: 0.022,
+                launchFrames: 56,
+                accelerationResponse: 0.032,
+                decelerationResponse: 0.015,
+                catchupMin: -0.04,
+                catchupMax: 0.09,
+                cornerCarry: 0.095,
+                minSpeed: 0.88,
+                laneChangeRate: 0.006,
+                laneReturn: 0.038,
+                defendStrength: 0.62,
+                overtakeStrength: 0.64,
+                awarenessDistance: 76
+            }
+        };
+
+        const difficulty = this.getDifficultyProfile(difficultyId);
+        return tunings[difficulty.id] || tunings.pro;
+    }
+
     getTrafficSpeed(vehicleType) {
         const spec = this.getVehicleSpec(vehicleType);
         const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
@@ -1245,7 +1310,6 @@ class GameManager {
             startLine: -100,
             finishLine: -trackLength
         };
-
         // Generate the road and terrain based on the environment
         generateRoadAndTerrain(this.scene, this.game, environment);
 
@@ -3799,12 +3863,8 @@ class GameManager {
         const rowSpacing = 11.5;
         const startZ = this.game.startLine + 7.5;
         const difficulty = this.getDifficultyProfile(this.game?.settings?.difficultyId || this.difficultyLevel);
+        const gridTuning = this.getGridRaceTuning(difficulty.id);
         const playerMaxSpeed = this.game?.car?.maxSpeed || this.getVehicleSpec(this.getPlayerVehicleType()).maxSpeed || 2.5;
-        const difficultyPace = {
-            rookie: 0.82,
-            pro: 0.91,
-            expert: 1
-        }[difficulty.id] || 0.91;
 
         for (let i = 0; i < count; i++) {
             const vehicleType = this.trafficVehicleTypes[i % this.trafficVehicleTypes.length];
@@ -3815,27 +3875,24 @@ class GameManager {
             const side = lane === 0 ? -1 : 1;
             const xOffset = side * laneSpacing * (0.5 + (row % 2) * 0.08);
             const z = startZ + row * rowSpacing + (lane === 0 ? 0 : 3.4);
-            const speedBias = THREE.MathUtils.lerp(0.84, 1.08, i / Math.max(1, count - 1));
-            const typePace = {
-                supercar: 1.08,
-                muscle: 1.02,
-                hatchback: 1,
-                pickup: 0.92,
-                suv: 0.88
-            }[vehicleType] || 1;
-            const racePace = playerMaxSpeed * difficultyPace * speedBias * typePace;
+            const speedBias = THREE.MathUtils.lerp(gridTuning.speedBiasMin, gridTuning.speedBiasMax, i / Math.max(1, count - 1));
+            const typePace = gridTuning.typePace[vehicleType] || 1;
+            const racePace = playerMaxSpeed * gridTuning.pace * speedBias * typePace;
             const trafficState = {
                 mesh: raceCar,
                 speed: 0,
                 baseSpeed: racePace,
                 targetSpeed: racePace,
-                launchBoostFrames: 70 + Math.round(i * 5),
+                launchBoostFrames: gridTuning.launchFrames + Math.round(i * 3),
+                gridTuning,
                 xOffset,
                 targetXOffset: xOffset,
+                baseLaneOffset: xOffset,
                 lateralVelocity: 0,
                 headingOffset: 0,
                 yawVelocity: 0,
                 contactRecoveryFrames: 0,
+                impactHeadingFrames: 0,
                 vehicleType,
                 raceCompetitor: true,
                 raceName: `Rival ${i + 1}`,
@@ -4750,7 +4807,9 @@ class GameManager {
     updateUI() {
         const speedValue = document.getElementById('speedValue');
         const timerValue = document.getElementById('timerValue');
+        const raceStatusLabel = document.getElementById('raceStatusLabel');
         const sectorValue = document.getElementById('sectorValue');
+        const sectorSplitsValue = document.getElementById('sectorSplitsValue');
 
         if (speedValue) {
             speedValue.textContent = (this.game.car.speed * 100).toFixed(0);
@@ -4765,14 +4824,35 @@ class GameManager {
 
         if (sectorValue) {
             if (this.game.settings?.raceModeId === 'rally') {
+                if (raceStatusLabel) {
+                    raceStatusLabel.textContent = 'Sector';
+                }
                 const nextSector = Math.min((this.game.nextSectorIndex || 0) + 1, 3);
                 const lastSplit = this.game.sectorTimings?.[this.game.sectorTimings.length - 1];
                 sectorValue.textContent = lastSplit ? `S${lastSplit.id} ${lastSplit.split.toFixed(2)}` : `S${nextSector}`;
+                if (sectorSplitsValue) {
+                    const splits = (this.game.sectorTimings || [])
+                        .map(sector => `S${sector.id} ${sector.split.toFixed(2)}`)
+                        .join('  ');
+                    sectorSplitsValue.textContent = splits;
+                }
             } else if (this.game.settings?.raceModeId === 'race') {
+                if (raceStatusLabel) {
+                    raceStatusLabel.textContent = 'Position';
+                }
                 const position = this.getPlayerRacePosition();
                 sectorValue.textContent = `P${position}/${this.trafficCars.length + 1}`;
+                if (sectorSplitsValue) {
+                    sectorSplitsValue.textContent = '';
+                }
             } else {
+                if (raceStatusLabel) {
+                    raceStatusLabel.textContent = 'Mode';
+                }
                 sectorValue.textContent = 'Traffic';
+                if (sectorSplitsValue) {
+                    sectorSplitsValue.textContent = '';
+                }
             }
         }
 
@@ -5368,7 +5448,9 @@ class GameManager {
 
     getPlayerRoadLimit() {
         const dimensions = this.getVehicleDimensions(this.getPlayerVehicleType());
-        return Math.max(2, this.game.road.width / 2 - dimensions.width / 2 - 0.45);
+        const roadData = getRoadDataAtZ(this.game.car.position.z, this.game);
+        const roadWidth = roadData.width || this.game.road.width;
+        return Math.max(2, roadWidth / 2 - dimensions.width / 2 - 0.45);
     }
 
     updateDriftEffects(roadFrame, driftAmount, handbrakeIntensity, steeringInput, speedRatio) {
@@ -5894,31 +5976,45 @@ class GameManager {
             const currentFrame = this.getVehicleRoadFrame(competitor.mesh.position.z, -1, competitor.vehicleType);
             const lookAheadFrame = this.getVehicleRoadFrame(competitor.mesh.position.z - 95, -1, competitor.vehicleType);
             const cornerDemand = THREE.MathUtils.clamp(Math.abs(this.getAngleDelta(currentFrame.yaw, lookAheadFrame.yaw)) / 0.16, 0, 1);
-            const catchup = THREE.MathUtils.clamp((playerProgress - competitorProgress) / Math.max(220, totalLength * 0.4), -0.02, 0.16);
-            const launchBoost = raceStarted && (competitor.launchBoostFrames || 0) > 0 ? 0.035 : 0;
-            const cornerCarry = raceStarted ? cornerDemand * 0.12 : 0;
-            const targetSpeed = raceStarted ? Math.max(0.92, competitor.baseSpeed + catchup + launchBoost + cornerCarry) : 0;
-            const response = targetSpeed > competitor.speed ? 0.038 : 0.014;
+            const gridTuning = competitor.gridTuning || this.getGridRaceTuning();
+            const catchup = THREE.MathUtils.clamp(
+                (playerProgress - competitorProgress) / Math.max(260, totalLength * 0.52),
+                gridTuning.catchupMin,
+                gridTuning.catchupMax
+            );
+            const launchBoost = raceStarted && (competitor.launchBoostFrames || 0) > 0 ? gridTuning.launchBoost : 0;
+            const cornerCarry = raceStarted ? cornerDemand * gridTuning.cornerCarry : 0;
+            const targetSpeed = raceStarted ? Math.max(gridTuning.minSpeed, competitor.baseSpeed + catchup + launchBoost + cornerCarry) : 0;
+            const response = targetSpeed > competitor.speed ? gridTuning.accelerationResponse : gridTuning.decelerationResponse;
             competitor.speed += (targetSpeed - competitor.speed) * response;
             if (raceStarted && competitor.launchBoostFrames > 0) {
                 competitor.launchBoostFrames--;
             }
-            const recoveryGrip = competitor.contactRecoveryFrames > 0 ? 0.018 : 0.04;
+            this.updateRaceCompetitorRacecraft(competitor, index, gridTuning, roadLimit);
+            const inImpactRecovery = competitor.impactHeadingFrames > 0;
+            const recoveryGrip = inImpactRecovery ? 0.034 : competitor.contactRecoveryFrames > 0 ? 0.024 : 0.05;
             competitor.headingOffset = this.lerpAngle(competitor.headingOffset || 0, 0, recoveryGrip);
-            competitor.yawVelocity = (competitor.yawVelocity || 0) * (competitor.contactRecoveryFrames > 0 ? 0.92 : 0.86);
+            competitor.yawVelocity = (competitor.yawVelocity || 0) * (inImpactRecovery ? 0.84 : competitor.contactRecoveryFrames > 0 ? 0.88 : 0.82);
             competitor.headingOffset += competitor.yawVelocity;
-            competitor.headingOffset = THREE.MathUtils.clamp(competitor.headingOffset || 0, -0.62, 0.62);
-            competitor.lateralVelocity = (competitor.lateralVelocity || 0) * (competitor.contactRecoveryFrames > 0 ? 0.94 : 0.9);
+            competitor.headingOffset = THREE.MathUtils.clamp(competitor.headingOffset || 0, -0.5, 0.5);
+            competitor.lateralVelocity = (competitor.lateralVelocity || 0) * (inImpactRecovery ? 0.88 : competitor.contactRecoveryFrames > 0 ? 0.92 : 0.88);
             if (competitor.contactRecoveryFrames > 0) {
                 competitor.contactRecoveryFrames--;
             }
+            if (competitor.impactHeadingFrames > 0) {
+                competitor.impactHeadingFrames--;
+                competitor.targetXOffset = competitor.xOffset - Math.sin(competitor.headingOffset || 0) * 5.5;
+            }
             const headingLateral = -Math.sin(competitor.headingOffset || 0) * competitor.speed * 0.96;
             competitor.mesh.position.z -= Math.cos(competitor.headingOffset || 0) * competitor.speed;
-            competitor.targetXOffset += Math.sin((competitor.mesh.position.z * 0.006) + index) * 0.004;
+            competitor.targetXOffset += Math.sin((competitor.mesh.position.z * 0.006) + index) * gridTuning.laneChangeRate;
             competitor.targetXOffset = THREE.MathUtils.clamp(competitor.targetXOffset, -roadLimit, roadLimit);
-            const laneReturn = competitor.contactRecoveryFrames > 0 ? 0.026 : 0.04;
+            const laneReturn = inImpactRecovery ? 0.01 : competitor.contactRecoveryFrames > 0 ? 0.026 : gridTuning.laneReturn;
             competitor.xOffset += (competitor.targetXOffset - competitor.xOffset) * laneReturn + headingLateral + (competitor.lateralVelocity || 0);
             competitor.xOffset = THREE.MathUtils.clamp(competitor.xOffset, -roadLimit, roadLimit);
+            if (Math.abs(competitor.lateralVelocity || 0) < 0.01 && competitor.contactRecoveryFrames <= 0 && !inImpactRecovery) {
+                competitor.headingOffset = this.lerpAngle(competitor.headingOffset || 0, 0, 0.08);
+            }
 
             this.placeTrafficCar(
                 competitor,
@@ -5954,6 +6050,49 @@ class GameManager {
         });
     }
 
+    updateRaceCompetitorRacecraft(competitor, index, tuning, roadLimit) {
+        if (!this.game?.car || !competitor.raceCompetitor || competitor.contactRecoveryFrames > 0) {
+            return;
+        }
+
+        const playerRelativeZ = this.game.car.position.z - competitor.mesh.position.z;
+        const playerBehind = playerRelativeZ > 0 && playerRelativeZ < tuning.awarenessDistance;
+        const playerBeside = Math.abs(playerRelativeZ) < 28;
+        const playerClosing = this.game.car.speed > competitor.speed + 0.08;
+        const laneGap = this.game.car.xOffset - competitor.xOffset;
+
+        if (playerBehind && playerClosing && tuning.defendStrength > 0) {
+            competitor.targetXOffset += laneGap * tuning.defendStrength * 0.035;
+        }
+
+        if (playerBeside && tuning.defendStrength > 0.45) {
+            competitor.targetXOffset += Math.sign(laneGap || 1) * tuning.defendStrength * 0.018;
+        }
+
+        let nearestAhead = null;
+        let nearestAheadDistance = Infinity;
+        this.trafficCars.forEach(other => {
+            if (other === competitor || other.finishedAt) {
+                return;
+            }
+
+            const dz = competitor.mesh.position.z - other.mesh.position.z;
+            if (dz > 0 && dz < nearestAheadDistance && dz < tuning.awarenessDistance * 1.25) {
+                nearestAhead = other;
+                nearestAheadDistance = dz;
+            }
+        });
+
+        if (nearestAhead && competitor.speed > nearestAhead.speed + 0.05) {
+            const passSide = competitor.xOffset <= nearestAhead.xOffset ? -1 : 1;
+            competitor.targetXOffset += passSide * tuning.overtakeStrength * 0.09;
+        } else if (!playerBehind) {
+            competitor.targetXOffset += ((competitor.baseLaneOffset || 0) - competitor.targetXOffset) * 0.012;
+        }
+
+        competitor.targetXOffset = THREE.MathUtils.clamp(competitor.targetXOffset, -roadLimit, roadLimit);
+    }
+
     resolveRaceContact(competitor) {
         const playerLimit = this.getPlayerRoadLimit();
         const competitorLimit = this.game.road.width / 2 - 2.2;
@@ -5977,6 +6116,8 @@ class GameManager {
         const closingSpeed = Math.max(0.16, relativeVx * normalX + relativeVz * normalZ);
         const overlapImpulse = lateralOverlap * 0.18 + longitudinalOverlap * 0.12;
         const impulse = THREE.MathUtils.clamp(closingSpeed * 0.48 + overlapImpulse, 0.22, 1.18);
+        const forwardImpact = THREE.MathUtils.clamp(Math.abs(normalZ), 0, 1);
+        const directHit = forwardImpact * THREE.MathUtils.clamp(closingSpeed / Math.max(0.35, this.game.car.speed || 0.35), 0, 1);
         const side = Math.sign(this.game.car.xOffset - competitor.xOffset) || (Math.random() < 0.5 ? -1 : 1);
         const hitSide = Math.sign(this.game.car.xOffset - competitor.xOffset) || side;
         const playerPush = THREE.MathUtils.clamp(lateralOverlap * 0.62 + impulse * 0.72, 0.28, 1.8);
@@ -5994,15 +6135,19 @@ class GameManager {
         this.game.car.travelAngle -= torque * 0.88;
         this.game.car.yawVelocity = (this.game.car.yawVelocity || 0) - torque * 0.34;
         this.game.car.driftAmount = Math.max(this.game.car.driftAmount || 0, THREE.MathUtils.clamp(impulse * 0.95, 0.24, 0.86));
-        this.game.car.speed *= THREE.MathUtils.clamp(1 - impulse * 0.2, 0.76, 0.94);
+        const playerSpeedLoss = THREE.MathUtils.clamp(impulse * 0.16 + directHit * 0.34, 0.08, 0.58);
+        this.game.car.speed *= 1 - playerSpeedLoss;
         competitor.xOffset = THREE.MathUtils.clamp(competitor.xOffset - side * competitorPush, -competitorLimit, competitorLimit);
         competitor.targetXOffset = competitor.xOffset;
         competitor.mesh.position.z += playerBehind ? -zSeparation * 0.42 : zSeparation * 0.58;
         competitor.lateralVelocity = (competitor.lateralVelocity || 0) + normalX * impulse * 0.72;
         competitor.yawVelocity = (competitor.yawVelocity || 0) + torque * 0.48;
         competitor.headingOffset = THREE.MathUtils.clamp((competitor.headingOffset || 0) + torque * 1.22, -0.68, 0.68);
-        competitor.contactRecoveryFrames = 95;
-        competitor.speed *= THREE.MathUtils.clamp(1 - impulse * 0.15, 0.8, 0.95);
+        competitor.contactRecoveryFrames = 72;
+        competitor.impactHeadingFrames = 42;
+        competitor.targetXOffset = competitor.xOffset - Math.sin(competitor.headingOffset || 0) * 5.5;
+        const competitorSpeedLoss = THREE.MathUtils.clamp(impulse * 0.1 + directHit * 0.18, 0.04, 0.42);
+        competitor.speed *= 1 - competitorSpeedLoss;
         const playerFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, this.getPlayerVehicleType());
         const playerRoadData = playerFrame.roadData;
         this.game.car.position.x = playerRoadData.curve + this.game.car.xOffset;
@@ -6056,8 +6201,12 @@ class GameManager {
         b.yawVelocity = (b.yawVelocity || 0) + torque * 0.32;
         a.headingOffset = THREE.MathUtils.clamp((a.headingOffset || 0) - torque * 0.86, -0.48, 0.48);
         b.headingOffset = THREE.MathUtils.clamp((b.headingOffset || 0) + torque * 0.86, -0.48, 0.48);
-        a.contactRecoveryFrames = Math.max(a.contactRecoveryFrames || 0, 58);
-        b.contactRecoveryFrames = Math.max(b.contactRecoveryFrames || 0, 58);
+        a.contactRecoveryFrames = Math.max(a.contactRecoveryFrames || 0, 52);
+        b.contactRecoveryFrames = Math.max(b.contactRecoveryFrames || 0, 52);
+        a.impactHeadingFrames = Math.max(a.impactHeadingFrames || 0, 34);
+        b.impactHeadingFrames = Math.max(b.impactHeadingFrames || 0, 34);
+        a.targetXOffset = a.xOffset - Math.sin(a.headingOffset || 0) * 5.2;
+        b.targetXOffset = b.xOffset - Math.sin(b.headingOffset || 0) * 5.2;
         a.speed *= THREE.MathUtils.clamp(1 - impulse * 0.1, 0.86, 0.96);
         b.speed *= THREE.MathUtils.clamp(1 - impulse * 0.1, 0.86, 0.96);
 
@@ -6585,11 +6734,18 @@ function getRoadDataAtZ(z, game) {
     };
     const curve = smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve);
     const y = smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y);
+    const width = smoothValue(
+        previousSegment.width || game.road.width,
+        segment.width || game.road.width,
+        nextSegment.width || game.road.width,
+        followingSegment.width || game.road.width
+    );
     const nextCurve = smoothValue(segment.curve, nextSegment.curve, followingSegment.curve, getSegment(3).curve);
 
     return {
         y,
         curve,
+        width,
         curvatureAngle: Math.atan2(nextCurve - curve, segmentLength)
     };
 }

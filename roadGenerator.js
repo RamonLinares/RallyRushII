@@ -2427,7 +2427,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         const dz = segmentLength;
         const curvatureAngle = Math.atan2(dx, dz);
         
-        return { z, y, curve, curvatureAngle, highwayElevation };
+        return { z, y, curve, curvatureAngle, highwayElevation, width: game.road.width };
     }
 
     for (let i = 0; i < totalSegments; i++) {
@@ -2439,6 +2439,8 @@ function generateRoadAndTerrain(scene, game, environment) {
     const rightTerrainGeometry = new THREE.BufferGeometry();
     
     const halfRoadWidth = game.road.width / 2;
+    const getSegmentWidth = segment => segment?.width || game.road.width;
+    const getSegmentHalfRoadWidth = segment => getSegmentWidth(segment) / 2;
     const terrainWidth = game.terrain.width;
     const terrainSteps = environment.terrainStyle === 'rainforest' ? 22 : environment.terrainStyle === 'highland' ? 34 : environment.terrainStyle === 'sand' ? 16 : 10;
     const shoulderWidth = Number.isFinite(environment.shoulderWidth) ? environment.shoulderWidth : 4;
@@ -2660,6 +2662,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         return baseHeight + Math.max(0, ridgeT * ((coastalBiome.hillsideHeight || 16) + cliffNoise));
     }
 
+    const roadRenderRows = createRoadRenderRows();
+
     function updateGeometries() {
         const roadPositions = [];
         const roadIndices = [];
@@ -2671,12 +2675,13 @@ function generateRoadAndTerrain(scene, game, environment) {
         const rightTerrainIndices = [];
         const rightTerrainUVs = [];
 
-        game.road.segments.forEach((segment, i) => {
-            const leftRoadX = segment.curve - halfRoadWidth;
-            const rightRoadX = segment.curve + halfRoadWidth;
+        roadRenderRows.forEach((segment, i) => {
+            const segmentHalfRoadWidth = getSegmentHalfRoadWidth(segment);
+            const leftRoadX = segment.curve - segmentHalfRoadWidth;
+            const rightRoadX = segment.curve + segmentHalfRoadWidth;
             const leftTerrainStartX = leftRoadX - shoulderWidth;
             const rightTerrainStartX = rightRoadX + shoulderWidth;
-            const v = i / game.road.segments.length;
+            const v = i / Math.max(1, roadRenderRows.length - 1);
 
             // Road vertices
             roadPositions.push(leftRoadX, segment.y, segment.z);
@@ -2707,7 +2712,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 rightTerrainUVs.push(normalizedDistance, v);
             }
 
-            if (i < game.road.segments.length - 1) {
+            if (i < roadRenderRows.length - 1) {
                 const j = i * 2;
                 roadIndices.push(j, j + 1, j + 2, j + 1, j + 3, j + 2);
 
@@ -2749,21 +2754,22 @@ function generateRoadAndTerrain(scene, game, environment) {
         const shoulderIndices = [];
         const shoulderUVs = [];
 
-        game.road.segments.forEach((segment, i) => {
-            const roadEdgeX = segment.curve + side * halfRoadWidth;
+        roadRenderRows.forEach((segment, i) => {
+            const segmentHalfRoadWidth = getSegmentHalfRoadWidth(segment);
+            const roadEdgeX = segment.curve + side * segmentHalfRoadWidth;
             const shoulderEdgeX = roadEdgeX + side * shoulderWidth;
             const roadEdgeY = environment.shoulderStyle === 'jungle-mud' ? segment.y - 0.006 : segment.y + 0.04;
             const shoulderEdgeY = environment.terrainStyle === 'highland'
                 ? getTerrainHeightAt(shoulderEdgeX, segment.z) + 0.006
                 : roadEdgeY;
-            const v = i / game.road.segments.length;
+            const v = i / Math.max(1, roadRenderRows.length - 1);
 
             shoulderPositions.push(roadEdgeX, roadEdgeY, segment.z);
             shoulderPositions.push(shoulderEdgeX, shoulderEdgeY, segment.z);
             shoulderUVs.push(0, v);
             shoulderUVs.push(1, v);
 
-            if (i < game.road.segments.length - 1) {
+            if (i < roadRenderRows.length - 1) {
                 const index = i * 2;
                 shoulderIndices.push(index, index + 1, index + 2, index + 1, index + 3, index + 2);
             }
@@ -2819,7 +2825,6 @@ function generateRoadAndTerrain(scene, game, environment) {
             specular: environment.shoulderStyle === 'jungle-mud' ? 0x080604 : 0x111111
         })
         : null;
-
     const leftTerrain = new THREE.Mesh(leftTerrainGeometry, terrainMaterial);
     const rightTerrain = new THREE.Mesh(rightTerrainGeometry, terrainMaterial);
     const leftShoulder = hasShoulders ? new THREE.Mesh(createShoulderGeometry(-1), shoulderMaterial) : null;
@@ -2884,27 +2889,75 @@ function generateRoadAndTerrain(scene, game, environment) {
     };
     game.stageDecor = stageDecorStats;
 
-    function getLinearRoadDataAtZ(z) {
+    function getCatmullRoadDataAtZ(z) {
         const maxIndex = game.road.segments.length - 1;
         const rawIndex = Math.max(0, Math.min(maxIndex, Math.abs(z) / segmentLength));
         const index = Math.floor(rawIndex);
-        const nextIndex = Math.min(maxIndex, index + 1);
         const t = rawIndex - index;
-        const segment = game.road.segments[index];
-        const nextSegment = game.road.segments[nextIndex];
+        const getSegment = offset => game.road.segments[Math.max(0, Math.min(maxIndex, index + offset))];
+        const previousSegment = getSegment(-1);
+        const segment = getSegment(0);
+        const nextSegment = getSegment(1);
+        const followingSegment = getSegment(2);
+        const smoothValue = (p0, p1, p2, p3) => {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        };
 
         return {
-            curve: THREE.MathUtils.lerp(segment.curve, nextSegment.curve, t),
-            y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t),
-            highwayElevation: THREE.MathUtils.lerp(segment.highwayElevation || 0, nextSegment.highwayElevation || 0, t)
+            curve: smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve),
+            y: smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y),
+            width: smoothValue(
+                getSegmentWidth(previousSegment),
+                getSegmentWidth(segment),
+                getSegmentWidth(nextSegment),
+                getSegmentWidth(followingSegment)
+            ),
+            highwayElevation: smoothValue(
+                previousSegment.highwayElevation || 0,
+                segment.highwayElevation || 0,
+                nextSegment.highwayElevation || 0,
+                followingSegment.highwayElevation || 0
+            )
         };
+    }
+
+    function createRoadRenderRows() {
+        const subdivisions = environment.terrainStyle === 'urban' ? 5 : 4;
+        const rows = [];
+        for (let i = 0; i < game.road.segments.length - 1; i++) {
+            for (let step = 0; step < subdivisions; step++) {
+                const z = game.road.segments[i].z - (segmentLength * step) / subdivisions;
+                rows.push({
+                    ...getCatmullRoadDataAtZ(z),
+                    z
+                });
+            }
+        }
+        const last = game.road.segments[game.road.segments.length - 1];
+        rows.push({
+            ...getCatmullRoadDataAtZ(last.z),
+            z: last.z
+        });
+        return rows;
+    }
+
+    function getLinearRoadDataAtZ(z) {
+        return getCatmullRoadDataAtZ(z);
     }
 
     function getTerrainHeightAt(x, z) {
         const roadData = getLinearRoadDataAtZ(z);
+        const localHalfRoadWidth = roadData.width / 2;
         const distanceFromRoadCenter = Math.abs(x - roadData.curve);
-        const distanceFromRoadEdge = distanceFromRoadCenter - halfRoadWidth;
-        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
+        const distanceFromRoadEdge = distanceFromRoadCenter - localHalfRoadWidth;
+        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - localHalfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
         let baseHeight = roadData.y;
         if (environment.id === 'city' && roadData.highwayElevation > 0.01) {
             const groundDrop = roadData.highwayElevation * smoothStep(shoulderWidth + 2.5, shoulderWidth + 28, distanceFromRoadEdge);
@@ -3909,7 +3962,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 new THREE.MeshBasicMaterial({ color: 0x9feeff, transparent: true, opacity: 0.7 })
             ];
 
-            for (let z = startZ - 28; z > endZ; z -= 220) {
+            for (let z = startZ - 28; z > endZ; z -= 150) {
                 [-1, 1].forEach(side => {
                     const pose = getRoadsidePose(z, side, 3.2);
                     const height = 7.8 + Math.random() * 1.4;
@@ -3924,16 +3977,22 @@ function generateRoadAndTerrain(scene, game, environment) {
                     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), glowMaterials[Math.floor(Math.random() * glowMaterials.length)]);
                     bulb.position.set(-side * 2.0, height - 0.34, 0);
                     lamp.add(bulb);
+                    if (isNight) {
+                        const lampLight = new THREE.PointLight(
+                            bulb.material.color.getHex(),
+                            0.68,
+                            32,
+                            2.25
+                        );
+                        lampLight.name = 'city-tokyo-streetlight-real-light';
+                        lampLight.position.copy(bulb.position);
+                        lampLight.castShadow = false;
+                        lamp.add(lampLight);
+                        stageDecorStats.activePointLights += 1;
+                    }
                     lamp.position.set(pose.x, pose.roadY, z);
                     lamp.rotation.y = pose.yaw;
-                    addTokyoObject(lamp, 'streetLights', { cullRadius: 105 });
-
-                    if (isNight) {
-                        const lightPosition = new THREE.Vector3(-side * 2.0, height - 0.34, 0)
-                            .applyAxisAngle(localUp, lamp.rotation.y)
-                            .add(lamp.position);
-                        addDecorPointLight(decor, bulb.material.color.getHex(), 0.72, 19, 2, lightPosition, 14);
-                    }
+                    addTokyoObject(lamp, 'streetLights', { cullRadius: isNight ? 185 : 105 });
                 });
             }
         }
@@ -8953,7 +9012,7 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function createRallySectorBoard(scene, game, sector) {
-        const boardZ = sector.id === 3 ? Math.min(game.startLine - 240, sector.z + 260) : sector.z;
+        const boardZ = sector.z;
         const roadData = getRoadDataAtZ(boardZ, game);
         const boardWidth = Math.max(13, Math.min(game.road.width * 0.76, 21));
         const boardHeight = 4.2;
@@ -8965,11 +9024,9 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         const boardMaterial = new THREE.MeshBasicMaterial({
             map: createSectorBoardTexture(sector.id),
-            side: THREE.DoubleSide,
-            transparent: true
+            side: THREE.FrontSide
         });
         const board = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), boardMaterial);
-        board.rotation.y = Math.PI;
         group.add(board);
 
         const frameMaterial = new THREE.MeshBasicMaterial({ color: 0xf8fbff });
@@ -8995,14 +9052,15 @@ function generateRoadAndTerrain(scene, game, environment) {
             })
         );
         glow.position.z = -0.1;
-        glow.rotation.y = Math.PI;
         group.add(glow);
 
         scene.add(group);
     }
 
     if (game.settings?.raceModeId === 'rally' && Array.isArray(game.sectors)) {
-        game.sectors.forEach(sector => createRallySectorBoard(scene, game, sector));
+        game.sectors
+            .filter(sector => sector.id < 3)
+            .forEach(sector => createRallySectorBoard(scene, game, sector));
     }
     
     createRallyStructure(scene, game, game.finishLine, true); // Place at the finish line
@@ -9032,11 +9090,18 @@ function getRoadDataAtZ(z, game) {
     };
     const curve = smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve);
     const y = smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y);
+    const width = smoothValue(
+        previousSegment.width || game.road.width,
+        segment.width || game.road.width,
+        nextSegment.width || game.road.width,
+        followingSegment.width || game.road.width
+    );
     const nextCurve = smoothValue(segment.curve, nextSegment.curve, followingSegment.curve, getSegment(3).curve);
 
     return {
         y,
         curve,
+        width,
         curvatureAngle: Math.atan2(nextCurve - curve, segmentLength)
     };
 }

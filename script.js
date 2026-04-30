@@ -66,6 +66,7 @@
     const selectedCarName = document.getElementById('selectedCarName');
     const selectedCarClass = document.getElementById('selectedCarClass');
     const selectedCarStats = document.getElementById('selectedCarStats');
+    const circuitStorageKey = 'rallyRushIISelectedCircuit';
     const timeOfDayStorageKey = 'rallyRushIITimeOfDay';
     const rainStorageKey = 'rallyRushIIRainEnabled';
     const weatherStorageKey = 'rallyRushIIWeatherMode';
@@ -167,10 +168,14 @@
     const cameraTunerCar = document.getElementById('cameraTunerCar');
     const cameraTunerValues = document.getElementById('cameraTunerValues');
     const raceHud = document.getElementById('ui');
+    const fpsCounter = document.getElementById('fpsCounter');
     let isStartingRace = false;
     let startRequestId = 0;
     let garagePreview = null;
     let cameraTunerEnabled = false;
+    let fpsCounterVisible = false;
+    let fpsFrameCount = 0;
+    let fpsSampleStartedAt = performance.now();
     const groundDebugEnabled = new URLSearchParams(window.location.search).has('groundDebug');
     let debugCameraDrag = null;
 
@@ -361,6 +366,43 @@
         return event.key === 'Shift';
     }
 
+    function isTextEntryActive() {
+        const activeElement = document.activeElement;
+        if (!activeElement) {
+            return false;
+        }
+
+        return ['INPUT', 'SELECT', 'TEXTAREA'].includes(activeElement.tagName)
+            || activeElement.isContentEditable;
+    }
+
+    function setFpsCounterVisible(isVisible) {
+        fpsCounterVisible = Boolean(isVisible);
+        if (fpsCounter) {
+            fpsCounter.hidden = !fpsCounterVisible;
+        }
+    }
+
+    function updateFpsCounter(timestamp) {
+        if (fpsCounterVisible && fpsCounter) {
+            fpsFrameCount += 1;
+            const elapsed = timestamp - fpsSampleStartedAt;
+            if (elapsed >= 250) {
+                const fps = Math.round((fpsFrameCount * 1000) / elapsed);
+                fpsCounter.textContent = `FPS ${fps}`;
+                fpsFrameCount = 0;
+                fpsSampleStartedAt = timestamp;
+            }
+        } else {
+            fpsFrameCount = 0;
+            fpsSampleStartedAt = timestamp;
+        }
+
+        requestAnimationFrame(updateFpsCounter);
+    }
+
+    requestAnimationFrame(updateFpsCounter);
+
     function createGarageStat(label, value) {
         const stat = document.createElement('div');
         stat.className = 'garageStat';
@@ -379,6 +421,31 @@
 
     function getStageMenuInfo(stageId = circuitSelect.value) {
         return stageMenuData[stageId] || stageMenuData.scotland;
+    }
+
+    function hasCircuitOption(stageId) {
+        return Boolean(circuitSelect && Array.from(circuitSelect.options).some(option => option.value === stageId));
+    }
+
+    function getStoredCircuit() {
+        const stored = localStorage.getItem(circuitStorageKey);
+        return hasCircuitOption(stored) ? stored : 'scotland';
+    }
+
+    function setSelectedCircuit(stageId, persist = true) {
+        if (!circuitSelect || !hasCircuitOption(stageId)) {
+            return;
+        }
+
+        circuitSelect.value = stageId;
+        if (persist) {
+            localStorage.setItem(circuitStorageKey, stageId);
+        }
+        updateStageMenuUi();
+    }
+
+    function restoreSelectedCircuit() {
+        setSelectedCircuit(getStoredCircuit(), false);
     }
 
     function updateStageMenuUi() {
@@ -444,8 +511,7 @@
                 <span class="stageCardCheck" aria-hidden="true"></span>
             `;
             card.addEventListener('click', () => {
-                circuitSelect.value = option.value;
-                updateStageMenuUi();
+                setSelectedCircuit(option.value);
             });
             stageCardSelect.appendChild(card);
         });
@@ -1276,6 +1342,7 @@
 
     function showGarageMenu() {
         resetRaceSessionForMenu();
+        restoreSelectedCircuit();
         startScreen.style.display = 'grid';
         updateRaceSetupUi();
         renderStageCards();
@@ -1307,6 +1374,12 @@
         }
 
         if (handleCameraTunerKey(e)) {
+            return;
+        }
+
+        if (e.key.toLowerCase() === 'f' && !isTextEntryActive()) {
+            e.preventDefault();
+            setFpsCounterVisible(!fpsCounterVisible);
             return;
         }
 
@@ -1535,7 +1608,9 @@
 
     restartButton.addEventListener('click', startRaceWithPreload);
 
-    circuitSelect.addEventListener('change', updateStageMenuUi);
+    circuitSelect.addEventListener('change', () => {
+        setSelectedCircuit(circuitSelect.value);
+    });
 
     cameraButton.addEventListener('click', event => {
         event.stopPropagation();
@@ -1581,6 +1656,7 @@
     // Ensure mobile controls are hidden initially and on end screen
     hideMobileControls();
     garagePreview = createGaragePreview();
+    restoreSelectedCircuit();
     updateRaceSetupUi();
     renderStageCards();
     updateStageMenuUi();

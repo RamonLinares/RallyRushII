@@ -60,6 +60,31 @@ button {
     pointer-events: none;
 }
 
+.fpsCounter {
+    position: fixed;
+    top: 16px;
+    right: 84px;
+    z-index: 13;
+    min-width: 72px;
+    padding: 8px 10px;
+    pointer-events: none;
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    border-left: 4px solid var(--ui-green);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(104, 255, 154, 0.16), transparent 42%),
+        var(--ui-bg);
+    box-shadow: 0 12px 30px var(--ui-shadow);
+    backdrop-filter: blur(16px) saturate(1.25);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+}
+
 .hudTelemetry {
     position: relative;
     display: grid;
@@ -111,7 +136,7 @@ button {
 }
 
 .metricSector {
-    min-width: 92px;
+    min-width: 148px;
 }
 
 .metricLabel {
@@ -142,6 +167,18 @@ button {
     font-weight: 900;
     line-height: 1;
     text-shadow: 0 3px 16px rgba(95, 226, 255, 0.35);
+}
+
+.metricSubline {
+    display: block;
+    min-height: 11px;
+    overflow: hidden;
+    color: var(--ui-muted);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .metricUnit {
