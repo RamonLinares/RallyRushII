@@ -144,12 +144,12 @@
             rallyLength: '18.15 KM',
             laps: '1'
         },
-        montmelo: {
-            title: 'Montmelo',
-            subtitle: 'Barcelona-Catalunya',
-            description: 'Stored 14-turn GP layout inspired by Circuit de Barcelona-Catalunya, with the 2023 no-chicane final sector.',
-            length: '4.66 KM',
-            rallyLength: '13.97 KM',
+        valleverde: {
+            title: 'Valle Verde',
+            subtitle: 'Fictional GP',
+            description: 'A fictional 14-turn Mediterranean race circuit with a fast main straight, hillside elevation, and technical late-lap bends.',
+            length: '4.72 KM',
+            rallyLength: '14.16 KM',
             laps: '1'
         }
     };
@@ -440,6 +440,10 @@
 
     function getStoredCircuit() {
         const stored = localStorage.getItem(circuitStorageKey);
+        if (stored === ['mont', 'melo'].join('')) {
+            localStorage.setItem(circuitStorageKey, 'valleverde');
+            return 'valleverde';
+        }
         return hasCircuitOption(stored) ? stored : 'scotland';
     }
 

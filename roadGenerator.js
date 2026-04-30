@@ -4118,7 +4118,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         return light;
     }
 
-    function addMontmeloCircuitDecor(decor) {
+    function addValleVerdeCircuitDecor(decor) {
         const turnMarkers = Array.isArray(environment.storedTrack?.turnMarkers)
             ? environment.storedTrack.turnMarkers
             : [];
@@ -4134,9 +4134,9 @@ function generateRoadAndTerrain(scene, game, environment) {
         });
         const runoffMaterial = new THREE.MeshBasicMaterial({ color: 0x8a7a5d });
         const pitLineMaterial = new THREE.MeshBasicMaterial({ color: 0xf4f0dc });
-        const montmeloKerbWidth = 3.8;
-        const montmeloKerbHeight = 0.12;
-        const montmeloKerbLength = 12.45;
+        const valleverdeKerbWidth = 3.8;
+        const valleverdeKerbHeight = 0.12;
+        const valleverdeKerbLength = 12.45;
         const pitLineGeometry = new THREE.BoxGeometry(0.34, 0.08, 22);
         const grandstandConcreteMaterial = new THREE.MeshPhongMaterial({ color: 0x8f9697, shininess: 8, specular: 0x1d2226 });
         const grandstandStepMaterials = [
@@ -4150,7 +4150,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             new THREE.MeshBasicMaterial({ color: 0x66d7e9 }),
             new THREE.MeshBasicMaterial({ color: 0xffd84e })
         ];
-        const grandstandBarcelonaSeatMaterials = [
+        const grandstandValleVerdeSeatMaterials = [
             new THREE.MeshBasicMaterial({ color: 0xbf2a2f }),
             new THREE.MeshBasicMaterial({ color: 0xc6a679 }),
             new THREE.MeshBasicMaterial({ color: 0x8e969a }),
@@ -4210,15 +4210,15 @@ function generateRoadAndTerrain(scene, game, environment) {
             new THREE.MeshPhongMaterial({ color: 0x1f2730, shininess: 8, specular: 0x111111 }),
             new THREE.MeshPhongMaterial({ color: 0x66d7e9, shininess: 8, specular: 0x223033 })
         ];
-        const montmeloPineTrunkMaterial = new THREE.MeshPhongMaterial({ color: 0x5a3b25, shininess: 5, specular: 0x1b1008 });
-        const montmeloPineCanopyMaterials = [
+        const valleverdePineTrunkMaterial = new THREE.MeshPhongMaterial({ color: 0x5a3b25, shininess: 5, specular: 0x1b1008 });
+        const valleverdePineCanopyMaterials = [
             new THREE.MeshLambertMaterial({ color: 0x244d32 }),
             new THREE.MeshLambertMaterial({ color: 0x2d623a }),
             new THREE.MeshLambertMaterial({ color: 0x365f35 })
         ];
-        const montmeloPineTrunkGeometry = new THREE.CylinderGeometry(0.18, 0.32, 4.1, 7);
-        const montmeloPineCrownGeometry = new THREE.SphereGeometry(1.42, 10, 7);
-        const montmeloPineLowerCrownGeometry = new THREE.SphereGeometry(1.08, 9, 6);
+        const valleverdePineTrunkGeometry = new THREE.CylinderGeometry(0.18, 0.32, 4.1, 7);
+        const valleverdePineCrownGeometry = new THREE.SphereGeometry(1.42, 10, 7);
+        const valleverdePineLowerCrownGeometry = new THREE.SphereGeometry(1.08, 9, 6);
 
         function roadYawAt(z) {
             return getRoadDataYaw(getRoadDataAtZ(z, game));
@@ -4429,13 +4429,13 @@ function generateRoadAndTerrain(scene, game, environment) {
                 new THREE.BoxGeometry(width, height, length),
                 material
             );
-            skirt.name = 'montmelo-grounded-foundation-skirt';
+            skirt.name = 'valleverde-grounded-foundation-skirt';
             skirt.position.y = bottomLocal + height * 0.5;
             group.add(skirt);
             return skirt;
         }
 
-        function addMontmeloBox({
+        function addValleVerdeBox({
             name,
             progress,
             offset,
@@ -4492,12 +4492,12 @@ function generateRoadAndTerrain(scene, game, environment) {
             widthEnd = widthStart,
             step = 24,
             material = pitLaneSurfaceMaterial,
-            name = 'montmelo-pit-lane-surface'
+            name = 'valleverde-pit-lane-surface'
         }) {
             const span = Math.max(1, endProgress - startProgress);
             for (let progress = startProgress + step * 0.5; progress < endProgress; progress += step) {
                 const t = THREE.MathUtils.clamp((progress - startProgress) / span, 0, 1);
-                addMontmeloBox({
+                addValleVerdeBox({
                     name,
                     progress,
                     offset: THREE.MathUtils.lerp(offsetStart, offsetEnd, t),
@@ -4511,8 +4511,8 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
         }
 
-        function addPitLaneMarking(progress, offset, width, length, material = pitLaneLineMaterial, name = 'montmelo-pit-lane-marking') {
-            addMontmeloBox({
+        function addPitLaneMarking(progress, offset, width, length, material = pitLaneLineMaterial, name = 'valleverde-pit-lane-marking') {
+            addValleVerdeBox({
                 name,
                 progress,
                 offset,
@@ -4526,8 +4526,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function addPitWallSegment(progress, index) {
-            addMontmeloBox({
-                name: 'montmelo-pit-wall',
+            addValleVerdeBox({
+                name: 'valleverde-pit-wall',
                 progress,
                 offset: game.road.width * 0.5 + 4.1,
                 width: 0.72,
@@ -4538,8 +4538,8 @@ function generateRoadAndTerrain(scene, game, environment) {
                 yLift: 0.04
             });
             if (index % 3 === 0) {
-                addMontmeloBox({
-                    name: 'montmelo-pit-wall-red-cap',
+                addValleVerdeBox({
+                    name: 'valleverde-pit-wall-red-cap',
                     progress,
                     offset: game.road.width * 0.5 + 4.1,
                     width: 0.78,
@@ -4652,7 +4652,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function getScoringTowerTopTexture() {
-            const cacheKey = 'montmelo:scoring-tower-top';
+            const cacheKey = 'valleverde:scoring-tower-top';
             if (grandstandLabelCache.has(cacheKey)) {
                 return grandstandLabelCache.get(cacheKey);
             }
@@ -4667,7 +4667,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             context.fillStyle = '#f8f4e8';
             context.font = '900 56px Arial, sans-serif';
             context.textAlign = 'center';
-            context.fillText('la Caixa', 256, 174);
+            context.fillText('RALLY GRID', 256, 174);
 
             context.fillStyle = '#222a32';
             context.fillRect(44, 218, 424, 94);
@@ -4682,7 +4682,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             context.fillRect(44, 336, 424, 72);
             context.fillStyle = '#f8f4e8';
             context.font = '900 46px Arial, sans-serif';
-            context.fillText('VOLTA', 256, 386);
+            context.fillText('LAP', 256, 386);
 
             const texture = new THREE.CanvasTexture(canvas);
             texture.anisotropy = 4;
@@ -4694,7 +4694,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         function getScoringTowerBoardTexture() {
-            const cacheKey = 'montmelo:scoring-tower-board';
+            const cacheKey = 'valleverde:scoring-tower-board';
             if (grandstandLabelCache.has(cacheKey)) {
                 return grandstandLabelCache.get(cacheKey);
             }
@@ -4827,7 +4827,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             return geometry;
         }
 
-        function addMontmeloSupportBeam(group, start, end, radius, material, name) {
+        function addValleVerdeSupportBeam(group, start, end, radius, material, name) {
             const direction = new THREE.Vector3().subVectors(end, start);
             const length = direction.length();
             if (length <= 0.001) {
@@ -4879,7 +4879,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const groundRange = getFootprintGroundRange(point, roadData, z, halfDepth, halfLength, 4, 8);
             const groundY = groundRange.max;
             const group = new THREE.Group();
-            group.name = `montmelo-grandstand-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+            group.name = `valleverde-grandstand-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
             group.position.set(point.x, groundY + 0.05, point.z);
             group.rotation.y = roadYawAt(z) + yawOffset;
             group.userData.sceneryCullProgress = z;
@@ -4901,17 +4901,17 @@ function generateRoadAndTerrain(scene, game, environment) {
             base.position.y = 0.22;
             group.add(base);
 
-            const isMainGrandstand = curvedRoof && seatPattern === 'barcelona';
+            const isMainGrandstand = curvedRoof && seatPattern === 'flagship';
             const rowDepth = standDepth / (standRows + 1);
-            const addBarcelonaSeatBlocks = (rowX, rowY, rowLength, seatRowDepth, rowIndex, tierIndex) => {
+            const addValleVerdeSeatBlocks = (rowX, rowY, rowLength, seatRowDepth, rowIndex, tierIndex) => {
                 const sectionCount = 14;
                 const sectionLength = rowLength / sectionCount;
                 for (let section = 0; section < sectionCount; section++) {
                     const isStair = section === 2 || section === 6 || section === 10;
                     const material = isStair
                         ? grandstandStepMaterials[(rowIndex + section + tierIndex) % grandstandStepMaterials.length]
-                        : grandstandBarcelonaSeatMaterials[
-                            (section + Math.floor(rowIndex * 0.72) + tierIndex * 2) % grandstandBarcelonaSeatMaterials.length
+                        : grandstandValleVerdeSeatMaterials[
+                            (section + Math.floor(rowIndex * 0.72) + tierIndex * 2) % grandstandValleVerdeSeatMaterials.length
                         ];
                     const seatBlock = new THREE.Mesh(
                         new THREE.BoxGeometry(
@@ -4921,7 +4921,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         ),
                         material
                     );
-                    seatBlock.name = isStair ? 'montmelo-main-grandstand-stair-gap' : 'montmelo-main-grandstand-seat-block';
+                    seatBlock.name = isStair ? 'valleverde-main-grandstand-stair-gap' : 'valleverde-main-grandstand-seat-block';
                     seatBlock.position.set(
                         rowX,
                         rowY + 0.2,
@@ -4949,17 +4949,17 @@ function generateRoadAndTerrain(scene, game, environment) {
                         new THREE.BoxGeometry(tierRowDepth * 1.02, 0.24, rowLength),
                         grandstandStepMaterials[row % grandstandStepMaterials.length]
                     );
-                    step.name = 'montmelo-main-grandstand-lower-tier-step';
+                    step.name = 'valleverde-main-grandstand-lower-tier-step';
                     step.position.set(rowX, rowY, 0);
                     group.add(step);
-                    addBarcelonaSeatBlocks(rowX, rowY, rowLength, tierRowDepth, row, 0);
+                    addValleVerdeSeatBlocks(rowX, rowY, rowLength, tierRowDepth, row, 0);
                 }
 
                 const concourseDeck = new THREE.Mesh(
                     new THREE.BoxGeometry(standDepth * 0.68, 0.34, standLength * 1.02),
                     grandstandConcreteMaterial
                 );
-                concourseDeck.name = 'montmelo-main-grandstand-mid-concourse';
+                concourseDeck.name = 'valleverde-main-grandstand-mid-concourse';
                 concourseDeck.position.set(side * standDepth * 0.05, 3.05, 0);
                 group.add(concourseDeck);
 
@@ -4967,22 +4967,22 @@ function generateRoadAndTerrain(scene, game, environment) {
                     new THREE.BoxGeometry(0.26, 1.1, standLength * 0.9),
                     garageGlassMaterial
                 );
-                glassBand.name = 'montmelo-main-grandstand-glass-band';
+                glassBand.name = 'valleverde-main-grandstand-glass-band';
                 glassBand.position.set(-side * standDepth * 0.18, 3.56, 0);
                 group.add(glassBand);
 
-                const barcelonaFascia = new THREE.Mesh(
+                const valleVerdeFascia = new THREE.Mesh(
                     new THREE.PlaneGeometry(Math.min(standLength * 0.42, 64), 2.4),
                     new THREE.MeshBasicMaterial({
-                        map: getGrandstandLabelTexture('Barcelona', '', '#f4f0dc'),
+                        map: getGrandstandLabelTexture('Valle Verde', '', '#f4f0dc'),
                         transparent: true,
                         side: THREE.DoubleSide
                     })
                 );
-                barcelonaFascia.name = 'montmelo-main-grandstand-barcelona-fascia';
-                barcelonaFascia.position.set(-side * standDepth * 0.2, 3.8, 0);
-                barcelonaFascia.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-                group.add(barcelonaFascia);
+                valleVerdeFascia.name = 'valleverde-main-grandstand-valle-verde-fascia';
+                valleVerdeFascia.position.set(-side * standDepth * 0.2, 3.8, 0);
+                valleVerdeFascia.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                group.add(valleVerdeFascia);
 
                 for (let row = 0; row < upperRows; row++) {
                     const t = (row + 0.5) / upperRows;
@@ -4993,10 +4993,10 @@ function generateRoadAndTerrain(scene, game, environment) {
                         new THREE.BoxGeometry(tierRowDepth * 0.98, 0.24, rowLength),
                         grandstandStepMaterials[(row + lowerRows) % grandstandStepMaterials.length]
                     );
-                    step.name = 'montmelo-main-grandstand-upper-tier-step';
+                    step.name = 'valleverde-main-grandstand-upper-tier-step';
                     step.position.set(rowX, rowY, 0);
                     group.add(step);
-                    addBarcelonaSeatBlocks(rowX, rowY, rowLength, tierRowDepth, row + lowerRows, 1);
+                    addValleVerdeSeatBlocks(rowX, rowY, rowLength, tierRowDepth, row + lowerRows, 1);
                 }
             } else {
                 for (let row = 0; row < standRows; row++) {
@@ -5011,8 +5011,8 @@ function generateRoadAndTerrain(scene, game, environment) {
                     step.position.set(rowX, rowY, 0);
                     group.add(step);
 
-                    if (seatPattern === 'barcelona') {
-                        addBarcelonaSeatBlocks(rowX, rowY, rowLength, rowDepth, row, 0);
+                    if (seatPattern === 'flagship') {
+                        addValleVerdeSeatBlocks(rowX, rowY, rowLength, rowDepth, row, 0);
                     } else if (row % 2 === 0 || standRows < 8) {
                         const crowd = new THREE.Mesh(
                             new THREE.BoxGeometry(rowDepth * 0.55, 0.12, rowLength * 0.82),
@@ -5042,14 +5042,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                         createMainGrandstandRoofGeometry(side, standDepth, standLength, roofY, -0.18),
                         grandstandCanopyUndersideMaterial
                     );
-                    underside.name = 'montmelo-main-grandstand-roof-underside';
+                    underside.name = 'valleverde-main-grandstand-roof-underside';
                     group.add(underside);
 
                     const roofSurface = new THREE.Mesh(
                         createMainGrandstandRoofGeometry(side, standDepth, standLength, roofY, 0),
                         grandstandCanopyMaterial
                     );
-                    roofSurface.name = 'montmelo-main-grandstand-curved-roof';
+                    roofSurface.name = 'valleverde-main-grandstand-curved-roof';
                     group.add(roofSurface);
 
                     [-1, 1].forEach(zSide => {
@@ -5057,7 +5057,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                             createMainGrandstandRoofSideCapGeometry(side, standDepth, roofY),
                             grandstandCanopyMaterial
                         );
-                        sideCap.name = 'montmelo-main-grandstand-open-c-roof-end';
+                        sideCap.name = 'valleverde-main-grandstand-open-c-roof-end';
                         sideCap.position.z = zSide * standLength * 0.59;
                         group.add(sideCap);
                     });
@@ -5070,7 +5070,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         new THREE.BoxGeometry(1.04, 2.02, standLength * 1.18),
                         grandstandRoofMaterial
                     );
-                    frontFascia.name = 'montmelo-main-grandstand-rounded-roof-lip';
+                    frontFascia.name = 'valleverde-main-grandstand-rounded-roof-lip';
                     frontFascia.position.set(frontX + (-side * 0.22), frontY - 0.64, 0);
                     frontFascia.rotation.z = side * 0.12;
                     group.add(frontFascia);
@@ -5079,7 +5079,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         new THREE.CylinderGeometry(0.46, 0.46, standLength * 1.18, 18),
                         grandstandRoofMaterial
                     );
-                    frontRoll.name = 'montmelo-main-grandstand-roof-roll';
+                    frontRoll.name = 'valleverde-main-grandstand-roof-roll';
                     frontRoll.position.set(frontX + (-side * 0.2), frontY + 0.2, 0);
                     frontRoll.rotation.x = Math.PI / 2;
                     group.add(frontRoll);
@@ -5088,7 +5088,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         new THREE.BoxGeometry(standDepth * 0.22, 0.3, standLength * 1.13),
                         grandstandShadowMaterial
                     );
-                    lowerReturn.name = 'montmelo-main-grandstand-roof-lower-return';
+                    lowerReturn.name = 'valleverde-main-grandstand-roof-lower-return';
                     lowerReturn.position.set(frontX + (side * standDepth * 0.12), frontY - 1.38, 0);
                     lowerReturn.rotation.z = side * -0.04;
                     group.add(lowerReturn);
@@ -5102,21 +5102,21 @@ function generateRoadAndTerrain(scene, game, environment) {
 
                     [-0.46, -0.24, 0, 0.24, 0.46].forEach(zFactor => {
                         const zPosition = standLength * zFactor;
-                        addMontmeloSupportBeam(
+                        addValleVerdeSupportBeam(
                             group,
                             new THREE.Vector3(-side * standDepth * 0.36, 0.78, zPosition),
                             new THREE.Vector3(-side * standDepth * 0.56, roofY + getMainGrandstandRoofProfile(0.72) - 0.12, zPosition),
                             0.18,
                             grandstandConcreteMaterial,
-                            'montmelo-main-grandstand-diagonal-front-support'
+                            'valleverde-main-grandstand-diagonal-front-support'
                         );
-                        addMontmeloSupportBeam(
+                        addValleVerdeSupportBeam(
                             group,
                             new THREE.Vector3(side * standDepth * 0.02, 3.08, zPosition),
                             new THREE.Vector3(-side * standDepth * 0.28, roofY + getMainGrandstandRoofProfile(0.5) - 0.18, zPosition),
                             0.14,
                             grandstandConcreteMaterial,
-                            'montmelo-main-grandstand-diagonal-rear-support'
+                            'valleverde-main-grandstand-diagonal-rear-support'
                         );
 
                         [-0.44, 0.3].forEach(xFactor => {
@@ -5160,7 +5160,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                             side: THREE.DoubleSide
                         })
                     );
-                    roofLabel.name = 'montmelo-grandstand-roof-label';
+                    roofLabel.name = 'valleverde-grandstand-roof-label';
                     roofLabel.position.set(-side * (standDepth * (curvedRoof ? 0.77 : 0.58) + 0.1), roofY - 0.05, 0);
                     roofLabel.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
                     group.add(roofLabel);
@@ -5174,7 +5174,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                         side: THREE.DoubleSide
                     })
                 );
-                rearLabel.name = 'montmelo-grandstand-rear-label';
+                rearLabel.name = 'valleverde-grandstand-rear-label';
                 rearLabel.position.set(side * (standDepth * 0.58 + 0.08), 2.1 + standRows * 0.34, 0);
                 rearLabel.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
                 group.add(rearLabel);
@@ -5192,7 +5192,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const groundRange = getFootprintGroundRange(point, roadData, z, depth * 0.58, length * 0.56, 3, 5);
             const groundY = groundRange.max;
             const group = new THREE.Group();
-            group.name = 'montmelo-pit-garage-bay';
+            group.name = 'valleverde-pit-garage-bay';
             group.position.set(point.x, groundY + 0.04, point.z);
             group.rotation.y = roadYawAt(z);
             group.userData.sceneryCullProgress = z;
@@ -5276,7 +5276,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const groundRange = getFootprintGroundRange(point, roadData, z, width * 0.56, length * 0.56, 2, 4);
             const groundY = groundRange.max;
             const group = new THREE.Group();
-            group.name = 'montmelo-paddock-trailer';
+            group.name = 'valleverde-paddock-trailer';
             group.position.set(point.x, groundY + 0.05, point.z);
             group.rotation.y = roadYawAt(z) + (index % 2 === 0 ? 0.08 : -0.08);
             group.userData.sceneryCullProgress = z;
@@ -5323,7 +5323,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const groundRange = getFootprintGroundRange(point, roadData, z, 17, 34, 3, 6);
             const groundY = groundRange.max;
             const group = new THREE.Group();
-            group.name = 'montmelo-pit-lane-lounge';
+            group.name = 'valleverde-pit-lane-lounge';
             group.position.set(point.x, groundY + 0.04, point.z);
             group.rotation.y = roadYawAt(z);
             group.userData.sceneryCullProgress = z;
@@ -5384,7 +5384,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const groundRange = getFootprintGroundRange(point, roadData, z, depth * 0.62, length * 0.56, 4, 8);
             const groundY = groundRange.max;
             const group = new THREE.Group();
-            group.name = 'montmelo-main-paddock-building';
+            group.name = 'valleverde-main-paddock-building';
             group.position.set(point.x, groundY + 0.04, point.z);
             group.rotation.y = roadYawAt(z);
             group.userData.sceneryCullProgress = z;
@@ -5475,7 +5475,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const circuitSign = new THREE.Mesh(
                 new THREE.PlaneGeometry(length * 0.46, 2.25),
                 new THREE.MeshBasicMaterial({
-                    map: getPaddockSponsorTexture('CIRCUIT', 'BARCELONA-CATALUNYA', '#d42027', '#f8f4e8'),
+                    map: getPaddockSponsorTexture('CIRCUIT', 'VALLE VERDE GP', '#d42027', '#f8f4e8'),
                     side: THREE.DoubleSide
                 })
             );
@@ -5502,7 +5502,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             addDecorGroup(decor, group, 'paddock');
         }
 
-        function addMontmeloPositionTower() {
+        function addValleVerdePositionTower() {
             const progress = 720;
             const z = -progress;
             const roadData = getRoadDataAtZ(z, game);
@@ -5510,7 +5510,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             const groundRange = getFootprintGroundRange(point, roadData, z, 5.8, 8.2, 3, 5);
             const groundY = groundRange.max;
             const group = new THREE.Group();
-            group.name = 'montmelo-position-tower';
+            group.name = 'valleverde-position-tower';
             group.position.set(point.x, groundY + 0.05, point.z);
             group.rotation.y = roadYawAt(z);
             group.userData.sceneryCullProgress = z;
@@ -5639,8 +5639,8 @@ function generateRoadAndTerrain(scene, game, environment) {
 
             addDecorGroup(decor, group, 'paddock');
 
-            addMontmeloBox({
-                name: 'montmelo-position-tower-retaining-wall',
+            addValleVerdeBox({
+                name: 'valleverde-position-tower-retaining-wall',
                 progress,
                 offset: 33.2,
                 width: 1.0,
@@ -5652,7 +5652,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             });
         }
 
-        function addMontmeloPitLaneAndPaddock() {
+        function addValleVerdePitLaneAndPaddock() {
             addPitLaneStrip(4490, 4676, {
                 offsetStart: 20.5,
                 offsetEnd: 22.5,
@@ -5660,7 +5660,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 widthEnd: 8.4,
                 step: 22,
                 material: pitLaneExitMaterial,
-                name: 'montmelo-pit-entry'
+                name: 'valleverde-pit-entry'
             });
             addPitLaneStrip(4, 144, {
                 offsetStart: 22.5,
@@ -5669,14 +5669,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                 widthEnd: 8.8,
                 step: 22,
                 material: pitLaneExitMaterial,
-                name: 'montmelo-pit-entry'
+                name: 'valleverde-pit-entry'
             });
             addPitLaneStrip(144, 552, {
                 offsetStart: 23.4,
                 widthStart: 9.4,
                 step: 28,
                 material: pitLaneSurfaceMaterial,
-                name: 'montmelo-pit-lane-main'
+                name: 'valleverde-pit-lane-main'
             });
             addPitLaneStrip(552, 870, {
                 offsetStart: 23.4,
@@ -5685,7 +5685,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 widthEnd: 5.2,
                 step: 28,
                 material: pitLaneExitMaterial,
-                name: 'montmelo-pit-exit'
+                name: 'valleverde-pit-exit'
             });
 
             let wallIndex = 0;
@@ -5694,21 +5694,21 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
 
             for (let progress = 160; progress <= 548; progress += 18) {
-                addPitLaneMarking(progress, 19.2, 0.28, 8.5, pitLaneYellowMaterial, 'montmelo-pit-lane-yellow-line');
+                addPitLaneMarking(progress, 19.2, 0.28, 8.5, pitLaneYellowMaterial, 'valleverde-pit-lane-yellow-line');
                 if (Math.floor(progress / 18) % 2 === 0) {
-                    addPitLaneMarking(progress, 27.4, 0.32, 7.2, pitLaneLineMaterial, 'montmelo-pit-lane-dashed-line');
+                    addPitLaneMarking(progress, 27.4, 0.32, 7.2, pitLaneLineMaterial, 'valleverde-pit-lane-dashed-line');
                 }
             }
             for (let progress = 248; progress <= 536; progress += 36) {
-                addPitLaneMarking(progress, 31.4, 6.8, 0.32, pitLaneLineMaterial, 'montmelo-pit-box-cross-line');
+                addPitLaneMarking(progress, 31.4, 6.8, 0.32, pitLaneLineMaterial, 'valleverde-pit-box-cross-line');
             }
             [4560, 4630, 36, 92, 622, 704, 790].forEach((progress, index) => {
-                addPitLaneMarking(progress, index < 4 ? 17.8 : 15.4, 5.6, 0.32, pitLaneLineMaterial, 'montmelo-pit-merge-line');
+                addPitLaneMarking(progress, index < 4 ? 17.8 : 15.4, 5.6, 0.32, pitLaneLineMaterial, 'valleverde-pit-merge-line');
             });
 
             for (let progress = 238; progress <= 650; progress += 42) {
-                addMontmeloBox({
-                    name: 'montmelo-paddock-apron',
+                addValleVerdeBox({
+                    name: 'valleverde-paddock-apron',
                     progress,
                     offset: 96,
                     width: 72,
@@ -5720,8 +5720,8 @@ function generateRoadAndTerrain(scene, game, environment) {
                 });
             }
             for (let progress = 445; progress <= 655; progress += 34) {
-                addMontmeloBox({
-                    name: 'montmelo-paddock-service-road',
+                addValleVerdeBox({
+                    name: 'valleverde-paddock-service-road',
                     progress,
                     offset: 136,
                     width: 9,
@@ -5738,7 +5738,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             }
             addPitLaneLounge();
             addMainStraightPaddockBuilding();
-            addMontmeloPositionTower();
+            addValleVerdePositionTower();
 
             const trailerPlacements = [
                 [282, 85],
@@ -5765,65 +5765,65 @@ function generateRoadAndTerrain(scene, game, environment) {
                     side: THREE.DoubleSide
                 })
             );
-            sign.name = 'montmelo-paddock-sign';
+            sign.name = 'valleverde-paddock-sign';
             sign.position.set(signPoint.x, getTerrainHeightAt(signPoint.x, signPoint.z) + 7.2, signPoint.z);
             sign.rotation.y = roadYawAt(z) - Math.PI / 2;
             sign.userData.sceneryCullProgress = z;
             addDecorMesh(decor, sign, 'paddock');
         }
 
-        function getMontmeloDecorHash(seed) {
+        function getValleVerdeDecorHash(seed) {
             const value = Math.sin(seed * 12.9898) * 43758.5453;
             return value - Math.floor(value);
         }
 
-        function createMontmeloStonePine(scale = 1, seed = 1) {
+        function createValleVerdeStonePine(scale = 1, seed = 1) {
             const tree = new THREE.Group();
-            tree.name = 'montmelo-stone-pine';
+            tree.name = 'valleverde-stone-pine';
 
-            const lean = (getMontmeloDecorHash(seed + 0.7) - 0.5) * 0.14;
-            const trunk = new THREE.Mesh(montmeloPineTrunkGeometry, montmeloPineTrunkMaterial);
+            const lean = (getValleVerdeDecorHash(seed + 0.7) - 0.5) * 0.14;
+            const trunk = new THREE.Mesh(valleverdePineTrunkGeometry, valleverdePineTrunkMaterial);
             trunk.position.y = 2.05;
             trunk.rotation.z = lean;
             tree.add(trunk);
 
-            const canopyMaterial = montmeloPineCanopyMaterials[Math.floor(getMontmeloDecorHash(seed + 1.9) * montmeloPineCanopyMaterials.length)];
-            const upperCanopy = new THREE.Mesh(montmeloPineCrownGeometry, canopyMaterial);
+            const canopyMaterial = valleverdePineCanopyMaterials[Math.floor(getValleVerdeDecorHash(seed + 1.9) * valleverdePineCanopyMaterials.length)];
+            const upperCanopy = new THREE.Mesh(valleverdePineCrownGeometry, canopyMaterial);
             upperCanopy.position.set(
-                (getMontmeloDecorHash(seed + 2.3) - 0.5) * 0.34,
-                4.72 + getMontmeloDecorHash(seed + 3.1) * 0.48,
-                (getMontmeloDecorHash(seed + 4.2) - 0.5) * 0.28
+                (getValleVerdeDecorHash(seed + 2.3) - 0.5) * 0.34,
+                4.72 + getValleVerdeDecorHash(seed + 3.1) * 0.48,
+                (getValleVerdeDecorHash(seed + 4.2) - 0.5) * 0.28
             );
             upperCanopy.scale.set(
-                1.65 + getMontmeloDecorHash(seed + 5.4) * 0.42,
-                0.48 + getMontmeloDecorHash(seed + 6.6) * 0.12,
-                1.16 + getMontmeloDecorHash(seed + 7.8) * 0.36
+                1.65 + getValleVerdeDecorHash(seed + 5.4) * 0.42,
+                0.48 + getValleVerdeDecorHash(seed + 6.6) * 0.12,
+                1.16 + getValleVerdeDecorHash(seed + 7.8) * 0.36
             );
-            upperCanopy.rotation.y = getMontmeloDecorHash(seed + 8.2) * Math.PI;
+            upperCanopy.rotation.y = getValleVerdeDecorHash(seed + 8.2) * Math.PI;
             tree.add(upperCanopy);
 
             const lowerCanopy = new THREE.Mesh(
-                montmeloPineLowerCrownGeometry,
-                montmeloPineCanopyMaterials[(Math.floor(seed) + 1) % montmeloPineCanopyMaterials.length]
+                valleverdePineLowerCrownGeometry,
+                valleverdePineCanopyMaterials[(Math.floor(seed) + 1) % valleverdePineCanopyMaterials.length]
             );
             lowerCanopy.position.set(
-                (getMontmeloDecorHash(seed + 9.4) - 0.5) * 0.74,
-                4.14 + getMontmeloDecorHash(seed + 10.5) * 0.32,
-                (getMontmeloDecorHash(seed + 11.6) - 0.5) * 0.62
+                (getValleVerdeDecorHash(seed + 9.4) - 0.5) * 0.74,
+                4.14 + getValleVerdeDecorHash(seed + 10.5) * 0.32,
+                (getValleVerdeDecorHash(seed + 11.6) - 0.5) * 0.62
             );
             lowerCanopy.scale.set(
-                1.32 + getMontmeloDecorHash(seed + 12.2) * 0.34,
-                0.38 + getMontmeloDecorHash(seed + 13.5) * 0.1,
-                1.02 + getMontmeloDecorHash(seed + 14.7) * 0.28
+                1.32 + getValleVerdeDecorHash(seed + 12.2) * 0.34,
+                0.38 + getValleVerdeDecorHash(seed + 13.5) * 0.1,
+                1.02 + getValleVerdeDecorHash(seed + 14.7) * 0.28
             );
-            lowerCanopy.rotation.y = getMontmeloDecorHash(seed + 15.1) * Math.PI;
+            lowerCanopy.rotation.y = getValleVerdeDecorHash(seed + 15.1) * Math.PI;
             tree.add(lowerCanopy);
 
             tree.scale.setScalar(scale);
             return tree;
         }
 
-        function addMontmeloPine(progress, offset, scale, seed) {
+        function addValleVerdePine(progress, offset, scale, seed) {
             const z = -progress;
             if (z > game.startLine + 260 || z < game.finishLine - 260) {
                 return false;
@@ -5836,15 +5836,15 @@ function generateRoadAndTerrain(scene, game, environment) {
                 return false;
             }
 
-            const tree = createMontmeloStonePine(scale, seed);
+            const tree = createValleVerdeStonePine(scale, seed);
             tree.position.set(point.x, getTerrainHeightAt(point.x, point.z) - 0.08 * scale, point.z);
-            tree.rotation.y = getMontmeloDecorHash(seed + 16.8) * Math.PI * 2;
+            tree.rotation.y = getValleVerdeDecorHash(seed + 16.8) * Math.PI * 2;
             tree.userData.sceneryCullProgress = z;
             addDecorGroup(decor, tree, 'trees');
             return true;
         }
 
-        function addMontmeloPineCluster({
+        function addValleVerdePineCluster({
             start,
             end,
             offsets,
@@ -5862,14 +5862,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                 offsets.forEach((baseOffset, rowIndex) => {
                     const seed = seedBase + progress * 0.31 + rowIndex * 41.7 + index * 7.1;
                     index++;
-                    if (getMontmeloDecorHash(seed) > density) {
+                    if (getValleVerdeDecorHash(seed) > density) {
                         return;
                     }
 
-                    const pineProgress = progress + (getMontmeloDecorHash(seed + 1.1) - 0.5) * jitterProgress;
-                    const pineOffset = baseOffset + (getMontmeloDecorHash(seed + 2.2) - 0.5) * jitterOffset;
-                    const scale = scaleMin + getMontmeloDecorHash(seed + 3.3) * (scaleMax - scaleMin);
-                    if (addMontmeloPine(pineProgress, pineOffset, scale, seed + 4.4)) {
+                    const pineProgress = progress + (getValleVerdeDecorHash(seed + 1.1) - 0.5) * jitterProgress;
+                    const pineOffset = baseOffset + (getValleVerdeDecorHash(seed + 2.2) - 0.5) * jitterOffset;
+                    const scale = scaleMin + getValleVerdeDecorHash(seed + 3.3) * (scaleMax - scaleMin);
+                    if (addValleVerdePine(pineProgress, pineOffset, scale, seed + 4.4)) {
                         count++;
                     }
                 });
@@ -5877,7 +5877,7 @@ function generateRoadAndTerrain(scene, game, environment) {
             return count;
         }
 
-        function addMontmeloPines() {
+        function addValleVerdePines() {
             const pineClusters = [
                 {
                     start: 36,
@@ -5941,11 +5941,11 @@ function generateRoadAndTerrain(scene, game, environment) {
                 }
             ];
 
-            const pineCount = pineClusters.reduce((total, cluster) => total + addMontmeloPineCluster(cluster), 0);
+            const pineCount = pineClusters.reduce((total, cluster) => total + addValleVerdePineCluster(cluster), 0);
             stageDecorStats.conifers += pineCount;
         }
 
-        function createMontmeloKerbGeometry(point, roadData, z) {
+        function createValleVerdeKerbGeometry(point, roadData, z) {
             const basis = getRoadBasis(roadData, z);
             const roadSurfaceY = roadData.y + 0.085;
             const centerY = Math.max(getTerrainHeightAt(point.x, point.z), roadSurfaceY);
@@ -5957,16 +5957,16 @@ function generateRoadAndTerrain(scene, game, environment) {
             for (let layer = 0; layer < 2; layer++) {
                 for (let iz = 0; iz <= lengthSegments; iz++) {
                     const zRatio = iz / lengthSegments;
-                    const localZ = (zRatio - 0.5) * montmeloKerbLength;
+                    const localZ = (zRatio - 0.5) * valleverdeKerbLength;
                     for (let ix = 0; ix <= widthSegments; ix++) {
                         const xRatio = ix / widthSegments;
-                        const localX = (xRatio - 0.5) * montmeloKerbWidth;
+                        const localX = (xRatio - 0.5) * valleverdeKerbWidth;
                         const sampleX = point.x + basis.normalX * localX + basis.tangentX * localZ;
                         const sampleZ = point.z + basis.normalZ * localX + basis.tangentZ * localZ;
                         const surfaceY = Math.max(getTerrainHeightAt(sampleX, sampleZ), roadSurfaceY);
                         positions.push(
                             sampleX - point.x,
-                            surfaceY + 0.045 + layer * montmeloKerbHeight - centerY,
+                            surfaceY + 0.045 + layer * valleverdeKerbHeight - centerY,
                             sampleZ - point.z
                         );
                     }
@@ -6014,11 +6014,11 @@ function generateRoadAndTerrain(scene, game, environment) {
             const point = getRoadOffsetPoint(
                 roadData,
                 z,
-                side * (roadData.width / 2 + montmeloKerbWidth * 0.5 + 0.08)
+                side * (roadData.width / 2 + valleverdeKerbWidth * 0.5 + 0.08)
             );
-            const { geometry, centerY } = createMontmeloKerbGeometry(point, roadData, z);
+            const { geometry, centerY } = createValleVerdeKerbGeometry(point, roadData, z);
             const kerb = new THREE.Mesh(geometry, material);
-            kerb.name = material === redKerbMaterial ? 'montmelo-red-kerb-block' : 'montmelo-white-kerb-block';
+            kerb.name = material === redKerbMaterial ? 'valleverde-red-kerb-block' : 'valleverde-white-kerb-block';
             kerb.position.set(point.x, centerY, point.z);
             kerb.renderOrder = 9;
             kerb.userData.sceneryCullProgress = z;
@@ -6036,11 +6036,11 @@ function generateRoadAndTerrain(scene, game, environment) {
             addDecorMesh(decor, pitLine, 'kerbs');
         }
 
-        addMontmeloPitLaneAndPaddock();
-        addMontmeloPines();
+        addValleVerdePitLaneAndPaddock();
+        addValleVerdePines();
 
         [
-            { label: 'MAIN', subtitle: 'BARCELONA', progress: 336, side: -1, length: 220, depth: 42, rows: 14, offset: 38, covered: true, curvedRoof: true, seatPattern: 'barcelona', accent: '#ffd84e' },
+            { label: 'MAIN', subtitle: 'VALLE VERDE', progress: 336, side: -1, length: 220, depth: 42, rows: 14, offset: 38, covered: true, curvedRoof: true, seatPattern: 'flagship', accent: '#ffd84e' },
             { label: 'J', subtitle: 'MAIN STRAIGHT', progress: 705, side: -1, length: 116, depth: 28, rows: 9, offset: 28, accent: '#66d7e9' },
             { label: 'K', subtitle: 'MAIN STRAIGHT', progress: 844, side: -1, length: 116, depth: 28, rows: 9, offset: 28, accent: '#66d7e9' },
             { label: 'E', subtitle: 'TURN 1', progress: 931, side: -1, length: 74, depth: 26, rows: 8, offset: 24, accent: '#d42027' },
@@ -6132,8 +6132,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         const decor = new THREE.Group();
         decor.name = `stage-decor-${environment.id || 'default'}`;
 
-        if (environment.id === 'montmelo') {
-            addMontmeloCircuitDecor(decor);
+        if (environment.id === 'valleverde') {
+            addValleVerdeCircuitDecor(decor);
         } else if (environment.id === 'alpine') {
             addAlpineRoadsideDecor(decor);
         } else if (environment.id === 'desert') {
