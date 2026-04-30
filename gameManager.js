@@ -252,6 +252,42 @@ const environments = {
             turns: 14,
             direction: 'clockwise',
             repeat: true,
+            elevationChangeMeters: 29.6,
+            elevationSource: 'OpenStreetMap way 831804327 with OpenTopodata EUDEM25M samples scaled to published circuit elevation change',
+            elevationProfile: [
+                { s: 0, y: 23.8 },
+                { s: 160, y: 29.3 },
+                { s: 190, y: 29.6 },
+                { s: 320, y: 22.1 },
+                { s: 480, y: 15.6 },
+                { s: 640, y: 13.9 },
+                { s: 800, y: 18.2 },
+                { s: 960, y: 19.1 },
+                { s: 1120, y: 22.7 },
+                { s: 1280, y: 14.7 },
+                { s: 1440, y: 5 },
+                { s: 1600, y: 4.8 },
+                { s: 1760, y: 8.9 },
+                { s: 1920, y: 14.9 },
+                { s: 2080, y: 19.2 },
+                { s: 2240, y: 19.5 },
+                { s: 2400, y: 17.5 },
+                { s: 2560, y: 22.7 },
+                { s: 2720, y: 13.9 },
+                { s: 2880, y: 9.1 },
+                { s: 3040, y: 7.2 },
+                { s: 3200, y: 1.6 },
+                { s: 3440, y: 0 },
+                { s: 3520, y: 3.1 },
+                { s: 3680, y: 5.1 },
+                { s: 3840, y: 7.4 },
+                { s: 4000, y: 8 },
+                { s: 4160, y: 9.1 },
+                { s: 4320, y: 9.6 },
+                { s: 4480, y: 14.3 },
+                { s: 4640, y: 19.7 },
+                { s: 4677.3, y: 23.8 }
+            ],
             controlPoints: [
                 { s: 0, x: 469.7, z: -364.5, y: 0 },
                 { s: 2.6, x: 468.9, z: -362, y: 0 },
@@ -4434,10 +4470,13 @@ class GameManager {
     createStartCountdownGroup() {
         const group = new THREE.Group();
         group.name = 'start-countdown-sequence';
-        const countdownZ = this.game.startLine - 18;
+        const countdownLineOffset = this.currentStageId === 'montmelo' ? 64 : 18;
+        const countdownZ = this.game.startLine - countdownLineOffset;
         const signWidth = 16.4;
         const signHeight = 4.8;
         const pylonHeight = 8.8;
+        group.userData.countdownLineOffset = countdownLineOffset;
+        group.userData.countdownProgressZ = countdownZ;
 
         const frameMaterial = new THREE.MeshStandardMaterial({
             color: 0x091019,
@@ -5405,9 +5444,16 @@ class GameManager {
             return;
         }
 
+        const effectContext = {
+            playerWorldPosition: this.playerCar?.position || this.carPosition || null,
+            playerProgressZ: Number.isFinite(this.game?.car?.position?.z)
+                ? this.game.car.position.z
+                : this.game?.startLine ?? 0
+        };
+
         this.game.stageEffects.forEach(effect => {
             if (typeof effect.update === 'function') {
-                effect.update(deltaSeconds, this.game, this.camera, this.getActiveCameraMode());
+                effect.update(deltaSeconds, this.game, this.camera, this.getActiveCameraMode(), effectContext);
             }
         });
     }

@@ -421,6 +421,207 @@ function createCoastalSkyTexture(environment = {}) {
     return texture;
 }
 
+function createCircuitSkyTexture(environment = {}) {
+    const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
+    const isRainy = !environment.disableRain;
+    const isFoggy = environment.weatherMode === 'fog';
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 1024;
+    const context = canvas.getContext('2d');
+    const seededUnit = seed => {
+        const value = Math.sin(seed * 91.73 + 17.41) * 43758.5453;
+        return value - Math.floor(value);
+    };
+
+    const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    if (isNight) {
+        skyGradient.addColorStop(0, '#06101f');
+        skyGradient.addColorStop(0.36, '#102238');
+        skyGradient.addColorStop(0.68, '#28364a');
+        skyGradient.addColorStop(1, '#20252a');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#486d9d');
+        skyGradient.addColorStop(0.34, '#b56f6b');
+        skyGradient.addColorStop(0.62, '#eba35f');
+        skyGradient.addColorStop(1, '#c08c55');
+    } else if (isRainy || isFoggy) {
+        skyGradient.addColorStop(0, '#728d98');
+        skyGradient.addColorStop(0.36, '#a5b6b7');
+        skyGradient.addColorStop(0.68, '#c4c7ba');
+        skyGradient.addColorStop(1, '#cbbca0');
+    } else {
+        skyGradient.addColorStop(0, '#4da8d9');
+        skyGradient.addColorStop(0.36, '#8cc7df');
+        skyGradient.addColorStop(0.66, '#d7ddc7');
+        skyGradient.addColorStop(1, '#d6c184');
+    }
+    context.fillStyle = skyGradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const sunX = isSunset ? canvas.width * 0.18 : canvas.width * 0.73;
+    const sunY = isSunset ? canvas.height * 0.58 : canvas.height * 0.2;
+    const sunAlpha = isNight ? 0.2 : isRainy || isFoggy ? 0.18 : isSunset ? 0.75 : 0.48;
+    const sunGlow = context.createRadialGradient(sunX, sunY, 0, sunX, sunY, isSunset ? 620 : 470);
+    sunGlow.addColorStop(0, isNight ? `rgba(190,210,230,${sunAlpha})` : `rgba(255,247,208,${sunAlpha})`);
+    sunGlow.addColorStop(0.18, isNight ? `rgba(120,158,205,${sunAlpha * 0.48})` : `rgba(255,223,158,${sunAlpha * 0.48})`);
+    sunGlow.addColorStop(0.54, isNight ? `rgba(60,92,134,${sunAlpha * 0.16})` : `rgba(255,198,116,${sunAlpha * 0.14})`);
+    sunGlow.addColorStop(1, 'rgba(255,210,140,0)');
+    context.fillStyle = sunGlow;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (isNight) {
+        context.save();
+        context.globalCompositeOperation = 'screen';
+        for (let i = 0; i < 92; i++) {
+            const x = seededUnit(i + 3.1) * canvas.width;
+            const y = seededUnit(i + 41.8) * canvas.height * 0.48;
+            const alpha = (0.16 + seededUnit(i + 92.2) * 0.5) * (isRainy || isFoggy ? 0.18 : 1);
+            context.fillStyle = `rgba(220,235,255,${alpha})`;
+            context.fillRect(x, y, 1 + seededUnit(i + 12.6) * 1.2, 1 + seededUnit(i + 27.4) * 1.2);
+        }
+        context.restore();
+    }
+
+    const drawCirrus = (baseY, amplitude, opacity, seedBase, tint = [255, 252, 238]) => {
+        context.save();
+        context.lineCap = 'round';
+        context.filter = 'blur(2.4px)';
+        const streakCount = 22;
+        for (let i = 0; i < streakCount; i++) {
+            const t = i / Math.max(1, streakCount - 1);
+            const y = baseY
+                + Math.sin(t * Math.PI * 2 + seedBase) * amplitude
+                + (seededUnit(seedBase + i * 2.7) - 0.5) * amplitude * 0.75;
+            const x = -180 + t * (canvas.width + 360);
+            const length = 150 + seededUnit(seedBase + i * 5.9) * 340;
+            const slant = (isSunset ? -0.12 : -0.08) + (seededUnit(seedBase + i * 7.2) - 0.5) * 0.08;
+            context.globalAlpha = opacity * (0.18 + seededUnit(seedBase + i * 9.6) * 0.42);
+            context.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
+            context.lineWidth = 3.2 + seededUnit(seedBase + i * 11.3) * 6.2;
+            context.beginPath();
+            context.moveTo(x, y);
+            context.bezierCurveTo(
+                x + length * 0.28,
+                y - amplitude * 0.12,
+                x + length * 0.68,
+                y + length * slant,
+                x + length,
+                y + length * slant * 0.75
+            );
+            context.stroke();
+        }
+        context.restore();
+        context.globalAlpha = 1;
+    };
+
+    const drawCloudBank = (y, height, opacity, seedBase, warmth = 0) => {
+        context.save();
+        context.filter = isRainy || isFoggy ? 'blur(14px)' : 'blur(8px)';
+        const base = context.createLinearGradient(0, y - height * 0.7, 0, y + height);
+        base.addColorStop(0, 'rgba(255,255,255,0)');
+        base.addColorStop(0.26, isRainy || isFoggy
+            ? `rgba(142,153,151,${opacity * 0.42})`
+            : `rgba(255,250,234,${opacity * 0.34})`);
+        base.addColorStop(0.58, isNight
+            ? `rgba(61,76,97,${opacity * 0.38})`
+            : `rgba(${Math.round(230 + warmth * 14)},${Math.round(231 + warmth * 5)},${Math.round(219 - warmth * 18)},${opacity * 0.38})`);
+        base.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = base;
+        context.beginPath();
+        context.moveTo(-160, y + height * 0.2);
+        for (let x = -160; x <= canvas.width + 160; x += 58) {
+            const wave = Math.sin(x * 0.006 + seedBase) * height * 0.09
+                + Math.sin(x * 0.014 + seedBase * 1.6) * height * 0.045;
+            context.lineTo(x, y + wave);
+        }
+        for (let x = canvas.width + 160; x >= -160; x -= 58) {
+            const wave = Math.sin(x * 0.004 + seedBase * 0.8) * height * 0.05;
+            context.lineTo(x, y + height * 0.55 + wave);
+        }
+        context.closePath();
+        context.fill();
+
+        const puffCount = isRainy || isFoggy ? 34 : 24;
+        for (let i = 0; i < puffCount; i++) {
+            const t = i / Math.max(1, puffCount - 1);
+            const x = -120 + t * (canvas.width + 240) + (seededUnit(seedBase + i * 4.2) - 0.5) * 115;
+            const puffY = y + (seededUnit(seedBase + i * 6.1) - 0.5) * height * 0.38;
+            const rx = height * (0.9 + seededUnit(seedBase + i * 8.7) * 1.65);
+            const ry = height * (0.16 + seededUnit(seedBase + i * 10.4) * 0.22);
+            const cloud = context.createRadialGradient(x - rx * 0.22, puffY - ry * 0.32, 0, x, puffY, Math.max(rx, ry));
+            if (isNight) {
+                cloud.addColorStop(0, `rgba(72,88,112,${opacity * 0.55})`);
+                cloud.addColorStop(0.5, `rgba(36,48,65,${opacity * 0.38})`);
+            } else if (isRainy || isFoggy) {
+                cloud.addColorStop(0, `rgba(192,198,190,${opacity * 0.48})`);
+                cloud.addColorStop(0.52, `rgba(120,133,133,${opacity * 0.32})`);
+            } else {
+                cloud.addColorStop(0, `rgba(255,252,238,${opacity * 0.62})`);
+                cloud.addColorStop(0.48, `rgba(${Math.round(232 + warmth * 18)},${Math.round(235 + warmth * 4)},${Math.round(224 - warmth * 15)},${opacity * 0.36})`);
+            }
+            cloud.addColorStop(1, 'rgba(255,255,255,0)');
+            context.fillStyle = cloud;
+            context.beginPath();
+            context.ellipse(x, puffY, rx, ry, (seededUnit(seedBase + i * 12.5) - 0.5) * 0.18, 0, Math.PI * 2);
+            context.fill();
+        }
+        context.restore();
+        context.globalAlpha = 1;
+    };
+
+    if (!isRainy && !isFoggy) {
+        drawCirrus(canvas.height * 0.16, 52, isNight ? 0.08 : isSunset ? 0.18 : 0.1, 2.2, isSunset ? [255, 226, 197] : [255, 255, 246]);
+        drawCirrus(canvas.height * 0.29, 42, isNight ? 0.06 : isSunset ? 0.13 : 0.075, 7.8, isSunset ? [255, 219, 185] : [240, 248, 250]);
+    }
+
+    drawCloudBank(canvas.height * 0.44, canvas.height * 0.14, isNight ? 0.2 : isSunset ? 0.34 : isRainy || isFoggy ? 0.36 : 0.24, 4.7, isSunset ? 0.95 : 0.2);
+    drawCloudBank(canvas.height * 0.57, canvas.height * 0.12, isNight ? 0.18 : isSunset ? 0.28 : isRainy || isFoggy ? 0.42 : 0.18, 11.5, isSunset ? 0.65 : 0.1);
+
+    const horizonHaze = context.createLinearGradient(0, canvas.height * 0.45, 0, canvas.height);
+    horizonHaze.addColorStop(0, 'rgba(255,255,255,0)');
+    horizonHaze.addColorStop(0.45, isNight
+        ? 'rgba(70,83,93,0.16)'
+        : isSunset
+            ? 'rgba(255,189,112,0.22)'
+            : isRainy || isFoggy
+                ? 'rgba(218,217,198,0.32)'
+                : 'rgba(228,226,194,0.2)');
+    horizonHaze.addColorStop(1, isNight
+        ? 'rgba(35,43,47,0.46)'
+        : isSunset
+            ? 'rgba(215,143,82,0.58)'
+            : isRainy || isFoggy
+                ? 'rgba(207,198,174,0.62)'
+                : 'rgba(225,202,132,0.46)');
+    context.fillStyle = horizonHaze;
+    context.fillRect(0, canvas.height * 0.45, canvas.width, canvas.height * 0.55);
+
+    context.save();
+    context.globalCompositeOperation = isNight ? 'screen' : 'overlay';
+    for (let i = 0; i < 850; i++) {
+        const x = seededUnit(i + 300.1) * canvas.width;
+        const y = seededUnit(i + 700.7) * canvas.height;
+        const size = 0.7 + seededUnit(i + 1001.3) * 1.9;
+        const alpha = (isNight ? 0.035 : 0.022) * (0.35 + seededUnit(i + 1400.9) * 0.65);
+        context.globalAlpha = alpha;
+        context.fillStyle = seededUnit(i + 9.4) > 0.5 ? '#ffffff' : '#8aa7b0';
+        context.fillRect(x, y, size, size);
+    }
+    context.restore();
+    context.globalAlpha = 1;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.anisotropy = 4;
+    if (THREE.sRGBEncoding) {
+        texture.encoding = THREE.sRGBEncoding;
+    }
+    return texture;
+}
+
 function createJungleSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
     const isSunset = environment.timeOfDay === 'sunset';
@@ -2517,6 +2718,31 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         return loopPoints;
     })();
+    const storedTrackElevationPoints = Array.isArray(storedTrack?.elevationProfile)
+        ? storedTrack.elevationProfile
+            .filter(point => Number.isFinite(point.s) && Number.isFinite(point.y))
+            .slice()
+            .sort((a, b) => a.s - b.s)
+        : [];
+    const storedTrackElevationLoopPoints = (() => {
+        if (!storedTrackRepeats || storedTrackElevationPoints.length < 2) {
+            return storedTrackElevationPoints;
+        }
+
+        const loopPoints = storedTrackElevationPoints.slice();
+        const first = loopPoints[0];
+        const last = loopPoints[loopPoints.length - 1];
+        const closesLoop = first && last
+            && Math.abs((last.s || 0) - storedTrackLength) < 1
+            && Math.abs((last.y || 0) - (first.y || 0)) < 0.75;
+        if (closesLoop) {
+            loopPoints.pop();
+        }
+
+        return loopPoints;
+    })();
+    const storedTrackElevationMin = storedTrackElevationPoints.reduce((min, point) => Math.min(min, point.y), Infinity);
+    const storedTrackElevationMax = storedTrackElevationPoints.reduce((max, point) => Math.max(max, point.y), -Infinity);
 
     function normalizeStoredTrackProgress(progress) {
         if (!hasStoredTrack) {
@@ -2526,6 +2752,67 @@ function generateRoadAndTerrain(scene, game, environment) {
             return THREE.MathUtils.clamp(progress, storedTrackPoints[0].s, storedTrackLength);
         }
         return ((progress % storedTrackLength) + storedTrackLength) % storedTrackLength;
+    }
+
+    function sampleStoredTrackElevation(progress, fallbackY = 0) {
+        const elevationPoints = storedTrackRepeats
+            ? storedTrackElevationLoopPoints
+            : storedTrackElevationPoints;
+        if (elevationPoints.length < 2) {
+            return fallbackY;
+        }
+        const clampElevation = value => THREE.MathUtils.clamp(value, storedTrackElevationMin, storedTrackElevationMax);
+
+        if (storedTrackRepeats) {
+            const normalizedProgress = normalizeStoredTrackProgress(progress);
+            const pointCount = elevationPoints.length;
+            let index = 0;
+            for (let i = 0; i < pointCount; i++) {
+                const nextPoint = elevationPoints[(i + 1) % pointCount];
+                const nextS = i === pointCount - 1 ? storedTrackLength + (nextPoint.s || 0) : nextPoint.s;
+                if (normalizedProgress < nextS) {
+                    index = i;
+                    break;
+                }
+            }
+
+            const pointAt = offset => {
+                const rawIndex = index + offset;
+                const point = elevationPoints[
+                    THREE.MathUtils.euclideanModulo(rawIndex, pointCount)
+                ];
+                return {
+                    point,
+                    s: (point.s || 0) + Math.floor(rawIndex / pointCount) * storedTrackLength
+                };
+            };
+            const p0Ref = pointAt(-1);
+            const p1Ref = pointAt(0);
+            const p2Ref = pointAt(1);
+            const p3Ref = pointAt(2);
+            const sampleS = normalizedProgress < p1Ref.s ? normalizedProgress + storedTrackLength : normalizedProgress;
+            const span = Math.max(0.0001, p2Ref.s - p1Ref.s);
+            const t = THREE.MathUtils.clamp((sampleS - p1Ref.s) / span, 0, 1);
+            const m1 = ((p2Ref.point.y || 0) - (p0Ref.point.y || 0)) / Math.max(0.0001, p2Ref.s - p0Ref.s);
+            const m2 = ((p3Ref.point.y || 0) - (p1Ref.point.y || 0)) / Math.max(0.0001, p3Ref.s - p1Ref.s);
+            const t2 = t * t;
+            const t3 = t2 * t;
+            return clampElevation((2 * t3 - 3 * t2 + 1) * (p1Ref.point.y || 0)
+                + (t3 - 2 * t2 + t) * m1 * span
+                + (-2 * t3 + 3 * t2) * (p2Ref.point.y || 0)
+                + (t3 - t2) * m2 * span);
+        }
+
+        const normalizedProgress = normalizeStoredTrackProgress(progress);
+        let index = 0;
+        while (index < elevationPoints.length - 2 && elevationPoints[index + 1].s < normalizedProgress) {
+            index++;
+        }
+
+        const p1 = elevationPoints[index];
+        const p2 = elevationPoints[Math.min(elevationPoints.length - 1, index + 1)];
+        const t = THREE.MathUtils.clamp((normalizedProgress - p1.s) / Math.max(0.0001, p2.s - p1.s), 0, 1);
+        return clampElevation(THREE.MathUtils.lerp(p1.y, p2.y, ease01(t)));
     }
 
     function sampleStoredTrack(progress) {
@@ -2579,12 +2866,13 @@ function generateRoadAndTerrain(scene, game, environment) {
                     + (t3 - t2) * m2 * span;
             };
             const width = interpolateValue('width', game.road.width);
+            const y = sampleStoredTrackElevation(normalizedProgress, interpolateValue('y'));
 
             return {
                 progress: normalizedProgress,
                 x: interpolateValue('x'),
                 z: interpolateValue('z'),
-                y: interpolateValue('y'),
+                y,
                 width: Number.isFinite(width) ? width : game.road.width
             };
         }
@@ -2629,7 +2917,10 @@ function generateRoadAndTerrain(scene, game, environment) {
                 valueAt(p2, 'z', -valueAt(p2, 's')),
                 valueAt(p3, 'z', -valueAt(p3, 's'))
             ),
-            y: smoothValue(valueAt(p0, 'y'), valueAt(p1, 'y'), valueAt(p2, 'y'), valueAt(p3, 'y')),
+            y: sampleStoredTrackElevation(
+                normalizedProgress,
+                smoothValue(valueAt(p0, 'y'), valueAt(p1, 'y'), valueAt(p2, 'y'), valueAt(p3, 'y'))
+            ),
             width: Number.isFinite(width) ? width : game.road.width
         };
     }
@@ -2712,7 +3003,10 @@ function generateRoadAndTerrain(scene, game, environment) {
     const getSegmentWidth = segment => segment?.width || game.road.width;
     const getSegmentHalfRoadWidth = segment => getSegmentWidth(segment) / 2;
     const terrainWidth = game.terrain.width;
-    const terrainSteps = environment.terrainStyle === 'rainforest' ? 22 : environment.terrainStyle === 'highland' ? 34 : environment.terrainStyle === 'sand' ? 16 : 10;
+    const defaultTerrainSteps = environment.terrainStyle === 'rainforest' ? 22 : environment.terrainStyle === 'highland' ? 34 : environment.terrainStyle === 'sand' ? 16 : 10;
+    const terrainSteps = Number.isFinite(environment.terrainSteps)
+        ? Math.max(4, Math.floor(environment.terrainSteps))
+        : hasStoredTrack ? 42 : defaultTerrainSteps;
     const shoulderWidth = Number.isFinite(environment.shoulderWidth) ? environment.shoulderWidth : 4;
     const hasShoulders = shoulderWidth > 0.001;
     const localUp = new THREE.Vector3(0, 1, 0);
@@ -2751,6 +3045,132 @@ function generateRoadAndTerrain(scene, game, environment) {
         const roadY = segment?.y || 0;
         const terrainY = roadY - 0.18 + (broadNoise + detailNoise) * farBlend;
         return Math.min(roadY - 0.105, terrainY);
+    }
+
+    function getStoredRoadBlendAt(x, z) {
+        if (!hasStoredTrack || !roadRenderRows?.length) {
+            return null;
+        }
+
+        const closest = [];
+        const keepClosest = 8;
+        for (let i = 0; i < roadRenderRows.length; i += 2) {
+            const segment = roadRenderRows[i];
+            const center = getSegmentCenter(segment);
+            const dx = x - center.x;
+            const dz = z - center.z;
+            const distanceSq = dx * dx + dz * dz;
+            const candidate = { segment, distanceSq };
+            let insertAt = closest.length;
+            while (insertAt > 0 && distanceSq < closest[insertAt - 1].distanceSq) {
+                insertAt--;
+            }
+            if (insertAt < keepClosest) {
+                closest.splice(insertAt, 0, candidate);
+                closest.length = Math.min(closest.length, keepClosest);
+            }
+        }
+
+        if (closest.length === 0) {
+            return null;
+        }
+
+        let weightedY = 0;
+        let totalWeight = 0;
+        closest.forEach(candidate => {
+            const distance = Math.sqrt(candidate.distanceSq);
+            const weight = 1 / Math.pow(Math.max(18, distance), 2.15);
+            weightedY += (candidate.segment?.y || 0) * weight;
+            totalWeight += weight;
+        });
+
+        const nearest = closest[0];
+        return {
+            segment: nearest.segment,
+            distance: Math.sqrt(nearest.distanceSq),
+            y: totalWeight > 0 ? weightedY / totalWeight : nearest.segment?.y || 0
+        };
+    }
+
+    function getStoredTerrainHeightAt(x, z, sourceSegment = null, sourceNormalizedDistance = 0) {
+        const roadBlend = getStoredRoadBlendAt(x, z);
+        if (!roadBlend?.segment) {
+            return sourceSegment ? getStoredTerrainHeightForSegment(sourceSegment, x, z, sourceNormalizedDistance) : 0;
+        }
+
+        const nearestHalfWidth = getSegmentHalfRoadWidth(roadBlend.segment);
+        const nearestEdgeDistance = Math.max(0, roadBlend.distance - nearestHalfWidth);
+        const nearestNormalizedDistance = THREE.MathUtils.clamp(
+            Math.max(0, nearestEdgeDistance - shoulderWidth) / Math.max(1, terrainWidth),
+            0,
+            1
+        );
+        const broadNoise = terrainNoise.noise2D(x * 0.0045, z * 0.0045) * 0.18;
+        const detailNoise = terrainNoise.noise2D(x * 0.021, z * 0.021) * 0.07;
+        const blendedHeight = Math.min(
+            roadBlend.y - 0.105,
+            roadBlend.y - 0.18 + (broadNoise + detailNoise) * smoothStep(0.03, 0.95, nearestNormalizedDistance)
+        );
+
+        if (!sourceSegment) {
+            const protectedHeight = Math.min(blendedHeight, roadBlend.segment.y - 0.14);
+            const roadProtection = 1 - smoothStep(shoulderWidth + 1.5, shoulderWidth + 22, nearestEdgeDistance);
+            return THREE.MathUtils.lerp(blendedHeight, protectedHeight, roadProtection);
+        }
+
+        const sourceHeight = getStoredTerrainHeightForSegment(sourceSegment, x, z, sourceNormalizedDistance);
+        const protectedHeight = Math.min(sourceHeight, blendedHeight, roadBlend.segment.y - 0.14);
+        const roadProtection = 1 - smoothStep(shoulderWidth + 1.5, shoulderWidth + 22, nearestEdgeDistance);
+        return THREE.MathUtils.lerp(sourceHeight, protectedHeight, roadProtection);
+    }
+
+    function appendStoredTrackTerrainGrid(positions, indices, uvs) {
+        if (!roadRenderRows.length) {
+            return;
+        }
+
+        const bounds = roadRenderRows.reduce((box, segment) => {
+            const center = getSegmentCenter(segment);
+            box.minX = Math.min(box.minX, center.x);
+            box.maxX = Math.max(box.maxX, center.x);
+            box.minZ = Math.min(box.minZ, center.z);
+            box.maxZ = Math.max(box.maxZ, center.z);
+            return box;
+        }, {
+            minX: Infinity,
+            maxX: -Infinity,
+            minZ: Infinity,
+            maxZ: -Infinity
+        });
+        const margin = Math.max(terrainWidth, 220);
+        const minX = bounds.minX - margin;
+        const maxX = bounds.maxX + margin;
+        const minZ = bounds.minZ - margin;
+        const maxZ = bounds.maxZ + margin;
+        const gridStep = Number.isFinite(environment.storedTerrainGridStep)
+            ? THREE.MathUtils.clamp(environment.storedTerrainGridStep, 8, 28)
+            : 12;
+        const columns = Math.max(2, Math.ceil((maxX - minX) / gridStep) + 1);
+        const rows = Math.max(2, Math.ceil((maxZ - minZ) / gridStep) + 1);
+
+        for (let row = 0; row < rows; row++) {
+            const z = THREE.MathUtils.lerp(minZ, maxZ, row / Math.max(1, rows - 1));
+            for (let column = 0; column < columns; column++) {
+                const x = THREE.MathUtils.lerp(minX, maxX, column / Math.max(1, columns - 1));
+                positions.push(x, getStoredTerrainHeightAt(x, z), z);
+                uvs.push(column / Math.max(1, columns - 1), row / Math.max(1, rows - 1));
+            }
+        }
+
+        for (let row = 0; row < rows - 1; row++) {
+            for (let column = 0; column < columns - 1; column++) {
+                const index = row * columns + column;
+                indices.push(
+                    index, index + columns, index + 1,
+                    index + 1, index + columns, index + columns + 1
+                );
+            }
+        }
     }
 
     const lakeBiome = environment.id === 'lakes'
@@ -3000,59 +3420,49 @@ function generateRoadAndTerrain(scene, game, environment) {
                 roadUVs.push(1, v);
             }
 
-            // Left terrain vertices
-            for (let j = 0; j <= terrainSteps; j++) {
-                const normalizedDistance = j / terrainSteps;
-                const terrainDistance = getTerrainDistanceFromRoad(normalizedDistance, segment.z, -1);
-                if (hasStoredTrack) {
-                    const point = getSegmentOffsetPoint(segment, -segmentHalfRoadWidth - shoulderWidth - terrainDistance);
-                    leftTerrainPositions.push(
-                        point.x,
-                        getStoredTerrainHeightForSegment(segment, point.x, point.z, normalizedDistance),
-                        point.z
-                    );
-                } else {
+            if (!hasStoredTrack) {
+                // Left terrain vertices
+                for (let j = 0; j <= terrainSteps; j++) {
+                    const normalizedDistance = j / terrainSteps;
+                    const terrainDistance = getTerrainDistanceFromRoad(normalizedDistance, segment.z, -1);
                     const x = leftTerrainStartPoint.x - terrainDistance;
                     leftTerrainPositions.push(x, getTerrainHeightAt(x, segment.z), segment.z);
+                    leftTerrainUVs.push(normalizedDistance, v);
                 }
-                leftTerrainUVs.push(normalizedDistance, v);
-            }
 
-            // Right terrain vertices
-            for (let j = 0; j <= terrainSteps; j++) {
-                const normalizedDistance = j / terrainSteps;
-                const terrainDistance = getTerrainDistanceFromRoad(normalizedDistance, segment.z, 1);
-                if (hasStoredTrack) {
-                    const point = getSegmentOffsetPoint(segment, segmentHalfRoadWidth + shoulderWidth + terrainDistance);
-                    rightTerrainPositions.push(
-                        point.x,
-                        getStoredTerrainHeightForSegment(segment, point.x, point.z, normalizedDistance),
-                        point.z
-                    );
-                } else {
+                // Right terrain vertices
+                for (let j = 0; j <= terrainSteps; j++) {
+                    const normalizedDistance = j / terrainSteps;
+                    const terrainDistance = getTerrainDistanceFromRoad(normalizedDistance, segment.z, 1);
                     const x = rightTerrainStartPoint.x + terrainDistance;
                     rightTerrainPositions.push(x, getTerrainHeightAt(x, segment.z), segment.z);
+                    rightTerrainUVs.push(normalizedDistance, v);
                 }
-                rightTerrainUVs.push(normalizedDistance, v);
             }
 
             if (i < roadRenderRows.length - 1) {
                 const j = i * 2;
                 roadIndices.push(j, j + 1, j + 2, j + 1, j + 3, j + 2);
 
-                const k = i * (terrainSteps + 1);
-                for (let m = 0; m < terrainSteps; m++) {
-                    leftTerrainIndices.push(
-                        k + m, k + terrainSteps + 1 + m, k + m + 1,
-                        k + m + 1, k + terrainSteps + 1 + m, k + terrainSteps + 2 + m
-                    );
-                    rightTerrainIndices.push(
-                        k + m, k + terrainSteps + 1 + m, k + m + 1,
-                        k + m + 1, k + terrainSteps + 1 + m, k + terrainSteps + 2 + m
-                    );
+                if (!hasStoredTrack) {
+                    const k = i * (terrainSteps + 1);
+                    for (let m = 0; m < terrainSteps; m++) {
+                        leftTerrainIndices.push(
+                            k + m, k + terrainSteps + 1 + m, k + m + 1,
+                            k + m + 1, k + terrainSteps + 1 + m, k + terrainSteps + 2 + m
+                        );
+                        rightTerrainIndices.push(
+                            k + m, k + terrainSteps + 1 + m, k + m + 1,
+                            k + m + 1, k + terrainSteps + 1 + m, k + terrainSteps + 2 + m
+                        );
+                    }
                 }
             }
         });
+
+        if (hasStoredTrack) {
+            appendStoredTrackTerrainGrid(leftTerrainPositions, leftTerrainIndices, leftTerrainUVs);
+        }
 
         roadGeometry.setAttribute('position', new THREE.Float32BufferAttribute(roadPositions, 3));
         roadGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(roadUVs, 2));
@@ -3090,7 +3500,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                     : segment.y + 0.04;
             let shoulderEdgeY = roadEdgeY;
             if (circuitShoulder) {
-                shoulderEdgeY = getStoredTerrainHeightForSegment(segment, shoulderEdgePoint.x, shoulderEdgePoint.z, 0) + 0.02;
+                shoulderEdgeY = getStoredTerrainHeightAt(shoulderEdgePoint.x, shoulderEdgePoint.z, segment, 0) + 0.02;
             } else if (environment.terrainStyle === 'highland') {
                 shoulderEdgeY = getTerrainHeightAt(shoulderEdgePoint.x, shoulderEdgePoint.z) + 0.006;
             }
@@ -3248,6 +3658,9 @@ function generateRoadAndTerrain(scene, game, environment) {
         kerbs: 0,
         runoffZones: 0,
         turnBoards: 0,
+        grandstands: 0,
+        pitLane: 0,
+        paddock: 0,
         canopy: 0,
         clouds: 0,
         coastalDetails: 0,
@@ -3409,13 +3822,7 @@ function generateRoadAndTerrain(scene, game, environment) {
 
     function getTerrainHeightAt(x, z) {
         if (hasStoredTrack) {
-            const nearest = getNearestStoredRoadSegmentAt(x, z);
-            if (!nearest) {
-                return 0;
-            }
-            const edgeDistance = Math.max(0, nearest.distance - getSegmentHalfRoadWidth(nearest.segment) - shoulderWidth);
-            const normalizedDistance = THREE.MathUtils.clamp(edgeDistance / Math.max(1, terrainWidth), 0, 1);
-            return getStoredTerrainHeightForSegment(nearest.segment, x, z, normalizedDistance);
+            return getStoredTerrainHeightAt(x, z);
         }
 
         const roadData = getLinearRoadDataAtZ(z);
@@ -3607,6 +4014,16 @@ function generateRoadAndTerrain(scene, game, environment) {
     }
 
     function getSceneryCullRadius(statsKey) {
+        if (statsKey === 'grandstands') {
+            return 240;
+        }
+        if (statsKey === 'pitLane') {
+            return 260;
+        }
+        if (statsKey === 'paddock') {
+            return 360;
+        }
+
         const largeProps = new Set([
             'buildings',
             'cabins',
@@ -3615,6 +4032,8 @@ function generateRoadAndTerrain(scene, game, environment) {
             'docks',
             'stoneWalls',
             'seaWalls',
+            'grandstands',
+            'paddock',
             'canopy',
             'rockClusters',
             'sandDrifts'
@@ -3705,10 +4124,101 @@ function generateRoadAndTerrain(scene, game, environment) {
             : [];
         const redKerbMaterial = new THREE.MeshPhongMaterial({ color: 0xc5262e, shininess: 9, specular: 0x222222 });
         const whiteKerbMaterial = new THREE.MeshPhongMaterial({ color: 0xf4f1e8, shininess: 12, specular: 0x333333 });
+        [redKerbMaterial, whiteKerbMaterial].forEach(material => {
+            material.polygonOffset = true;
+            material.polygonOffsetFactor = -8;
+            material.polygonOffsetUnits = -8;
+            if ('toneMapped' in material) {
+                material.toneMapped = false;
+            }
+        });
         const runoffMaterial = new THREE.MeshBasicMaterial({ color: 0x8a7a5d });
         const pitLineMaterial = new THREE.MeshBasicMaterial({ color: 0xf4f0dc });
-        const kerbGeometry = new THREE.BoxGeometry(5.2, 0.16, 5.8);
+        const montmeloKerbWidth = 3.8;
+        const montmeloKerbHeight = 0.12;
+        const montmeloKerbLength = 12.45;
         const pitLineGeometry = new THREE.BoxGeometry(0.34, 0.08, 22);
+        const grandstandConcreteMaterial = new THREE.MeshPhongMaterial({ color: 0x8f9697, shininess: 8, specular: 0x1d2226 });
+        const grandstandStepMaterials = [
+            new THREE.MeshPhongMaterial({ color: 0xd8dcdf, shininess: 5, specular: 0x111111 }),
+            new THREE.MeshPhongMaterial({ color: 0xbfc7ca, shininess: 5, specular: 0x111111 })
+        ];
+        const grandstandCrowdMaterials = [
+            new THREE.MeshBasicMaterial({ color: 0xf4f0dc }),
+            new THREE.MeshBasicMaterial({ color: 0xd42027 }),
+            new THREE.MeshBasicMaterial({ color: 0x202832 }),
+            new THREE.MeshBasicMaterial({ color: 0x66d7e9 }),
+            new THREE.MeshBasicMaterial({ color: 0xffd84e })
+        ];
+        const grandstandBarcelonaSeatMaterials = [
+            new THREE.MeshBasicMaterial({ color: 0xbf2a2f }),
+            new THREE.MeshBasicMaterial({ color: 0xc6a679 }),
+            new THREE.MeshBasicMaterial({ color: 0x8e969a }),
+            new THREE.MeshBasicMaterial({ color: 0x9e2429 }),
+            new THREE.MeshBasicMaterial({ color: 0xd3b889 })
+        ];
+        const grandstandRoofMaterial = new THREE.MeshPhongMaterial({ color: 0xe5e9eb, shininess: 18, specular: 0x555555 });
+        const grandstandShadowMaterial = new THREE.MeshPhongMaterial({ color: 0x3a3f42, shininess: 4, specular: 0x111111 });
+        const grandstandCanopyMaterial = grandstandRoofMaterial.clone();
+        grandstandCanopyMaterial.side = THREE.DoubleSide;
+        const grandstandCanopyUndersideMaterial = grandstandShadowMaterial.clone();
+        grandstandCanopyUndersideMaterial.side = THREE.DoubleSide;
+        const grandstandLabelCache = new Map();
+        const pitLaneSurfaceMaterial = new THREE.MeshBasicMaterial({
+            color: 0x171d20,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -2
+        });
+        const pitLaneExitMaterial = new THREE.MeshBasicMaterial({
+            color: 0x20272a,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -2
+        });
+        const paddockLotMaterial = new THREE.MeshBasicMaterial({
+            color: 0x626966,
+            polygonOffset: true,
+            polygonOffsetFactor: -0.5,
+            polygonOffsetUnits: -1
+        });
+        const pitLaneLineMaterial = new THREE.MeshBasicMaterial({ color: 0xf4f0dc });
+        const pitLaneYellowMaterial = new THREE.MeshBasicMaterial({ color: 0xf4c44d });
+        const pitWallMaterial = new THREE.MeshPhongMaterial({ color: 0xd7dad7, shininess: 6, specular: 0x202020 });
+        const pitWallTopMaterial = new THREE.MeshBasicMaterial({ color: 0xd42027 });
+        const pitBuildingMaterial = new THREE.MeshPhongMaterial({ color: 0xa7afb2, shininess: 10, specular: 0x30363a });
+        const pitBuildingDarkMaterial = new THREE.MeshPhongMaterial({ color: 0x363e43, shininess: 12, specular: 0x222222 });
+        const garageDoorMaterial = new THREE.MeshBasicMaterial({ color: 0x101519 });
+        const garageGlassMaterial = new THREE.MeshPhongMaterial({
+            color: 0x314858,
+            emissive: 0x071014,
+            shininess: 28,
+            specular: 0x53616c
+        });
+        const paddockSponsorRedMaterial = new THREE.MeshBasicMaterial({ color: 0xc82028 });
+        const scoringTowerMaterial = new THREE.MeshPhongMaterial({ color: 0x11171d, shininess: 12, specular: 0x333333 });
+        const scoringTowerGlassMaterial = new THREE.MeshPhongMaterial({
+            color: 0x17222c,
+            emissive: 0x03070a,
+            shininess: 26,
+            specular: 0x53616c
+        });
+        const scoringTowerPoleMaterial = new THREE.MeshPhongMaterial({ color: 0xbec5c7, shininess: 10, specular: 0x333333 });
+        const paddockTrailerMaterials = [
+            new THREE.MeshPhongMaterial({ color: 0xf2f1e8, shininess: 8, specular: 0x222222 }),
+            new THREE.MeshPhongMaterial({ color: 0xd42027, shininess: 8, specular: 0x221111 }),
+            new THREE.MeshPhongMaterial({ color: 0x1f2730, shininess: 8, specular: 0x111111 }),
+            new THREE.MeshPhongMaterial({ color: 0x66d7e9, shininess: 8, specular: 0x223033 })
+        ];
+        const montmeloPineTrunkMaterial = new THREE.MeshPhongMaterial({ color: 0x5a3b25, shininess: 5, specular: 0x1b1008 });
+        const montmeloPineCanopyMaterials = [
+            new THREE.MeshLambertMaterial({ color: 0x244d32 }),
+            new THREE.MeshLambertMaterial({ color: 0x2d623a }),
+            new THREE.MeshLambertMaterial({ color: 0x365f35 })
+        ];
+        const montmeloPineTrunkGeometry = new THREE.CylinderGeometry(0.18, 0.32, 4.1, 7);
+        const montmeloPineCrownGeometry = new THREE.SphereGeometry(1.42, 10, 7);
+        const montmeloPineLowerCrownGeometry = new THREE.SphereGeometry(1.08, 9, 6);
 
         function roadYawAt(z) {
             return getRoadDataYaw(getRoadDataAtZ(z, game));
@@ -3750,16 +4260,1767 @@ function generateRoadAndTerrain(scene, game, environment) {
             };
         }
 
-        function addKerbBlock(progress, side, material, geometry = kerbGeometry) {
+        function getRoadBasis(roadData, z) {
+            return {
+                tangentX: Number.isFinite(roadData.tangentX) ? roadData.tangentX : -Math.sin(roadYawAt(z)),
+                tangentZ: Number.isFinite(roadData.tangentZ) ? roadData.tangentZ : -Math.cos(roadYawAt(z)),
+                normalX: Number.isFinite(roadData.normalX) ? roadData.normalX : 1,
+                normalZ: Number.isFinite(roadData.normalZ) ? roadData.normalZ : 0
+            };
+        }
+
+        function getFootprintHighGroundY(point, roadData, z, halfDepth, halfLength) {
+            const basis = getRoadBasis(roadData, z);
+            const groundSamples = [
+                [0, 0],
+                [-halfDepth, -halfLength],
+                [-halfDepth, halfLength],
+                [halfDepth, -halfLength],
+                [halfDepth, halfLength]
+            ];
+            return groundSamples.reduce((highest, [depthOffset, lengthOffset]) => {
+                const sampleX = point.x + basis.normalX * depthOffset + basis.tangentX * lengthOffset;
+                const sampleZ = point.z + basis.normalZ * depthOffset + basis.tangentZ * lengthOffset;
+                return Math.max(highest, getTerrainHeightAt(sampleX, sampleZ));
+            }, getTerrainHeightAt(point.x, point.z));
+        }
+
+        function getFootprintGroundRange(point, roadData, z, halfDepth, halfLength, depthSteps = 2, lengthSteps = 4) {
+            const basis = getRoadBasis(roadData, z);
+            let min = Infinity;
+            let max = -Infinity;
+            for (let iz = 0; iz <= lengthSteps; iz++) {
+                const lengthOffset = ((iz / lengthSteps) - 0.5) * halfLength * 2;
+                for (let ix = 0; ix <= depthSteps; ix++) {
+                    const depthOffset = ((ix / depthSteps) - 0.5) * halfDepth * 2;
+                    const sampleX = point.x + basis.normalX * depthOffset + basis.tangentX * lengthOffset;
+                    const sampleZ = point.z + basis.normalZ * depthOffset + basis.tangentZ * lengthOffset;
+                    const sampleY = getTerrainHeightAt(sampleX, sampleZ);
+                    min = Math.min(min, sampleY);
+                    max = Math.max(max, sampleY);
+                }
+            }
+
+            const center = getTerrainHeightAt(point.x, point.z);
+            return {
+                min: Number.isFinite(min) ? min : center,
+                max: Number.isFinite(max) ? max : center
+            };
+        }
+
+        function createTerrainConformingRectGeometry(point, roadData, z, width, length, yLift = 0.035) {
+            const basis = getRoadBasis(roadData, z);
+            const centerY = getTerrainHeightAt(point.x, point.z);
+            const widthSegments = Math.max(1, Math.ceil(width / 8));
+            const lengthSegments = Math.max(1, Math.ceil(length / 9));
+            const positions = [];
+            const uvs = [];
+            const indices = [];
+
+            for (let iz = 0; iz <= lengthSegments; iz++) {
+                const zRatio = iz / lengthSegments;
+                const localZ = (zRatio - 0.5) * length;
+                for (let ix = 0; ix <= widthSegments; ix++) {
+                    const xRatio = ix / widthSegments;
+                    const localX = (xRatio - 0.5) * width;
+                    const sampleX = point.x + basis.normalX * localX + basis.tangentX * localZ;
+                    const sampleZ = point.z + basis.normalZ * localX + basis.tangentZ * localZ;
+                    positions.push(sampleX - point.x, getTerrainHeightAt(sampleX, sampleZ) + yLift - centerY, sampleZ - point.z);
+                    uvs.push(xRatio, zRatio);
+                }
+            }
+
+            const rowSize = widthSegments + 1;
+            for (let iz = 0; iz < lengthSegments; iz++) {
+                for (let ix = 0; ix < widthSegments; ix++) {
+                    const a = iz * rowSize + ix;
+                    const b = a + 1;
+                    const c = a + rowSize;
+                    const d = c + 1;
+                    indices.push(a, c, b, b, c, d);
+                }
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            return { geometry, centerY };
+        }
+
+        function createTerrainConformingPrismGeometry(point, roadData, z, width, length, height, yLift = 0.02) {
+            const basis = getRoadBasis(roadData, z);
+            const centerY = getTerrainHeightAt(point.x, point.z);
+            const widthSegments = Math.max(1, Math.ceil(width / 3));
+            const lengthSegments = Math.max(1, Math.ceil(length / 5));
+            const positions = [];
+            const indices = [];
+
+            for (let layer = 0; layer < 2; layer++) {
+                for (let iz = 0; iz <= lengthSegments; iz++) {
+                    const zRatio = iz / lengthSegments;
+                    const localZ = (zRatio - 0.5) * length;
+                    for (let ix = 0; ix <= widthSegments; ix++) {
+                        const xRatio = ix / widthSegments;
+                        const localX = (xRatio - 0.5) * width;
+                        const sampleX = point.x + basis.normalX * localX + basis.tangentX * localZ;
+                        const sampleZ = point.z + basis.normalZ * localX + basis.tangentZ * localZ;
+                        const terrainY = getTerrainHeightAt(sampleX, sampleZ);
+                        positions.push(
+                            sampleX - point.x,
+                            terrainY + yLift + layer * height - centerY,
+                            sampleZ - point.z
+                        );
+                    }
+                }
+            }
+
+            const rowSize = widthSegments + 1;
+            const layerSize = rowSize * (lengthSegments + 1);
+            const bottom = 0;
+            const top = layerSize;
+            for (let iz = 0; iz < lengthSegments; iz++) {
+                for (let ix = 0; ix < widthSegments; ix++) {
+                    const a = iz * rowSize + ix;
+                    const b = a + 1;
+                    const c = a + rowSize;
+                    const d = c + 1;
+                    indices.push(top + a, top + c, top + b, top + b, top + c, top + d);
+                    indices.push(bottom + a, bottom + b, bottom + c, bottom + b, bottom + d, bottom + c);
+                }
+            }
+
+            for (let iz = 0; iz < lengthSegments; iz++) {
+                const leftA = iz * rowSize;
+                const leftB = leftA + rowSize;
+                indices.push(bottom + leftA, bottom + leftB, top + leftA, top + leftA, bottom + leftB, top + leftB);
+
+                const rightA = iz * rowSize + widthSegments;
+                const rightB = rightA + rowSize;
+                indices.push(bottom + rightA, top + rightA, bottom + rightB, top + rightA, top + rightB, bottom + rightB);
+            }
+
+            for (let ix = 0; ix < widthSegments; ix++) {
+                const frontA = ix;
+                const frontB = ix + 1;
+                indices.push(bottom + frontA, top + frontA, bottom + frontB, top + frontA, top + frontB, bottom + frontB);
+
+                const rearA = lengthSegments * rowSize + ix;
+                const rearB = rearA + 1;
+                indices.push(bottom + rearA, bottom + rearB, top + rearA, top + rearA, bottom + rearB, top + rearB);
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            return { geometry, centerY };
+        }
+
+        function addGroundedFoundationSkirt(group, groundRange, groupY, width, length, material, topLocal = 0.32) {
+            const bottomLocal = groundRange.min - groupY - 0.16;
+            const height = topLocal - bottomLocal;
+            if (!Number.isFinite(height) || height < 0.32) {
+                return null;
+            }
+
+            const skirt = new THREE.Mesh(
+                new THREE.BoxGeometry(width, height, length),
+                material
+            );
+            skirt.name = 'montmelo-grounded-foundation-skirt';
+            skirt.position.y = bottomLocal + height * 0.5;
+            group.add(skirt);
+            return skirt;
+        }
+
+        function addMontmeloBox({
+            name,
+            progress,
+            offset,
+            width,
+            length,
+            height,
+            material,
+            statsKey = 'pitLane',
+            yLift = 0.02
+        }) {
+            const z = -progress;
+            if (z > game.startLine + 260 || z < game.finishLine - 260) {
+                return null;
+            }
+
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, offset);
+            const shouldTerrainConformPrism = height <= 1.75 && width <= 2.5 && length >= 4;
+            if (height <= 0.08) {
+                const { geometry, centerY } = createTerrainConformingRectGeometry(point, roadData, z, width, length, yLift);
+                const surface = new THREE.Mesh(geometry, material);
+                surface.name = name;
+                surface.position.set(point.x, centerY, point.z);
+                surface.userData.sceneryCullProgress = z;
+                addDecorMesh(decor, surface, statsKey);
+                return surface;
+            } else if (shouldTerrainConformPrism) {
+                const { geometry, centerY } = createTerrainConformingPrismGeometry(point, roadData, z, width, length, height, yLift);
+                const prism = new THREE.Mesh(geometry, material);
+                prism.name = name;
+                prism.position.set(point.x, centerY, point.z);
+                prism.userData.sceneryCullProgress = z;
+                addDecorMesh(decor, prism, statsKey);
+                return prism;
+            }
+
+            const box = new THREE.Mesh(
+                new THREE.BoxGeometry(width, height, length),
+                material
+            );
+            const groundY = getFootprintHighGroundY(point, roadData, z, width * 0.52, length * 0.52);
+            box.name = name;
+            box.position.set(point.x, groundY + height * 0.5 + yLift, point.z);
+            box.rotation.y = roadYawAt(z);
+            box.userData.sceneryCullProgress = z;
+            addDecorMesh(decor, box, statsKey);
+            return box;
+        }
+
+        function addPitLaneStrip(startProgress, endProgress, {
+            offsetStart,
+            offsetEnd = offsetStart,
+            widthStart,
+            widthEnd = widthStart,
+            step = 24,
+            material = pitLaneSurfaceMaterial,
+            name = 'montmelo-pit-lane-surface'
+        }) {
+            const span = Math.max(1, endProgress - startProgress);
+            for (let progress = startProgress + step * 0.5; progress < endProgress; progress += step) {
+                const t = THREE.MathUtils.clamp((progress - startProgress) / span, 0, 1);
+                addMontmeloBox({
+                    name,
+                    progress,
+                    offset: THREE.MathUtils.lerp(offsetStart, offsetEnd, t),
+                    width: THREE.MathUtils.lerp(widthStart, widthEnd, t),
+                    length: Math.min(step + 2, span),
+                    height: 0.05,
+                    material,
+                    statsKey: 'pitLane',
+                    yLift: 0.045
+                });
+            }
+        }
+
+        function addPitLaneMarking(progress, offset, width, length, material = pitLaneLineMaterial, name = 'montmelo-pit-lane-marking') {
+            addMontmeloBox({
+                name,
+                progress,
+                offset,
+                width,
+                length,
+                height: 0.035,
+                material,
+                statsKey: 'pitLane',
+                yLift: 0.09
+            });
+        }
+
+        function addPitWallSegment(progress, index) {
+            addMontmeloBox({
+                name: 'montmelo-pit-wall',
+                progress,
+                offset: game.road.width * 0.5 + 4.1,
+                width: 0.72,
+                length: 12,
+                height: 0.82,
+                material: pitWallMaterial,
+                statsKey: 'pitLane',
+                yLift: 0.04
+            });
+            if (index % 3 === 0) {
+                addMontmeloBox({
+                    name: 'montmelo-pit-wall-red-cap',
+                    progress,
+                    offset: game.road.width * 0.5 + 4.1,
+                    width: 0.78,
+                    length: 5.4,
+                    height: 0.12,
+                    material: pitWallTopMaterial,
+                    statsKey: 'pitLane',
+                    yLift: 0.86
+                });
+            }
+        }
+
+        function getGrandstandLabelTexture(label, subtitle = '', accent = '#ffd84e') {
+            const cacheKey = `${label}:${subtitle}:${accent}`;
+            if (grandstandLabelCache.has(cacheKey)) {
+                return grandstandLabelCache.get(cacheKey);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#11161b';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = accent;
+            context.fillRect(0, 0, canvas.width, 12);
+            context.fillRect(0, canvas.height - 12, canvas.width, 12);
+            context.fillStyle = '#f8f4e8';
+            context.font = '900 62px Arial, sans-serif';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(label, canvas.width / 2, subtitle ? 56 : 64);
+            if (subtitle) {
+                context.fillStyle = accent;
+                context.font = '800 22px Arial, sans-serif';
+                context.fillText(subtitle, canvas.width / 2, 98);
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 4;
+            if (THREE.sRGBEncoding) {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+            grandstandLabelCache.set(cacheKey, texture);
+            return texture;
+        }
+
+        function getPaddockSponsorTexture(label, subtitle = '', accent = '#d42027', background = '#11161b') {
+            const cacheKey = `paddock:${label}:${subtitle}:${accent}:${background}`;
+            if (grandstandLabelCache.has(cacheKey)) {
+                return grandstandLabelCache.get(cacheKey);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            context.fillStyle = background;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = accent;
+            context.fillRect(0, 0, canvas.width, 22);
+            context.fillRect(0, canvas.height - 16, canvas.width, 16);
+            context.fillStyle = '#f8f4e8';
+            context.font = '900 54px Arial, sans-serif';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(label, canvas.width / 2, subtitle ? 56 : 66);
+            if (subtitle) {
+                context.fillStyle = '#f8f4e8';
+                context.font = '800 20px Arial, sans-serif';
+                context.fillText(subtitle, canvas.width / 2, 94);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 4;
+            if (THREE.sRGBEncoding) {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+            grandstandLabelCache.set(cacheKey, texture);
+            return texture;
+        }
+
+        function drawScoringTowerMark(context, x, y, scale) {
+            context.fillStyle = '#49b7d8';
+            context.beginPath();
+            const points = [
+                [0, -1.2], [0.3, -0.28], [1.25, -0.22], [0.48, 0.26],
+                [0.78, 1.16], [0, 0.58], [-0.78, 1.16], [-0.48, 0.26],
+                [-1.25, -0.22], [-0.3, -0.28]
+            ];
+            points.forEach(([px, py], index) => {
+                const drawX = x + px * scale;
+                const drawY = y + py * scale;
+                if (index === 0) {
+                    context.moveTo(drawX, drawY);
+                } else {
+                    context.lineTo(drawX, drawY);
+                }
+            });
+            context.closePath();
+            context.fill();
+
+            context.fillStyle = '#d42027';
+            context.beginPath();
+            context.arc(x - 1.05 * scale, y + 0.62 * scale, 0.22 * scale, 0, Math.PI * 2);
+            context.fill();
+            context.fillStyle = '#ffd84e';
+            context.beginPath();
+            context.arc(x - 0.62 * scale, y + 1.02 * scale, 0.2 * scale, 0, Math.PI * 2);
+            context.fill();
+        }
+
+        function getScoringTowerTopTexture() {
+            const cacheKey = 'montmelo:scoring-tower-top';
+            if (grandstandLabelCache.has(cacheKey)) {
+                return grandstandLabelCache.get(cacheKey);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#10151a';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            drawScoringTowerMark(context, 256, 88, 48);
+            context.fillStyle = '#f8f4e8';
+            context.font = '900 56px Arial, sans-serif';
+            context.textAlign = 'center';
+            context.fillText('la Caixa', 256, 174);
+
+            context.fillStyle = '#222a32';
+            context.fillRect(44, 218, 424, 94);
+            context.strokeStyle = '#46525c';
+            context.lineWidth = 5;
+            context.strokeRect(44, 218, 424, 94);
+            context.fillStyle = '#d4ef6f';
+            context.font = '900 64px monospace';
+            context.fillText('13:14.57', 256, 286);
+
+            context.fillStyle = '#28323a';
+            context.fillRect(44, 336, 424, 72);
+            context.fillStyle = '#f8f4e8';
+            context.font = '900 46px Arial, sans-serif';
+            context.fillText('VOLTA', 256, 386);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 4;
+            if (THREE.sRGBEncoding) {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+            grandstandLabelCache.set(cacheKey, texture);
+            return texture;
+        }
+
+        function getScoringTowerBoardTexture() {
+            const cacheKey = 'montmelo:scoring-tower-board';
+            if (grandstandLabelCache.has(cacheKey)) {
+                return grandstandLabelCache.get(cacheKey);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 1024;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#11171d';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.strokeStyle = '#303a43';
+            context.lineWidth = 4;
+            context.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+
+            for (let index = 0; index < 10; index++) {
+                const top = 22 + index * 98;
+                context.fillStyle = index % 2 === 0 ? '#151d24' : '#10161b';
+                context.fillRect(26, top, 204, 76);
+                context.strokeStyle = '#26313a';
+                context.lineWidth = 3;
+                context.strokeRect(26, top, 204, 76);
+                context.fillStyle = '#f8f4e8';
+                context.font = '900 56px Arial, sans-serif';
+                context.textAlign = 'left';
+                context.textBaseline = 'middle';
+                context.fillText(String(index + 1), 42, top + 40);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 4;
+            if (THREE.sRGBEncoding) {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+            grandstandLabelCache.set(cacheKey, texture);
+            return texture;
+        }
+
+        function getMainGrandstandRoofProfile(u) {
+            const clamped = THREE.MathUtils.clamp(u, 0, 1);
+            const crown = Math.sin(clamped * Math.PI) * 0.34;
+            const frontDrop = clamped * clamped * 0.58;
+            return 1.06 + crown - frontDrop;
+        }
+
+        function createMainGrandstandRoofGeometry(side, standDepth, standLength, roofY, yOffset = 0) {
+            const depthSegments = 20;
+            const lengthSegments = 18;
+            const rearX = side * standDepth * 0.52;
+            const frontX = -side * standDepth * 0.94;
+            const positions = [];
+            const uvs = [];
+            const indices = [];
+
+            for (let iz = 0; iz <= lengthSegments; iz++) {
+                const zRatio = iz / lengthSegments;
+                const lengthTaper = 1 - Math.abs(zRatio - 0.5) * 0.035;
+                const localZ = (zRatio - 0.5) * standLength * 1.18 * lengthTaper;
+                for (let ix = 0; ix <= depthSegments; ix++) {
+                    const u = ix / depthSegments;
+                    const localX = THREE.MathUtils.lerp(rearX, frontX, u);
+                    const edgeTuck = Math.abs(zRatio - 0.5) > 0.44 ? -0.04 : 0;
+                    positions.push(localX, roofY + getMainGrandstandRoofProfile(u) + edgeTuck + yOffset, localZ);
+                    uvs.push(u, zRatio);
+                }
+            }
+
+            const rowSize = depthSegments + 1;
+            for (let iz = 0; iz < lengthSegments; iz++) {
+                for (let ix = 0; ix < depthSegments; ix++) {
+                    const a = iz * rowSize + ix;
+                    const b = a + 1;
+                    const c = a + rowSize;
+                    const d = c + 1;
+                    indices.push(a, c, b, b, c, d);
+                }
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+
+        function createMainGrandstandRoofSideCapGeometry(side, standDepth, roofY) {
+            const frontDirection = -side;
+            const rearX = side * standDepth * 0.55;
+            const frontX = -side * standDepth * 0.95;
+            const noseX = frontX + frontDirection * 1.6;
+            const innerFrontX = frontX - frontDirection * 5.8;
+            const innerRearX = rearX + frontDirection * 5.4;
+            const shape = new THREE.Shape();
+            shape.moveTo(rearX, roofY + 1.08);
+            shape.bezierCurveTo(
+                rearX + frontDirection * standDepth * 0.3,
+                roofY + 1.46,
+                frontX - frontDirection * standDepth * 0.22,
+                roofY + 1.24,
+                frontX,
+                roofY + 0.56
+            );
+            shape.bezierCurveTo(
+                noseX,
+                roofY + 0.34,
+                noseX,
+                roofY - 0.78,
+                frontX + frontDirection * 0.34,
+                roofY - 1.16
+            );
+            shape.bezierCurveTo(
+                frontX - frontDirection * 1.8,
+                roofY - 1.62,
+                innerFrontX,
+                roofY - 1.22,
+                innerFrontX,
+                roofY - 0.66
+            );
+            shape.bezierCurveTo(
+                innerFrontX - frontDirection * standDepth * 0.18,
+                roofY + 0.04,
+                innerRearX,
+                roofY + 0.42,
+                innerRearX,
+                roofY + 0.78
+            );
+            shape.lineTo(rearX, roofY + 1.08);
+            const geometry = new THREE.ShapeGeometry(shape, 20);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+
+        function addMontmeloSupportBeam(group, start, end, radius, material, name) {
+            const direction = new THREE.Vector3().subVectors(end, start);
+            const length = direction.length();
+            if (length <= 0.001) {
+                return null;
+            }
+
+            const beam = new THREE.Mesh(
+                new THREE.CylinderGeometry(radius, radius, length, 10),
+                material
+            );
+            beam.name = name;
+            beam.position.copy(start).add(end).multiplyScalar(0.5);
+            beam.quaternion.setFromUnitVectors(localUp, direction.normalize());
+            group.add(beam);
+            return beam;
+        }
+
+        function addGrandstand({
+            label,
+            subtitle = '',
+            progress,
+            side,
+            length,
+            depth,
+            rows,
+            offset = 38,
+            covered = false,
+            accent = '#ffd84e',
+            yawOffset = 0,
+            seatPattern = null,
+            curvedRoof = false
+        }) {
+            const z = -progress;
+            if (z > game.startLine + 220 || z < game.finishLine - 220) {
+                return;
+            }
+
+            const roadData = getRoadDataAtZ(z, game);
+            const standDepth = Math.max(16, depth);
+            const standLength = Math.max(28, length);
+            const standRows = Math.max(4, Math.floor(rows));
+            const point = getRoadOffsetPoint(
+                roadData,
+                z,
+                side * (roadData.width / 2 + offset + standDepth * 0.5)
+            );
+            const halfDepth = standDepth * 0.56;
+            const halfLength = standLength * 0.52;
+            const groundRange = getFootprintGroundRange(point, roadData, z, halfDepth, halfLength, 4, 8);
+            const groundY = groundRange.max;
+            const group = new THREE.Group();
+            group.name = `montmelo-grandstand-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+            group.position.set(point.x, groundY + 0.05, point.z);
+            group.rotation.y = roadYawAt(z) + yawOffset;
+            group.userData.sceneryCullProgress = z;
+
+            addGroundedFoundationSkirt(
+                group,
+                groundRange,
+                group.position.y,
+                standDepth * 1.08,
+                standLength * 1.03,
+                grandstandConcreteMaterial,
+                0.48
+            );
+
+            const base = new THREE.Mesh(
+                new THREE.BoxGeometry(standDepth * 1.06, 0.45, standLength * 1.02),
+                grandstandConcreteMaterial
+            );
+            base.position.y = 0.22;
+            group.add(base);
+
+            const isMainGrandstand = curvedRoof && seatPattern === 'barcelona';
+            const rowDepth = standDepth / (standRows + 1);
+            const addBarcelonaSeatBlocks = (rowX, rowY, rowLength, seatRowDepth, rowIndex, tierIndex) => {
+                const sectionCount = 14;
+                const sectionLength = rowLength / sectionCount;
+                for (let section = 0; section < sectionCount; section++) {
+                    const isStair = section === 2 || section === 6 || section === 10;
+                    const material = isStair
+                        ? grandstandStepMaterials[(rowIndex + section + tierIndex) % grandstandStepMaterials.length]
+                        : grandstandBarcelonaSeatMaterials[
+                            (section + Math.floor(rowIndex * 0.72) + tierIndex * 2) % grandstandBarcelonaSeatMaterials.length
+                        ];
+                    const seatBlock = new THREE.Mesh(
+                        new THREE.BoxGeometry(
+                            seatRowDepth * 0.56,
+                            0.13,
+                            sectionLength * (isStair ? 0.34 : 0.8)
+                        ),
+                        material
+                    );
+                    seatBlock.name = isStair ? 'montmelo-main-grandstand-stair-gap' : 'montmelo-main-grandstand-seat-block';
+                    seatBlock.position.set(
+                        rowX,
+                        rowY + 0.2,
+                        -rowLength * 0.5 + sectionLength * (section + 0.5)
+                    );
+                    group.add(seatBlock);
+                }
+            };
+
+            if (isMainGrandstand) {
+                const lowerRows = Math.max(6, Math.floor(standRows * 0.48));
+                const upperRows = Math.max(5, standRows - lowerRows);
+                const tierRowDepth = standDepth / (lowerRows + upperRows + 6);
+                const frontX = -side * standDepth * 0.44;
+                const lowerRearX = -side * standDepth * 0.05;
+                const upperFrontX = side * standDepth * 0.03;
+                const upperRearX = side * standDepth * 0.46;
+
+                for (let row = 0; row < lowerRows; row++) {
+                    const t = (row + 0.5) / lowerRows;
+                    const rowX = THREE.MathUtils.lerp(frontX, lowerRearX, t);
+                    const rowY = 0.58 + row * 0.34;
+                    const rowLength = standLength * (0.98 - row * 0.006);
+                    const step = new THREE.Mesh(
+                        new THREE.BoxGeometry(tierRowDepth * 1.02, 0.24, rowLength),
+                        grandstandStepMaterials[row % grandstandStepMaterials.length]
+                    );
+                    step.name = 'montmelo-main-grandstand-lower-tier-step';
+                    step.position.set(rowX, rowY, 0);
+                    group.add(step);
+                    addBarcelonaSeatBlocks(rowX, rowY, rowLength, tierRowDepth, row, 0);
+                }
+
+                const concourseDeck = new THREE.Mesh(
+                    new THREE.BoxGeometry(standDepth * 0.68, 0.34, standLength * 1.02),
+                    grandstandConcreteMaterial
+                );
+                concourseDeck.name = 'montmelo-main-grandstand-mid-concourse';
+                concourseDeck.position.set(side * standDepth * 0.05, 3.05, 0);
+                group.add(concourseDeck);
+
+                const glassBand = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.26, 1.1, standLength * 0.9),
+                    garageGlassMaterial
+                );
+                glassBand.name = 'montmelo-main-grandstand-glass-band';
+                glassBand.position.set(-side * standDepth * 0.18, 3.56, 0);
+                group.add(glassBand);
+
+                const barcelonaFascia = new THREE.Mesh(
+                    new THREE.PlaneGeometry(Math.min(standLength * 0.42, 64), 2.4),
+                    new THREE.MeshBasicMaterial({
+                        map: getGrandstandLabelTexture('Barcelona', '', '#f4f0dc'),
+                        transparent: true,
+                        side: THREE.DoubleSide
+                    })
+                );
+                barcelonaFascia.name = 'montmelo-main-grandstand-barcelona-fascia';
+                barcelonaFascia.position.set(-side * standDepth * 0.2, 3.8, 0);
+                barcelonaFascia.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                group.add(barcelonaFascia);
+
+                for (let row = 0; row < upperRows; row++) {
+                    const t = (row + 0.5) / upperRows;
+                    const rowX = THREE.MathUtils.lerp(upperFrontX, upperRearX, t);
+                    const rowY = 3.52 + row * 0.32;
+                    const rowLength = standLength * (0.92 - row * 0.006);
+                    const step = new THREE.Mesh(
+                        new THREE.BoxGeometry(tierRowDepth * 0.98, 0.24, rowLength),
+                        grandstandStepMaterials[(row + lowerRows) % grandstandStepMaterials.length]
+                    );
+                    step.name = 'montmelo-main-grandstand-upper-tier-step';
+                    step.position.set(rowX, rowY, 0);
+                    group.add(step);
+                    addBarcelonaSeatBlocks(rowX, rowY, rowLength, tierRowDepth, row + lowerRows, 1);
+                }
+            } else {
+                for (let row = 0; row < standRows; row++) {
+                    const t = (row + 0.62) / standRows;
+                    const rowX = side * (-standDepth * 0.5 + t * standDepth);
+                    const rowY = 0.52 + row * 0.34;
+                    const rowLength = standLength * (0.96 - row * 0.004);
+                    const step = new THREE.Mesh(
+                        new THREE.BoxGeometry(rowDepth * 0.9, 0.24, rowLength),
+                        grandstandStepMaterials[row % grandstandStepMaterials.length]
+                    );
+                    step.position.set(rowX, rowY, 0);
+                    group.add(step);
+
+                    if (seatPattern === 'barcelona') {
+                        addBarcelonaSeatBlocks(rowX, rowY, rowLength, rowDepth, row, 0);
+                    } else if (row % 2 === 0 || standRows < 8) {
+                        const crowd = new THREE.Mesh(
+                            new THREE.BoxGeometry(rowDepth * 0.55, 0.12, rowLength * 0.82),
+                            grandstandCrowdMaterials[(row + label.length) % grandstandCrowdMaterials.length]
+                        );
+                        crowd.position.set(rowX, rowY + 0.2, 0);
+                        group.add(crowd);
+                    }
+                }
+            }
+
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.45, isMainGrandstand ? 5.4 : 1.9 + standRows * 0.14, standLength),
+                grandstandShadowMaterial
+            );
+            backWall.position.set(
+                side * standDepth * 0.55,
+                isMainGrandstand ? 2.98 : 1.25 + standRows * 0.17,
+                0
+            );
+            group.add(backWall);
+
+            if (covered) {
+                const roofY = 2.1 + standRows * 0.34;
+                if (curvedRoof) {
+                    const underside = new THREE.Mesh(
+                        createMainGrandstandRoofGeometry(side, standDepth, standLength, roofY, -0.18),
+                        grandstandCanopyUndersideMaterial
+                    );
+                    underside.name = 'montmelo-main-grandstand-roof-underside';
+                    group.add(underside);
+
+                    const roofSurface = new THREE.Mesh(
+                        createMainGrandstandRoofGeometry(side, standDepth, standLength, roofY, 0),
+                        grandstandCanopyMaterial
+                    );
+                    roofSurface.name = 'montmelo-main-grandstand-curved-roof';
+                    group.add(roofSurface);
+
+                    [-1, 1].forEach(zSide => {
+                        const sideCap = new THREE.Mesh(
+                            createMainGrandstandRoofSideCapGeometry(side, standDepth, roofY),
+                            grandstandCanopyMaterial
+                        );
+                        sideCap.name = 'montmelo-main-grandstand-open-c-roof-end';
+                        sideCap.position.z = zSide * standLength * 0.59;
+                        group.add(sideCap);
+                    });
+
+                    const frontX = -side * standDepth * 0.94;
+                    const rearX = side * standDepth * 0.52;
+                    const frontY = roofY + getMainGrandstandRoofProfile(1);
+                    const rearY = roofY + getMainGrandstandRoofProfile(0);
+                    const frontFascia = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.04, 2.02, standLength * 1.18),
+                        grandstandRoofMaterial
+                    );
+                    frontFascia.name = 'montmelo-main-grandstand-rounded-roof-lip';
+                    frontFascia.position.set(frontX + (-side * 0.22), frontY - 0.64, 0);
+                    frontFascia.rotation.z = side * 0.12;
+                    group.add(frontFascia);
+
+                    const frontRoll = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.46, 0.46, standLength * 1.18, 18),
+                        grandstandRoofMaterial
+                    );
+                    frontRoll.name = 'montmelo-main-grandstand-roof-roll';
+                    frontRoll.position.set(frontX + (-side * 0.2), frontY + 0.2, 0);
+                    frontRoll.rotation.x = Math.PI / 2;
+                    group.add(frontRoll);
+
+                    const lowerReturn = new THREE.Mesh(
+                        new THREE.BoxGeometry(standDepth * 0.22, 0.3, standLength * 1.13),
+                        grandstandShadowMaterial
+                    );
+                    lowerReturn.name = 'montmelo-main-grandstand-roof-lower-return';
+                    lowerReturn.position.set(frontX + (side * standDepth * 0.12), frontY - 1.38, 0);
+                    lowerReturn.rotation.z = side * -0.04;
+                    group.add(lowerReturn);
+
+                    const rearBeam = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.7, 1.1, standLength * 1.08),
+                        grandstandShadowMaterial
+                    );
+                    rearBeam.position.set(rearX + (side * 0.16), rearY - 0.46, 0);
+                    group.add(rearBeam);
+
+                    [-0.46, -0.24, 0, 0.24, 0.46].forEach(zFactor => {
+                        const zPosition = standLength * zFactor;
+                        addMontmeloSupportBeam(
+                            group,
+                            new THREE.Vector3(-side * standDepth * 0.36, 0.78, zPosition),
+                            new THREE.Vector3(-side * standDepth * 0.56, roofY + getMainGrandstandRoofProfile(0.72) - 0.12, zPosition),
+                            0.18,
+                            grandstandConcreteMaterial,
+                            'montmelo-main-grandstand-diagonal-front-support'
+                        );
+                        addMontmeloSupportBeam(
+                            group,
+                            new THREE.Vector3(side * standDepth * 0.02, 3.08, zPosition),
+                            new THREE.Vector3(-side * standDepth * 0.28, roofY + getMainGrandstandRoofProfile(0.5) - 0.18, zPosition),
+                            0.14,
+                            grandstandConcreteMaterial,
+                            'montmelo-main-grandstand-diagonal-rear-support'
+                        );
+
+                        [-0.44, 0.3].forEach(xFactor => {
+                            const columnX = side * standDepth * xFactor;
+                            const normalizedDepth = THREE.MathUtils.clamp(
+                                (columnX - rearX) / (frontX - rearX),
+                                0,
+                                1
+                            );
+                            const columnHeight = roofY + getMainGrandstandRoofProfile(normalizedDepth) - 0.22;
+                            const supportGeometry = new THREE.BoxGeometry(0.38, columnHeight, 0.38);
+                            const support = new THREE.Mesh(supportGeometry, grandstandConcreteMaterial);
+                            support.position.set(columnX, columnHeight * 0.5, standLength * zFactor);
+                            group.add(support);
+                        });
+                    });
+                } else {
+                    const roof = new THREE.Mesh(
+                        new THREE.BoxGeometry(standDepth * 1.18, 0.28, standLength * 1.08),
+                        grandstandRoofMaterial
+                    );
+                    roof.position.set(side * standDepth * 0.06, roofY, 0);
+                    group.add(roof);
+
+                    const supportGeometry = new THREE.BoxGeometry(0.32, roofY - 0.25, 0.32);
+                    [-0.42, 0.42].forEach(zFactor => {
+                        [-0.38, 0.38].forEach(xFactor => {
+                            const support = new THREE.Mesh(supportGeometry, grandstandConcreteMaterial);
+                            support.position.set(side * standDepth * xFactor, (roofY - 0.25) * 0.5, standLength * zFactor);
+                            group.add(support);
+                        });
+                    });
+                }
+
+                if (!isMainGrandstand) {
+                    const roofLabel = new THREE.Mesh(
+                        new THREE.PlaneGeometry(Math.min(standLength * 0.62, 72), 2.35),
+                        new THREE.MeshBasicMaterial({
+                            map: getGrandstandLabelTexture(label, subtitle, accent),
+                            transparent: true,
+                            side: THREE.DoubleSide
+                        })
+                    );
+                    roofLabel.name = 'montmelo-grandstand-roof-label';
+                    roofLabel.position.set(-side * (standDepth * (curvedRoof ? 0.77 : 0.58) + 0.1), roofY - 0.05, 0);
+                    roofLabel.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                    group.add(roofLabel);
+                }
+            } else {
+                const rearLabel = new THREE.Mesh(
+                    new THREE.PlaneGeometry(Math.min(standLength * 0.44, 52), 2.2),
+                    new THREE.MeshBasicMaterial({
+                        map: getGrandstandLabelTexture(label, subtitle, accent),
+                        transparent: true,
+                        side: THREE.DoubleSide
+                    })
+                );
+                rearLabel.name = 'montmelo-grandstand-rear-label';
+                rearLabel.position.set(side * (standDepth * 0.58 + 0.08), 2.1 + standRows * 0.34, 0);
+                rearLabel.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                group.add(rearLabel);
+            }
+
+            addDecorGroup(decor, group, 'grandstands');
+        }
+
+        function addPitGarageBay(progress, index) {
+            const z = -progress;
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, 52);
+            const depth = 20;
+            const length = 34;
+            const groundRange = getFootprintGroundRange(point, roadData, z, depth * 0.58, length * 0.56, 3, 5);
+            const groundY = groundRange.max;
+            const group = new THREE.Group();
+            group.name = 'montmelo-pit-garage-bay';
+            group.position.set(point.x, groundY + 0.04, point.z);
+            group.rotation.y = roadYawAt(z);
+            group.userData.sceneryCullProgress = z;
+
+            addGroundedFoundationSkirt(
+                group,
+                groundRange,
+                group.position.y,
+                depth * 1.05,
+                length * 1.06,
+                pitBuildingMaterial,
+                0.38
+            );
+
+            const lower = new THREE.Mesh(
+                new THREE.BoxGeometry(depth, 5.4, length),
+                pitBuildingMaterial
+            );
+            lower.position.set(0, 2.7, 0);
+            group.add(lower);
+
+            const door = new THREE.Mesh(
+                new THREE.BoxGeometry(0.18, 3.2, length * 0.72),
+                garageDoorMaterial
+            );
+            door.position.set(-depth * 0.5 - 0.1, 1.9, 0);
+            group.add(door);
+
+            const doorTrim = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.22, length * 0.76),
+                index % 2 === 0 ? pitLaneYellowMaterial : pitWallTopMaterial
+            );
+            doorTrim.position.set(-depth * 0.5 - 0.18, 3.66, 0);
+            group.add(doorTrim);
+
+            const upper = new THREE.Mesh(
+                new THREE.BoxGeometry(depth * 0.9, 3.2, length * 1.02),
+                pitBuildingDarkMaterial
+            );
+            upper.position.set(1.1, 6.2, 0);
+            group.add(upper);
+
+            const glass = new THREE.Mesh(
+                new THREE.BoxGeometry(0.22, 1.7, length * 0.78),
+                garageGlassMaterial
+            );
+            glass.position.set(-depth * 0.5 - 0.26, 6.2, 0);
+            group.add(glass);
+
+            const canopy = new THREE.Mesh(
+                new THREE.BoxGeometry(8.5, 0.34, length * 1.08),
+                grandstandRoofMaterial
+            );
+            canopy.position.set(-depth * 0.5 - 4.2, 4.55, 0);
+            group.add(canopy);
+
+            if (index === 4) {
+                const sign = new THREE.Mesh(
+                    new THREE.PlaneGeometry(27, 3.2),
+                    new THREE.MeshBasicMaterial({
+                        map: getGrandstandLabelTexture('BOXES', 'PADDOCK CLUB', '#ffd84e'),
+                        transparent: true,
+                        side: THREE.DoubleSide
+                    })
+                );
+                sign.position.set(-depth * 0.5 - 0.32, 8.45, 0);
+                sign.rotation.y = -Math.PI / 2;
+                group.add(sign);
+            }
+
+            addDecorGroup(decor, group, 'paddock');
+        }
+
+        function addPaddockTrailer(progress, offset, index) {
+            const z = -progress;
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, offset);
+            const width = index % 3 === 0 ? 9 : 7.4;
+            const length = index % 2 === 0 ? 22 : 17;
+            const height = index % 4 === 0 ? 5.2 : 4.1;
+            const groundRange = getFootprintGroundRange(point, roadData, z, width * 0.56, length * 0.56, 2, 4);
+            const groundY = groundRange.max;
+            const group = new THREE.Group();
+            group.name = 'montmelo-paddock-trailer';
+            group.position.set(point.x, groundY + 0.05, point.z);
+            group.rotation.y = roadYawAt(z) + (index % 2 === 0 ? 0.08 : -0.08);
+            group.userData.sceneryCullProgress = z;
+
+            addGroundedFoundationSkirt(
+                group,
+                groundRange,
+                group.position.y,
+                width * 1.04,
+                length * 1.04,
+                pitBuildingDarkMaterial,
+                0.22
+            );
+
+            const trailer = new THREE.Mesh(
+                new THREE.BoxGeometry(width, height, length),
+                paddockTrailerMaterials[index % paddockTrailerMaterials.length]
+            );
+            trailer.position.y = height * 0.5;
+            group.add(trailer);
+
+            const roof = new THREE.Mesh(
+                new THREE.BoxGeometry(width * 1.06, 0.22, length * 1.04),
+                pitBuildingDarkMaterial
+            );
+            roof.position.y = height + 0.14;
+            group.add(roof);
+
+            const windowBand = new THREE.Mesh(
+                new THREE.BoxGeometry(0.18, 0.72, length * 0.64),
+                garageGlassMaterial
+            );
+            windowBand.position.set(-width * 0.5 - 0.08, height * 0.68, 0);
+            group.add(windowBand);
+
+            addDecorGroup(decor, group, 'paddock');
+        }
+
+        function addPitLaneLounge() {
+            const progress = 590;
+            const z = -progress;
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, 56);
+            const groundRange = getFootprintGroundRange(point, roadData, z, 17, 34, 3, 6);
+            const groundY = groundRange.max;
+            const group = new THREE.Group();
+            group.name = 'montmelo-pit-lane-lounge';
+            group.position.set(point.x, groundY + 0.04, point.z);
+            group.rotation.y = roadYawAt(z);
+            group.userData.sceneryCullProgress = z;
+
+            addGroundedFoundationSkirt(
+                group,
+                groundRange,
+                group.position.y,
+                25.4,
+                58,
+                pitBuildingMaterial,
+                0.42
+            );
+
+            const lounge = new THREE.Mesh(
+                new THREE.BoxGeometry(24, 5.8, 56),
+                pitBuildingMaterial
+            );
+            lounge.position.y = 2.9;
+            group.add(lounge);
+
+            const balcony = new THREE.Mesh(
+                new THREE.BoxGeometry(7.8, 0.36, 62),
+                grandstandRoofMaterial
+            );
+            balcony.position.set(-15.6, 4.9, 0);
+            group.add(balcony);
+
+            const glass = new THREE.Mesh(
+                new THREE.BoxGeometry(0.22, 2.2, 48),
+                garageGlassMaterial
+            );
+            glass.position.set(-12.2, 3.4, 0);
+            group.add(glass);
+
+            const sign = new THREE.Mesh(
+                new THREE.PlaneGeometry(39, 3.2),
+                new THREE.MeshBasicMaterial({
+                    map: getGrandstandLabelTexture('PIT LANE', 'LOUNGE', '#66d7e9'),
+                    transparent: true,
+                    side: THREE.DoubleSide
+                })
+            );
+            sign.position.set(-12.38, 6.1, 0);
+            sign.rotation.y = -Math.PI / 2;
+            group.add(sign);
+
+            addDecorGroup(decor, group, 'paddock');
+        }
+
+        function addMainStraightPaddockBuilding() {
+            const progress = 430;
+            const z = -progress;
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, 70);
+            const depth = 32;
+            const length = 92;
+            const groundRange = getFootprintGroundRange(point, roadData, z, depth * 0.62, length * 0.56, 4, 8);
+            const groundY = groundRange.max;
+            const group = new THREE.Group();
+            group.name = 'montmelo-main-paddock-building';
+            group.position.set(point.x, groundY + 0.04, point.z);
+            group.rotation.y = roadYawAt(z);
+            group.userData.sceneryCullProgress = z;
+
+            addGroundedFoundationSkirt(
+                group,
+                groundRange,
+                group.position.y,
+                depth * 1.2,
+                length * 1.08,
+                pitBuildingMaterial,
+                0.46
+            );
+
+            const podium = new THREE.Mesh(
+                new THREE.BoxGeometry(depth * 1.18, 2.6, length * 1.06),
+                pitBuildingMaterial
+            );
+            podium.position.y = 1.3;
+            group.add(podium);
+
+            const garageLevel = new THREE.Mesh(
+                new THREE.BoxGeometry(depth, 5.2, length),
+                pitBuildingDarkMaterial
+            );
+            garageLevel.position.y = 4.0;
+            group.add(garageLevel);
+
+            const garageFront = new THREE.Mesh(
+                new THREE.BoxGeometry(0.24, 3.0, length * 0.9),
+                garageDoorMaterial
+            );
+            garageFront.position.set(-depth * 0.5 - 0.14, 3.45, 0);
+            group.add(garageFront);
+
+            const floorCount = 4;
+            for (let floor = 0; floor < floorCount; floor++) {
+                const floorY = 7.2 + floor * 3.28;
+                const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(depth * (0.94 - floor * 0.02), 2.8, length * (0.94 - floor * 0.035)),
+                    floor % 2 === 0 ? pitBuildingMaterial : pitBuildingDarkMaterial
+                );
+                body.position.set(0.75 + floor * 0.18, floorY, 0);
+                group.add(body);
+
+                const glassBand = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.24, 1.16, length * (0.82 - floor * 0.04)),
+                    garageGlassMaterial
+                );
+                glassBand.position.set(-depth * 0.5 - 0.2, floorY + 0.2, 0);
+                group.add(glassBand);
+
+                const sponsorLabel = floor % 2 === 0 ? 'REPSOL' : 'MONSTER';
+                const sponsorAccent = floor % 2 === 0 ? '#d42027' : '#52b043';
+                const sponsor = new THREE.Mesh(
+                    new THREE.PlaneGeometry(length * 0.62, 2.0),
+                    new THREE.MeshBasicMaterial({
+                        map: getPaddockSponsorTexture(sponsorLabel, '', sponsorAccent, '#172028'),
+                        side: THREE.DoubleSide
+                    })
+                );
+                sponsor.position.set(-depth * 0.5 - 0.35, floorY + 1.02, 0);
+                sponsor.rotation.y = -Math.PI / 2;
+                group.add(sponsor);
+            }
+
+            const balcony = new THREE.Mesh(
+                new THREE.BoxGeometry(7.2, 0.34, length * 1.08),
+                grandstandRoofMaterial
+            );
+            balcony.position.set(-depth * 0.5 - 3.3, 9.0, 0);
+            group.add(balcony);
+
+            const roofSlab = new THREE.Mesh(
+                new THREE.BoxGeometry(depth * 1.02, 0.42, length * 0.88),
+                grandstandRoofMaterial
+            );
+            roofSlab.position.set(0.6, 20.05, 0);
+            group.add(roofSlab);
+
+            const roofSign = new THREE.Mesh(
+                new THREE.BoxGeometry(depth * 0.88, 2.6, length * 0.6),
+                paddockSponsorRedMaterial
+            );
+            roofSign.position.set(0.2, 21.55, 0);
+            group.add(roofSign);
+
+            const circuitSign = new THREE.Mesh(
+                new THREE.PlaneGeometry(length * 0.46, 2.25),
+                new THREE.MeshBasicMaterial({
+                    map: getPaddockSponsorTexture('CIRCUIT', 'BARCELONA-CATALUNYA', '#d42027', '#f8f4e8'),
+                    side: THREE.DoubleSide
+                })
+            );
+            circuitSign.position.set(-depth * 0.44, 21.65, 0);
+            circuitSign.rotation.y = -Math.PI / 2;
+            group.add(circuitSign);
+
+            [-0.36, -0.12, 0.12, 0.36].forEach(zFactor => {
+                const mast = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.18, 6.4, 0.18),
+                    scoringTowerPoleMaterial
+                );
+                mast.position.set(3.8, 23.2, length * zFactor);
+                group.add(mast);
+
+                const lightBar = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.9, 0.22, 0.22),
+                    scoringTowerPoleMaterial
+                );
+                lightBar.position.set(3.35, 26.1, length * zFactor);
+                group.add(lightBar);
+            });
+
+            addDecorGroup(decor, group, 'paddock');
+        }
+
+        function addMontmeloPositionTower() {
+            const progress = 720;
+            const z = -progress;
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, 38);
+            const groundRange = getFootprintGroundRange(point, roadData, z, 5.8, 8.2, 3, 5);
+            const groundY = groundRange.max;
+            const group = new THREE.Group();
+            group.name = 'montmelo-position-tower';
+            group.position.set(point.x, groundY + 0.05, point.z);
+            group.rotation.y = roadYawAt(z);
+            group.userData.sceneryCullProgress = z;
+
+            addGroundedFoundationSkirt(
+                group,
+                groundRange,
+                group.position.y,
+                11.4,
+                16.4,
+                pitWallMaterial,
+                0.42
+            );
+
+            const base = new THREE.Mesh(
+                new THREE.BoxGeometry(6.8, 0.8, 8.8),
+                pitWallMaterial
+            );
+            base.position.y = 0.4;
+            group.add(base);
+
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.58, 0.78, 10.8, 12),
+                scoringTowerPoleMaterial
+            );
+            pole.position.y = 5.7;
+            group.add(pole);
+
+            const board = new THREE.Mesh(
+                new THREE.BoxGeometry(2.45, 23.4, 5.3),
+                scoringTowerMaterial
+            );
+            board.position.y = 20.8;
+            group.add(board);
+
+            const boardFace = new THREE.Mesh(
+                new THREE.PlaneGeometry(5.42, 22.8),
+                new THREE.MeshBasicMaterial({
+                    map: getScoringTowerBoardTexture(),
+                    side: THREE.DoubleSide
+                })
+            );
+            boardFace.position.set(-1.28, 20.8, 0);
+            boardFace.rotation.y = -Math.PI / 2;
+            group.add(boardFace);
+
+            const boardRearFace = new THREE.Mesh(
+                new THREE.PlaneGeometry(5.42, 22.8),
+                new THREE.MeshBasicMaterial({
+                    map: getScoringTowerBoardTexture(),
+                    side: THREE.DoubleSide
+                })
+            );
+            boardRearFace.position.set(1.28, 20.8, 0);
+            boardRearFace.rotation.y = Math.PI / 2;
+            group.add(boardRearFace);
+
+            [-1, 1].forEach(direction => {
+                const boardTrackFace = new THREE.Mesh(
+                    new THREE.PlaneGeometry(5.42, 22.8),
+                    new THREE.MeshBasicMaterial({
+                        map: getScoringTowerBoardTexture(),
+                        side: THREE.DoubleSide
+                    })
+                );
+                boardTrackFace.position.set(0, 20.8, direction * 2.74);
+                boardTrackFace.rotation.y = direction < 0 ? Math.PI : 0;
+                group.add(boardTrackFace);
+            });
+
+            const topBox = new THREE.Mesh(
+                new THREE.BoxGeometry(3.35, 8.3, 8.0),
+                scoringTowerMaterial
+            );
+            topBox.position.y = 37.0;
+            group.add(topBox);
+
+            const topFace = new THREE.Mesh(
+                new THREE.PlaneGeometry(8.0, 8.3),
+                new THREE.MeshBasicMaterial({
+                    map: getScoringTowerTopTexture(),
+                    side: THREE.DoubleSide
+                })
+            );
+            topFace.position.set(-1.78, 37.0, 0);
+            topFace.rotation.y = -Math.PI / 2;
+            group.add(topFace);
+
+            const topRearFace = new THREE.Mesh(
+                new THREE.PlaneGeometry(8.0, 8.3),
+                new THREE.MeshBasicMaterial({
+                    map: getScoringTowerTopTexture(),
+                    side: THREE.DoubleSide
+                })
+            );
+            topRearFace.position.set(1.78, 37.0, 0);
+            topRearFace.rotation.y = Math.PI / 2;
+            group.add(topRearFace);
+
+            [-1, 1].forEach(direction => {
+                const topTrackFace = new THREE.Mesh(
+                    new THREE.PlaneGeometry(8.0, 8.3),
+                    new THREE.MeshBasicMaterial({
+                        map: getScoringTowerTopTexture(),
+                        side: THREE.DoubleSide
+                    })
+                );
+                topTrackFace.position.set(0, 37.0, direction * 4.08);
+                topTrackFace.rotation.y = direction < 0 ? Math.PI : 0;
+                group.add(topTrackFace);
+            });
+
+            const topSideGlow = new THREE.Mesh(
+                new THREE.BoxGeometry(2.8, 6.4, 0.16),
+                scoringTowerGlassMaterial
+            );
+            topSideGlow.position.set(0, 37.0, 0);
+            group.add(topSideGlow);
+
+            const cap = new THREE.Mesh(
+                new THREE.BoxGeometry(3.75, 0.34, 8.45),
+                grandstandRoofMaterial
+            );
+            cap.position.y = 41.36;
+            group.add(cap);
+
+            addDecorGroup(decor, group, 'paddock');
+
+            addMontmeloBox({
+                name: 'montmelo-position-tower-retaining-wall',
+                progress,
+                offset: 33.2,
+                width: 1.0,
+                length: 15,
+                height: 1.55,
+                material: pitWallMaterial,
+                statsKey: 'paddock',
+                yLift: 0.035
+            });
+        }
+
+        function addMontmeloPitLaneAndPaddock() {
+            addPitLaneStrip(4490, 4676, {
+                offsetStart: 20.5,
+                offsetEnd: 22.5,
+                widthStart: 7,
+                widthEnd: 8.4,
+                step: 22,
+                material: pitLaneExitMaterial,
+                name: 'montmelo-pit-entry'
+            });
+            addPitLaneStrip(4, 144, {
+                offsetStart: 22.5,
+                offsetEnd: 23.2,
+                widthStart: 8.4,
+                widthEnd: 8.8,
+                step: 22,
+                material: pitLaneExitMaterial,
+                name: 'montmelo-pit-entry'
+            });
+            addPitLaneStrip(144, 552, {
+                offsetStart: 23.4,
+                widthStart: 9.4,
+                step: 28,
+                material: pitLaneSurfaceMaterial,
+                name: 'montmelo-pit-lane-main'
+            });
+            addPitLaneStrip(552, 870, {
+                offsetStart: 23.4,
+                offsetEnd: 10,
+                widthStart: 9,
+                widthEnd: 5.2,
+                step: 28,
+                material: pitLaneExitMaterial,
+                name: 'montmelo-pit-exit'
+            });
+
+            let wallIndex = 0;
+            for (let progress = 128; progress <= 560; progress += 14) {
+                addPitWallSegment(progress, wallIndex++);
+            }
+
+            for (let progress = 160; progress <= 548; progress += 18) {
+                addPitLaneMarking(progress, 19.2, 0.28, 8.5, pitLaneYellowMaterial, 'montmelo-pit-lane-yellow-line');
+                if (Math.floor(progress / 18) % 2 === 0) {
+                    addPitLaneMarking(progress, 27.4, 0.32, 7.2, pitLaneLineMaterial, 'montmelo-pit-lane-dashed-line');
+                }
+            }
+            for (let progress = 248; progress <= 536; progress += 36) {
+                addPitLaneMarking(progress, 31.4, 6.8, 0.32, pitLaneLineMaterial, 'montmelo-pit-box-cross-line');
+            }
+            [4560, 4630, 36, 92, 622, 704, 790].forEach((progress, index) => {
+                addPitLaneMarking(progress, index < 4 ? 17.8 : 15.4, 5.6, 0.32, pitLaneLineMaterial, 'montmelo-pit-merge-line');
+            });
+
+            for (let progress = 238; progress <= 650; progress += 42) {
+                addMontmeloBox({
+                    name: 'montmelo-paddock-apron',
+                    progress,
+                    offset: 96,
+                    width: 72,
+                    length: 44,
+                    height: 0.045,
+                    material: paddockLotMaterial,
+                    statsKey: 'paddock',
+                    yLift: 0.035
+                });
+            }
+            for (let progress = 445; progress <= 655; progress += 34) {
+                addMontmeloBox({
+                    name: 'montmelo-paddock-service-road',
+                    progress,
+                    offset: 136,
+                    width: 9,
+                    length: 36,
+                    height: 0.04,
+                    material: pitLaneExitMaterial,
+                    statsKey: 'paddock',
+                    yLift: 0.05
+                });
+            }
+
+            for (let progress = 258, index = 0; progress <= 556; progress += 36, index++) {
+                addPitGarageBay(progress, index);
+            }
+            addPitLaneLounge();
+            addMainStraightPaddockBuilding();
+            addMontmeloPositionTower();
+
+            const trailerPlacements = [
+                [282, 85],
+                [318, 111],
+                [354, 136],
+                [396, 92],
+                [438, 122],
+                [486, 148],
+                [528, 92],
+                [574, 118],
+                [622, 142]
+            ];
+            trailerPlacements.forEach(([progress, offset], index) => addPaddockTrailer(progress, offset, index));
+
+            const paddockSignPointProgress = 520;
+            const z = -paddockSignPointProgress;
+            const roadData = getRoadDataAtZ(z, game);
+            const signPoint = getRoadOffsetPoint(roadData, z, 118);
+            const sign = new THREE.Mesh(
+                new THREE.PlaneGeometry(42, 6),
+                new THREE.MeshBasicMaterial({
+                    map: getGrandstandLabelTexture('PADDOCK', 'PRIVATE ACCESS', '#ffd84e'),
+                    transparent: true,
+                    side: THREE.DoubleSide
+                })
+            );
+            sign.name = 'montmelo-paddock-sign';
+            sign.position.set(signPoint.x, getTerrainHeightAt(signPoint.x, signPoint.z) + 7.2, signPoint.z);
+            sign.rotation.y = roadYawAt(z) - Math.PI / 2;
+            sign.userData.sceneryCullProgress = z;
+            addDecorMesh(decor, sign, 'paddock');
+        }
+
+        function getMontmeloDecorHash(seed) {
+            const value = Math.sin(seed * 12.9898) * 43758.5453;
+            return value - Math.floor(value);
+        }
+
+        function createMontmeloStonePine(scale = 1, seed = 1) {
+            const tree = new THREE.Group();
+            tree.name = 'montmelo-stone-pine';
+
+            const lean = (getMontmeloDecorHash(seed + 0.7) - 0.5) * 0.14;
+            const trunk = new THREE.Mesh(montmeloPineTrunkGeometry, montmeloPineTrunkMaterial);
+            trunk.position.y = 2.05;
+            trunk.rotation.z = lean;
+            tree.add(trunk);
+
+            const canopyMaterial = montmeloPineCanopyMaterials[Math.floor(getMontmeloDecorHash(seed + 1.9) * montmeloPineCanopyMaterials.length)];
+            const upperCanopy = new THREE.Mesh(montmeloPineCrownGeometry, canopyMaterial);
+            upperCanopy.position.set(
+                (getMontmeloDecorHash(seed + 2.3) - 0.5) * 0.34,
+                4.72 + getMontmeloDecorHash(seed + 3.1) * 0.48,
+                (getMontmeloDecorHash(seed + 4.2) - 0.5) * 0.28
+            );
+            upperCanopy.scale.set(
+                1.65 + getMontmeloDecorHash(seed + 5.4) * 0.42,
+                0.48 + getMontmeloDecorHash(seed + 6.6) * 0.12,
+                1.16 + getMontmeloDecorHash(seed + 7.8) * 0.36
+            );
+            upperCanopy.rotation.y = getMontmeloDecorHash(seed + 8.2) * Math.PI;
+            tree.add(upperCanopy);
+
+            const lowerCanopy = new THREE.Mesh(
+                montmeloPineLowerCrownGeometry,
+                montmeloPineCanopyMaterials[(Math.floor(seed) + 1) % montmeloPineCanopyMaterials.length]
+            );
+            lowerCanopy.position.set(
+                (getMontmeloDecorHash(seed + 9.4) - 0.5) * 0.74,
+                4.14 + getMontmeloDecorHash(seed + 10.5) * 0.32,
+                (getMontmeloDecorHash(seed + 11.6) - 0.5) * 0.62
+            );
+            lowerCanopy.scale.set(
+                1.32 + getMontmeloDecorHash(seed + 12.2) * 0.34,
+                0.38 + getMontmeloDecorHash(seed + 13.5) * 0.1,
+                1.02 + getMontmeloDecorHash(seed + 14.7) * 0.28
+            );
+            lowerCanopy.rotation.y = getMontmeloDecorHash(seed + 15.1) * Math.PI;
+            tree.add(lowerCanopy);
+
+            tree.scale.setScalar(scale);
+            return tree;
+        }
+
+        function addMontmeloPine(progress, offset, scale, seed) {
+            const z = -progress;
+            if (z > game.startLine + 260 || z < game.finishLine - 260) {
+                return false;
+            }
+
+            const roadData = getRoadDataAtZ(z, game);
+            const point = getRoadOffsetPoint(roadData, z, offset);
+            const normal = getTerrainNormalAt(point.x, point.z, 2.2);
+            if (normal.y < 0.58) {
+                return false;
+            }
+
+            const tree = createMontmeloStonePine(scale, seed);
+            tree.position.set(point.x, getTerrainHeightAt(point.x, point.z) - 0.08 * scale, point.z);
+            tree.rotation.y = getMontmeloDecorHash(seed + 16.8) * Math.PI * 2;
+            tree.userData.sceneryCullProgress = z;
+            addDecorGroup(decor, tree, 'trees');
+            return true;
+        }
+
+        function addMontmeloPineCluster({
+            start,
+            end,
+            offsets,
+            step,
+            density = 1,
+            jitterProgress = 16,
+            jitterOffset = 12,
+            scaleMin = 0.72,
+            scaleMax = 1.18,
+            seedBase = 1
+        }) {
+            let count = 0;
+            let index = 0;
+            for (let progress = start; progress <= end; progress += step) {
+                offsets.forEach((baseOffset, rowIndex) => {
+                    const seed = seedBase + progress * 0.31 + rowIndex * 41.7 + index * 7.1;
+                    index++;
+                    if (getMontmeloDecorHash(seed) > density) {
+                        return;
+                    }
+
+                    const pineProgress = progress + (getMontmeloDecorHash(seed + 1.1) - 0.5) * jitterProgress;
+                    const pineOffset = baseOffset + (getMontmeloDecorHash(seed + 2.2) - 0.5) * jitterOffset;
+                    const scale = scaleMin + getMontmeloDecorHash(seed + 3.3) * (scaleMax - scaleMin);
+                    if (addMontmeloPine(pineProgress, pineOffset, scale, seed + 4.4)) {
+                        count++;
+                    }
+                });
+            }
+            return count;
+        }
+
+        function addMontmeloPines() {
+            const pineClusters = [
+                {
+                    start: 36,
+                    end: 680,
+                    offsets: [-152, -182, -212],
+                    step: 58,
+                    density: 0.54,
+                    jitterProgress: 24,
+                    jitterOffset: 18,
+                    scaleMin: 0.62,
+                    scaleMax: 1.02,
+                    seedBase: 100
+                },
+                {
+                    start: 2140,
+                    end: 2300,
+                    offsets: [-62, -88, -116],
+                    step: 34,
+                    density: 0.86,
+                    jitterProgress: 20,
+                    jitterOffset: 20,
+                    scaleMin: 0.78,
+                    scaleMax: 1.28,
+                    seedBase: 2200
+                },
+                {
+                    start: 3370,
+                    end: 3705,
+                    offsets: [42, 68, 96],
+                    step: 38,
+                    density: 0.82,
+                    jitterProgress: 22,
+                    jitterOffset: 18,
+                    scaleMin: 0.68,
+                    scaleMax: 1.16,
+                    seedBase: 3500
+                },
+                {
+                    start: 3975,
+                    end: 4185,
+                    offsets: [-118, -148],
+                    step: 38,
+                    density: 0.7,
+                    jitterProgress: 18,
+                    jitterOffset: 16,
+                    scaleMin: 0.7,
+                    scaleMax: 1.14,
+                    seedBase: 4100
+                },
+                {
+                    start: 4515,
+                    end: 4670,
+                    offsets: [58, 86, 114],
+                    step: 32,
+                    density: 0.78,
+                    jitterProgress: 16,
+                    jitterOffset: 18,
+                    scaleMin: 0.68,
+                    scaleMax: 1.18,
+                    seedBase: 4600
+                }
+            ];
+
+            const pineCount = pineClusters.reduce((total, cluster) => total + addMontmeloPineCluster(cluster), 0);
+            stageDecorStats.conifers += pineCount;
+        }
+
+        function createMontmeloKerbGeometry(point, roadData, z) {
+            const basis = getRoadBasis(roadData, z);
+            const roadSurfaceY = roadData.y + 0.085;
+            const centerY = Math.max(getTerrainHeightAt(point.x, point.z), roadSurfaceY);
+            const widthSegments = 1;
+            const lengthSegments = 3;
+            const positions = [];
+            const indices = [];
+
+            for (let layer = 0; layer < 2; layer++) {
+                for (let iz = 0; iz <= lengthSegments; iz++) {
+                    const zRatio = iz / lengthSegments;
+                    const localZ = (zRatio - 0.5) * montmeloKerbLength;
+                    for (let ix = 0; ix <= widthSegments; ix++) {
+                        const xRatio = ix / widthSegments;
+                        const localX = (xRatio - 0.5) * montmeloKerbWidth;
+                        const sampleX = point.x + basis.normalX * localX + basis.tangentX * localZ;
+                        const sampleZ = point.z + basis.normalZ * localX + basis.tangentZ * localZ;
+                        const surfaceY = Math.max(getTerrainHeightAt(sampleX, sampleZ), roadSurfaceY);
+                        positions.push(
+                            sampleX - point.x,
+                            surfaceY + 0.045 + layer * montmeloKerbHeight - centerY,
+                            sampleZ - point.z
+                        );
+                    }
+                }
+            }
+
+            const rowSize = widthSegments + 1;
+            const layerSize = rowSize * (lengthSegments + 1);
+            const bottom = 0;
+            const top = layerSize;
+            for (let iz = 0; iz < lengthSegments; iz++) {
+                const a = iz * rowSize;
+                const b = a + 1;
+                const c = a + rowSize;
+                const d = c + 1;
+                indices.push(top + a, top + c, top + b, top + b, top + c, top + d);
+                indices.push(bottom + a, bottom + b, bottom + c, bottom + b, bottom + d, bottom + c);
+                indices.push(bottom + a, bottom + c, top + a, top + a, bottom + c, top + c);
+                indices.push(bottom + b, top + b, bottom + d, top + b, top + d, bottom + d);
+            }
+
+            for (let ix = 0; ix < widthSegments; ix++) {
+                const frontA = ix;
+                const frontB = ix + 1;
+                indices.push(bottom + frontA, top + frontA, bottom + frontB, top + frontA, top + frontB, bottom + frontB);
+
+                const rearA = lengthSegments * rowSize + ix;
+                const rearB = rearA + 1;
+                indices.push(bottom + rearA, bottom + rearB, top + rearA, top + rearA, bottom + rearB, top + rearB);
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            return { geometry, centerY };
+        }
+
+        function addKerbBlock(progress, side, material) {
             const z = -progress;
             if (z > game.startLine + 140 || z < game.finishLine - 160) {
                 return;
             }
             const roadData = getRoadDataAtZ(z, game);
-            const point = getRoadOffsetPoint(roadData, z, side * (roadData.width / 2 + 1.05));
+            const point = getRoadOffsetPoint(
+                roadData,
+                z,
+                side * (roadData.width / 2 + montmeloKerbWidth * 0.5 + 0.08)
+            );
+            const { geometry, centerY } = createMontmeloKerbGeometry(point, roadData, z);
             const kerb = new THREE.Mesh(geometry, material);
-            kerb.position.set(point.x, roadData.y + 0.105, point.z);
-            kerb.rotation.y = roadYawAt(z);
+            kerb.name = material === redKerbMaterial ? 'montmelo-red-kerb-block' : 'montmelo-white-kerb-block';
+            kerb.position.set(point.x, centerY, point.z);
+            kerb.renderOrder = 9;
             kerb.userData.sceneryCullProgress = z;
             addDecorMesh(decor, kerb, 'kerbs');
         }
@@ -3774,6 +6035,30 @@ function generateRoadAndTerrain(scene, game, environment) {
             pitLine.userData.sceneryCullProgress = z;
             addDecorMesh(decor, pitLine, 'kerbs');
         }
+
+        addMontmeloPitLaneAndPaddock();
+        addMontmeloPines();
+
+        [
+            { label: 'MAIN', subtitle: 'BARCELONA', progress: 336, side: -1, length: 220, depth: 42, rows: 14, offset: 38, covered: true, curvedRoof: true, seatPattern: 'barcelona', accent: '#ffd84e' },
+            { label: 'J', subtitle: 'MAIN STRAIGHT', progress: 705, side: -1, length: 116, depth: 28, rows: 9, offset: 28, accent: '#66d7e9' },
+            { label: 'K', subtitle: 'MAIN STRAIGHT', progress: 844, side: -1, length: 116, depth: 28, rows: 9, offset: 28, accent: '#66d7e9' },
+            { label: 'E', subtitle: 'TURN 1', progress: 931, side: -1, length: 74, depth: 26, rows: 8, offset: 24, accent: '#d42027' },
+            { label: 'F', subtitle: 'TURN 1', progress: 1022, side: -1, length: 90, depth: 29, rows: 9, offset: 24, accent: '#d42027' },
+            { label: 'T1', subtitle: 'TURN 1', progress: 1117, side: -1, length: 58, depth: 22, rows: 7, offset: 66, accent: '#ffd84e' },
+            { label: 'A', subtitle: 'TURN 3', progress: 1283, side: -1, length: 82, depth: 28, rows: 9, offset: 28, accent: '#f4f0dc' },
+            { label: 'L', subtitle: 'TURN 5', progress: 1375, side: 1, length: 82, depth: 30, rows: 9, offset: 46, accent: '#ffd84e' },
+            { label: 'M', subtitle: 'TURN 5', progress: 2355, side: 1, length: 72, depth: 27, rows: 8, offset: 30, accent: '#66d7e9' },
+            { label: 'S', subtitle: 'TURN 9', progress: 3055, side: -1, length: 84, depth: 26, rows: 8, offset: 58, accent: '#f4f0dc' },
+            { label: 'N', subtitle: 'TURN 9', progress: 3151, side: -1, length: 124, depth: 34, rows: 10, offset: 24, accent: '#ffd84e' },
+            { label: 'T10', subtitle: 'TURN 10', progress: 3734, side: 1, length: 72, depth: 28, rows: 8, offset: 18, accent: '#d42027' },
+            { label: 'B', subtitle: 'STADIUM', progress: 4024, side: -1, length: 76, depth: 28, rows: 8, offset: 34, accent: '#ffd84e' },
+            { label: 'B', subtitle: 'STADIUM', progress: 4057, side: -1, length: 56, depth: 24, rows: 7, offset: 28, accent: '#ffd84e' },
+            { label: 'G', subtitle: 'STADIUM', progress: 4133, side: -1, length: 154, depth: 40, rows: 12, offset: 28, accent: '#66d7e9' },
+            { label: 'C', subtitle: 'FINAL SECTOR', progress: 4298, side: -1, length: 112, depth: 30, rows: 9, offset: 42, accent: '#f4f0dc' },
+            { label: 'H', subtitle: 'FINAL SECTOR', progress: 4510, side: -1, length: 90, depth: 30, rows: 9, offset: 38, accent: '#ffd84e', covered: true },
+            { label: 'I', subtitle: 'FINAL CORNER', progress: 4625, side: -1, length: 92, depth: 32, rows: 10, offset: 42, accent: '#d42027', covered: true }
+        ].forEach(addGrandstand);
 
         function createTurnBoardTexture(turnId) {
             const canvas = document.createElement('canvas');
@@ -3969,24 +6254,59 @@ function generateRoadAndTerrain(scene, game, environment) {
             return -18 - Math.random() * 42;
         }
 
-        function getSplashLateralOffset(roadData, carPosition, isCloseBand) {
-            const halfRoadWidth = game.road.width * 0.5;
-            if (isCloseBand && carPosition && Math.random() < 0.72) {
-                const carLateral = THREE.MathUtils.clamp(carPosition.x - roadData.curve, -halfRoadWidth * 0.66, halfRoadWidth * 0.66);
+        function getRoadCenterPoint(roadData, progressZ) {
+            return {
+                x: Number.isFinite(roadData.worldX) ? roadData.worldX : roadData.curve,
+                z: Number.isFinite(roadData.worldZ) ? roadData.worldZ : progressZ
+            };
+        }
+
+        function getRoadOffsetPoint(roadData, progressZ, lateralOffset) {
+            const normalX = Number.isFinite(roadData.normalX) ? roadData.normalX : 1;
+            const normalZ = Number.isFinite(roadData.normalZ) ? roadData.normalZ : 0;
+            const center = getRoadCenterPoint(roadData, progressZ);
+            return {
+                x: center.x + normalX * lateralOffset,
+                z: center.z + normalZ * lateralOffset
+            };
+        }
+
+        function getCarLateralOffset(roadData, progressZ, carWorldPosition) {
+            if (!carWorldPosition) {
+                return 0;
+            }
+            const center = getRoadCenterPoint(roadData, progressZ);
+            const normalX = Number.isFinite(roadData.normalX) ? roadData.normalX : 1;
+            const normalZ = Number.isFinite(roadData.normalZ) ? roadData.normalZ : 0;
+            return (carWorldPosition.x - center.x) * normalX + (carWorldPosition.z - center.z) * normalZ;
+        }
+
+        function getSplashLateralOffset(roadData, progressZ, carWorldPosition, isCloseBand) {
+            const roadWidth = roadData.width || game.road.width;
+            const halfRoadWidth = roadWidth * 0.5;
+            if (isCloseBand && carWorldPosition && Math.random() < 0.72) {
+                const carLateral = THREE.MathUtils.clamp(
+                    getCarLateralOffset(roadData, progressZ, carWorldPosition),
+                    -halfRoadWidth * 0.66,
+                    halfRoadWidth * 0.66
+                );
                 const side = Math.random() < 0.5 ? -1 : 1;
                 const sideSpray = side * (2.8 + Math.random() * 5.6) + (Math.random() - 0.5) * 1.1;
                 return THREE.MathUtils.clamp(carLateral + sideSpray, -halfRoadWidth * 0.88, halfRoadWidth * 0.88);
             }
-            return (Math.random() - 0.5) * game.road.width * 0.9;
+            return (Math.random() - 0.5) * roadWidth * 0.9;
         }
 
-        function respawnSplash(seed, carZ, carPosition = null) {
-            const z = carZ + getSplashRelativeZ();
-            const roadData = getLinearRoadDataAtZ(z);
-            const isCloseBand = Math.abs(z - carZ) <= 28;
-            seed.x = roadData.curve + getSplashLateralOffset(roadData, carPosition, isCloseBand);
+        function respawnSplash(seed, carProgressZ, carWorldPosition = null) {
+            const progressZ = carProgressZ + getSplashRelativeZ();
+            const roadData = getLinearRoadDataAtZ(progressZ);
+            const isCloseBand = Math.abs(progressZ - carProgressZ) <= 28;
+            const lateralOffset = getSplashLateralOffset(roadData, progressZ, carWorldPosition, isCloseBand);
+            const point = getRoadOffsetPoint(roadData, progressZ, lateralOffset);
+            seed.x = point.x;
             seed.y = roadData.y + 0.075;
-            seed.z = z;
+            seed.z = point.z;
+            seed.progressZ = progressZ;
             seed.age = Math.random() * 0.18;
             seed.life = 0.11 + Math.random() * 0.2;
             seed.size = (isCloseBand ? 0.3 : 0.22) + Math.random() * (isCloseBand ? 0.48 : 0.34);
@@ -4009,10 +6329,15 @@ function generateRoadAndTerrain(scene, game, environment) {
         game.stageEffects = game.stageEffects || [];
         game.stageEffects.push({
             type: 'rain',
-            update(deltaSeconds, activeGame, activeCamera, activeCameraMode = null) {
+            update(deltaSeconds, activeGame, activeCamera, activeCameraMode = null, effectContext = {}) {
                 rainTime += deltaSeconds;
-                const carPosition = activeGame?.car?.position || null;
-                const carZ = carPosition?.z ?? game.startLine;
+                const carProgressPosition = activeGame?.car?.position || null;
+                const carWorldPosition = effectContext?.playerWorldPosition
+                    || activeGame?.car?.worldPosition
+                    || carProgressPosition
+                    || null;
+                const fallbackProgressZ = effectContext?.playerProgressZ ?? carProgressPosition?.z ?? game.startLine;
+                const carZ = Number.isFinite(fallbackProgressZ) ? fallbackProgressZ : game.startLine;
                 const carSpeed = Math.max(0, activeGame?.car?.speed || 0);
                 const carMaxSpeed = Math.max(0.001, activeGame?.car?.maxSpeed || 2.5);
                 const speedRatio = THREE.MathUtils.clamp(carSpeed / carMaxSpeed, 0, 1);
@@ -4037,15 +6362,19 @@ function generateRoadAndTerrain(scene, game, environment) {
                     } else {
                         cameraRight.normalize();
                     }
-                    if (isCockpitMode || !carPosition) {
+                    if (isCockpitMode || !carWorldPosition) {
                         rainAnchor.copy(activeCamera.position);
                     } else {
-                        rainAnchor.set(carPosition.x, activeCamera.position.y, carPosition.z);
+                        rainAnchor.set(carWorldPosition.x, activeCamera.position.y, carWorldPosition.z);
                     }
                 } else {
                     cameraForward.copy(fallbackForward);
                     cameraRight.set(1, 0, 0);
-                    rainAnchor.set(carPosition?.x || 0, (carPosition?.y || 0) + 8, carZ);
+                    rainAnchor.set(
+                        carWorldPosition?.x || 0,
+                        (carWorldPosition?.y || 0) + 8,
+                        carWorldPosition?.z ?? carZ
+                    );
                 }
 
                 rainSeeds.forEach((seed, index) => {
@@ -4075,8 +6404,9 @@ function generateRoadAndTerrain(scene, game, environment) {
 
                 splashSeeds.forEach((seed, index) => {
                     seed.age += deltaSeconds;
-                    if (seed.age >= seed.life || seed.z > carZ + 54 || seed.z < carZ - 66) {
-                        respawnSplash(seed, carZ, carPosition);
+                    const seedProgressZ = Number.isFinite(seed.progressZ) ? seed.progressZ : seed.z;
+                    if (seed.age >= seed.life || seedProgressZ > carZ + 54 || seedProgressZ < carZ - 66) {
+                        respawnSplash(seed, carZ, carWorldPosition);
                     }
 
                     const t = THREE.MathUtils.clamp(seed.age / seed.life, 0, 1);
@@ -9398,7 +11728,9 @@ function generateRoadAndTerrain(scene, game, environment) {
                         ? createDesertSkyTexture(environment)
                         : environment.id === 'scotland'
                             ? createHighlandSkyTexture(environment)
-                            : null;
+                            : environment.terrainStyle === 'race-circuit'
+                                ? createCircuitSkyTexture(environment)
+                                : null;
     scene.background = stageSkyTexture
         ? adaptSkyTexture(stageSkyTexture, atmosphere)
         : atmosphere.skyColor;
@@ -9550,8 +11882,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         leftPole.position.set(-bannerWidth / 2, poleHeight / 2, 0);
         rightPole.position.set(bannerWidth / 2, poleHeight / 2, 0);
     
-        const isCircuitFinish = isFinishLine && environment.id === 'montmelo';
-        const bannerTexture = createBannerTexture(isCircuitFinish ? 'START FINISH' : isFinishLine ? 'FINISH' : 'START', { highVisibility: isCityFinish });
+        const bannerTexture = createBannerTexture(isFinishLine ? 'FINISH' : 'START', { highVisibility: isCityFinish });
     
         // Create banner
         const bannerGeometry = new THREE.PlaneGeometry(bannerWidth, bannerHeight);
