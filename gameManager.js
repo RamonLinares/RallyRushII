@@ -220,6 +220,278 @@ const environments = {
         },
         fogColor: 0x91c3d0,
         fogDensity: 0.00068
+    },
+    montmelo: {
+        id: 'montmelo',
+        terrainStyle: 'race-circuit',
+        roadStyle: 'circuit-asphalt',
+        shoulderStyle: 'circuit-runoff',
+        roadWidth: 26,
+        shoulderWidth: 5.8,
+        drivableWidth: 36,
+        terrainColor: 0x5e7d46,
+        terrainTint: 0x9fb36f,
+        treeDensity: 0,
+        maxMountainHeight: 5,
+        mountainHeightRange: 5,
+        mountainHeightPower: 1.85,
+        mountainNoiseScale: 0.004,
+        mountainNoiseGain: 0.16,
+        mountainRoadsideDelay: 0.68,
+        mountainRoadsidePower: 2.4,
+        roadElevationAmplitude: 0,
+        terrainTextureMetersPerTile: 360,
+        terrainTextureLateralMetersPerTile: 180,
+        roadTextureMetersPerTile: 54,
+        fogColor: 0xb7c7bd,
+        fogDensity: 0.00072,
+        trackLength: 4677.3,
+        storedTrack: {
+            id: 'barcelona-catalunya-gp-2023',
+            length: 4677.3,
+            turns: 14,
+            direction: 'clockwise',
+            repeat: true,
+            controlPoints: [
+                { s: 0, x: 469.7, z: -364.5, y: 0 },
+                { s: 2.6, x: 468.9, z: -362, y: 0 },
+                { s: 11.5, x: 465, z: -354, y: 0 },
+                { s: 21.3, x: 460.2, z: -345.5, y: 0 },
+                { s: 234.3, x: 346.2, z: -165.5, y: 0 },
+                { s: 375.5, x: 270.8, z: -46.1, y: 0 },
+                { s: 499.1, x: 205.3, z: 58.6, y: 0 },
+                { s: 556.1, x: 174.4, z: 106.6, y: 0 },
+                { s: 768.1, x: 62.3, z: 286.5, y: 0 },
+                { s: 870.1, x: 7.8, z: 372.7, y: 0 },
+                { s: 973.5, x: -47.4, z: 460.1, y: 0 },
+                { s: 1000.4, x: -61.4, z: 483.1, y: 0 },
+                { s: 1014.4, x: -68.7, z: 495.1, y: 0 },
+                { s: 1060.3, x: -93.1, z: 533.9, y: 0 },
+                { s: 1071.3, x: -100, z: 542.5, y: 0 },
+                { s: 1081, x: -107.3, z: 548.9, y: 0 },
+                { s: 1090.3, x: -115.4, z: 553.5, y: 0 },
+                { s: 1099, x: -124, z: 554.7, y: 0 },
+                { s: 1109.1, x: -134.1, z: 554.3, y: 0 },
+                { s: 1120.3, x: -145, z: 551.9, y: 0 },
+                { s: 1131.5, x: -154.9, z: 546.4, y: 0 },
+                { s: 1150.2, x: -170.4, z: 536, y: 0 },
+                { s: 1160.5, x: -179.2, z: 530.7, y: 0 },
+                { s: 1169.3, x: -187.3, z: 527.4, y: 0 },
+                { s: 1179.7, x: -197.5, z: 525.3, y: 0 },
+                { s: 1190, x: -207.8, z: 524.7, y: 0 },
+                { s: 1201.7, x: -219.4, z: 525.8, y: 0 },
+                { s: 1212.4, x: -229.6, z: 529, y: 0 },
+                { s: 1222.9, x: -238.6, z: 534.4, y: 0 },
+                { s: 1289.5, x: -292.4, z: 573.8, y: 0 },
+                { s: 1302.2, x: -302.6, z: 581.3, y: 0 },
+                { s: 1313.4, x: -311.6, z: 587.9, y: 0 },
+                { s: 1323.8, x: -320.8, z: 592.9, y: 0 },
+                { s: 1337, x: -333.1, z: 597.6, y: 0 },
+                { s: 1348.5, x: -344.1, z: 601, y: 0 },
+                { s: 1363.5, x: -358.9, z: 603.3, y: 0 },
+                { s: 1386.6, x: -382, z: 602.6, y: 0 },
+                { s: 1400.2, x: -395.4, z: 600.3, y: 0 },
+                { s: 1412.7, x: -407.4, z: 596.7, y: 0 },
+                { s: 1432.5, x: -425.2, z: 587.9, y: 0 },
+                { s: 1449.5, x: -438.8, z: 577.7, y: 0 },
+                { s: 1464.5, x: -449.3, z: 567.1, y: 0 },
+                { s: 1477.4, x: -457.6, z: 557.2, y: 0 },
+                { s: 1492.6, x: -466.3, z: 544.7, y: 0 },
+                { s: 1513.8, x: -475.3, z: 525.5, y: 0 },
+                { s: 1535.1, x: -481.2, z: 505.1, y: 0 },
+                { s: 1552.2, x: -483.7, z: 488.1, y: 0 },
+                { s: 1564.8, x: -484.4, z: 475.6, y: 0 },
+                { s: 1585.1, x: -483.9, z: 455.3, y: 0 },
+                { s: 1604.6, x: -481.4, z: 435.9, y: 0 },
+                { s: 1620.3, x: -478.1, z: 420.6, y: 0 },
+                { s: 1636.6, x: -473.7, z: 404.9, y: 0 },
+                { s: 1654, x: -468.4, z: 388.3, y: 0 },
+                { s: 1672.3, x: -461.5, z: 371.4, y: 0 },
+                { s: 1690.7, x: -452.9, z: 355.2, y: 0 },
+                { s: 1755, x: -418.3, z: 300.9, y: 0 },
+                { s: 1923.8, x: -328.9, z: 157.7, y: 0 },
+                { s: 1936.1, x: -321.9, z: 147.7, y: 0 },
+                { s: 1946.8, x: -313.7, z: 140.6, y: 0 },
+                { s: 1957, x: -304.9, z: 135.5, y: 0 },
+                { s: 1969, x: -293.5, z: 132, y: 0 },
+                { s: 1978.8, x: -283.8, z: 130.4, y: 0 },
+                { s: 1989.5, x: -273.2, z: 131.6, y: 0 },
+                { s: 2000.4, x: -262.6, z: 134.4, y: 0 },
+                { s: 2010, x: -254.2, z: 138.8, y: 0 },
+                { s: 2020, x: -245.9, z: 144.5, y: 0 },
+                { s: 2029.8, x: -238.5, z: 150.8, y: 0 },
+                { s: 2042.3, x: -230.5, z: 160.5, y: 0 },
+                { s: 2054.3, x: -224.2, z: 170.7, y: 0 },
+                { s: 2066.5, x: -219.2, z: 181.9, y: 0 },
+                { s: 2078.9, x: -216.6, z: 194, y: 0 },
+                { s: 2093.1, x: -215, z: 208.1, y: 0 },
+                { s: 2106.5, x: -214.8, z: 221.5, y: 0 },
+                { s: 2119.5, x: -216.3, z: 234.4, y: 0 },
+                { s: 2135.6, x: -220, z: 250.1, y: 0 },
+                { s: 2150.4, x: -225.4, z: 263.8, y: 0 },
+                { s: 2174.8, x: -237.1, z: 285.3, y: 0 },
+                { s: 2214.9, x: -259.1, z: 318.9, y: 0 },
+                { s: 2337.4, x: -324.3, z: 422.5, y: 0 },
+                { s: 2346.7, x: -328.7, z: 430.6, y: 0 },
+                { s: 2355.3, x: -331.1, z: 438.9, y: 0 },
+                { s: 2363.8, x: -331.3, z: 447.4, y: 0 },
+                { s: 2373.5, x: -329.3, z: 456.9, y: 0 },
+                { s: 2381.7, x: -325.3, z: 464.1, y: 0 },
+                { s: 2389.6, x: -320.3, z: 470.2, y: 0 },
+                { s: 2398.9, x: -312.8, z: 475.6, y: 0 },
+                { s: 2408.1, x: -303.9, z: 478.3, y: 0 },
+                { s: 2416.6, x: -295.5, z: 479.3, y: 0 },
+                { s: 2426.2, x: -286, z: 477.6, y: 0 },
+                { s: 2434.6, x: -278.3, z: 474.4, y: 0 },
+                { s: 2575.1, x: -150.2, z: 416.6, y: 0 },
+                { s: 2594.7, x: -133.2, z: 406.7, y: 0 },
+                { s: 2618.5, x: -113.9, z: 393, y: 0 },
+                { s: 2635.3, x: -101.1, z: 382, y: 0 },
+                { s: 2652.2, x: -89, z: 370.2, y: 0 },
+                { s: 2673.3, x: -75.8, z: 353.8, y: 0 },
+                { s: 2696.6, x: -62.7, z: 334.4, y: 0 },
+                { s: 2772.4, x: -22.3, z: 270.3, y: 0 },
+                { s: 2780.6, x: -18.3, z: 263.2, y: 0 },
+                { s: 2785.8, x: -16.4, z: 258.4, y: 0 },
+                { s: 2792.3, x: -14.5, z: 252.1, y: 0 },
+                { s: 2797.2, x: -14.1, z: 247.3, y: 0 },
+                { s: 2802, x: -14.1, z: 242.5, y: 0 },
+                { s: 2806.3, x: -14.9, z: 238.2, y: 0 },
+                { s: 2811.7, x: -16.3, z: 233, y: 0 },
+                { s: 2818.7, x: -18.8, z: 226.5, y: 0 },
+                { s: 2824.6, x: -22.1, z: 221.6, y: 0 },
+                { s: 2830.4, x: -26.1, z: 217.3, y: 0 },
+                { s: 2836, x: -30.3, z: 213.8, y: 0 },
+                { s: 2840.7, x: -34.2, z: 211, y: 0 },
+                { s: 2855.4, x: -46.9, z: 203.6, y: 0 },
+                { s: 2869.5, x: -58.8, z: 196.2, y: 0 },
+                { s: 2887.1, x: -72.3, z: 184.8, y: 0 },
+                { s: 2899.4, x: -80.4, z: 175.5, y: 0 },
+                { s: 2912.7, x: -87.6, z: 164.4, y: 0 },
+                { s: 2926.4, x: -93.2, z: 151.9, y: 0 },
+                { s: 3012.2, x: -126.4, z: 72.8, y: 0 },
+                { s: 3092.1, x: -157.8, z: -0.7, y: 0 },
+                { s: 3104.1, x: -162.1, z: -11.9, y: 0 },
+                { s: 3112.9, x: -164.3, z: -20.4, y: 0 },
+                { s: 3121.3, x: -165.5, z: -28.8, y: 0 },
+                { s: 3129.6, x: -165.9, z: -37, y: 0 },
+                { s: 3137.8, x: -165.7, z: -45.3, y: 0 },
+                { s: 3150.8, x: -163.6, z: -58, y: 0 },
+                { s: 3165.3, x: -159.4, z: -72, y: 0 },
+                { s: 3179.5, x: -152.7, z: -84.5, y: 0 },
+                { s: 3193, x: -144.5, z: -95.3, y: 0 },
+                { s: 3200.3, x: -139.7, z: -100.7, y: 0 },
+                { s: 3207.2, x: -134.8, z: -105.6, y: 0 },
+                { s: 3224.4, x: -121, z: -115.7, y: 0 },
+                { s: 3245, x: -102.9, z: -125.6, y: 0 },
+                { s: 3340.8, x: -17.4, z: -168.8, y: 0 },
+                { s: 3421.1, x: 54.1, z: -205.4, y: 0 },
+                { s: 3460.2, x: 88.9, z: -223.2, y: 0 },
+                { s: 3513, x: 136, z: -247.1, y: 0 },
+                { s: 3571.3, x: 188.1, z: -273.4, y: 0 },
+                { s: 3712.6, x: 313.4, z: -338.7, y: 0 },
+                { s: 3723.8, x: 323, z: -344.5, y: 0 },
+                { s: 3731.4, x: 328.5, z: -349.6, y: 0 },
+                { s: 3737.3, x: 332, z: -354.4, y: 0 },
+                { s: 3739.3, x: 333.1, z: -356, y: 0 },
+                { s: 3746.4, x: 335.4, z: -362.7, y: 0 },
+                { s: 3755.3, x: 335.8, z: -371.7, y: 0 },
+                { s: 3766, x: 333.3, z: -382.1, y: 0 },
+                { s: 3774.6, x: 329, z: -389.5, y: 0 },
+                { s: 3784.9, x: 321.9, z: -397, y: 0 },
+                { s: 3794.6, x: 314.1, z: -402.8, y: 0 },
+                { s: 3803.9, x: 306, z: -407.4, y: 0 },
+                { s: 3812.2, x: 298.4, z: -410.7, y: 0 },
+                { s: 3819.2, x: 292.1, z: -413.5, y: 0 },
+                { s: 3832.7, x: 278.9, z: -416.6, y: 0 },
+                { s: 3846.4, x: 265.3, z: -418.2, y: 0 },
+                { s: 3859.2, x: 252.5, z: -418.2, y: 0 },
+                { s: 3869, x: 242.7, z: -417.3, y: 0 },
+                { s: 3883.1, x: 228.9, z: -414.4, y: 0 },
+                { s: 3896.3, x: 216.8, z: -409.1, y: 0 },
+                { s: 3911.5, x: 203.6, z: -401.6, y: 0 },
+                { s: 3918.2, x: 197.9, z: -398, y: 0 },
+                { s: 3920.1, x: 196.5, z: -396.8, y: 0 },
+                { s: 3952.3, x: 171.9, z: -376.1, y: 0 },
+                { s: 3961.8, x: 164.1, z: -370.5, y: 0 },
+                { s: 3970.9, x: 156.2, z: -366, y: 0 },
+                { s: 3982.3, x: 145.3, z: -362.8, y: 0 },
+                { s: 3987.4, x: 140.4, z: -361.8, y: 0 },
+                { s: 3998.5, x: 129.2, z: -361.1, y: 0 },
+                { s: 4006.9, x: 120.9, z: -362.2, y: 0 },
+                { s: 4013.2, x: 114.9, z: -363.9, y: 0 },
+                { s: 4021.4, x: 107.3, z: -367, y: 0 },
+                { s: 4032.1, x: 98.2, z: -372.7, y: 0 },
+                { s: 4042.7, x: 90.3, z: -379.8, y: 0 },
+                { s: 4056.7, x: 82.6, z: -391.4, y: 0 },
+                { s: 4069.3, x: 77.9, z: -403.2, y: 0 },
+                { s: 4082.4, x: 75.9, z: -416.1, y: 0 },
+                { s: 4090.9, x: 75.9, z: -424.6, y: 0 },
+                { s: 4099.9, x: 77.6, z: -433.5, y: 0 },
+                { s: 4109.7, x: 80.5, z: -442.8, y: 0 },
+                { s: 4120.7, x: 85.8, z: -452.4, y: 0 },
+                { s: 4132.8, x: 94.2, z: -461.1, y: 0 },
+                { s: 4210, x: 154, z: -509.9, y: 0 },
+                { s: 4280.8, x: 208.3, z: -555.4, y: 0 },
+                { s: 4290, x: 216.6, z: -559.2, y: 0 },
+                { s: 4296.9, x: 223.5, z: -560.6, y: 0 },
+                { s: 4304.1, x: 230.6, z: -559.7, y: 0 },
+                { s: 4347.9, x: 266.2, z: -534.3, y: 0 },
+                { s: 4349.9, x: 267.8, z: -533.1, y: 0 },
+                { s: 4352.9, x: 270.2, z: -531.3, y: 0 },
+                { s: 4371.6, x: 285.1, z: -520, y: 0 },
+                { s: 4373.6, x: 286.7, z: -518.8, y: 0 },
+                { s: 4414, x: 318.6, z: -493.9, y: 0 },
+                { s: 4417.6, x: 321.4, z: -491.7, y: 0 },
+                { s: 4421.3, x: 324.4, z: -489.7, y: 0 },
+                { s: 4423.9, x: 326.9, z: -488.5, y: 0 },
+                { s: 4426.6, x: 329.5, z: -487.8, y: 0 },
+                { s: 4428.6, x: 331.4, z: -487.7, y: 0 },
+                { s: 4431, x: 333.8, z: -488, y: 0 },
+                { s: 4433.1, x: 335.7, z: -488.8, y: 0 },
+                { s: 4435.9, x: 338, z: -490.4, y: 0 },
+                { s: 4438.4, x: 339.9, z: -492, y: 0 },
+                { s: 4462.5, x: 356.3, z: -509.7, y: 0 },
+                { s: 4465.7, x: 358.7, z: -511.8, y: 0 },
+                { s: 4469.1, x: 361.5, z: -513.7, y: 0 },
+                { s: 4472.4, x: 364.6, z: -514.7, y: 0 },
+                { s: 4475.2, x: 367.4, z: -514.5, y: 0 },
+                { s: 4478.4, x: 370.3, z: -513.1, y: 0 },
+                { s: 4483.1, x: 374.5, z: -510.9, y: 0 },
+                { s: 4488.3, x: 378.8, z: -508, y: 0 },
+                { s: 4514.7, x: 401, z: -493.8, y: 0 },
+                { s: 4553.4, x: 433.7, z: -473, y: 0 },
+                { s: 4568.4, x: 445.9, z: -464.3, y: 0 },
+                { s: 4577.9, x: 452.8, z: -457.7, y: 0 },
+                { s: 4586.3, x: 457.9, z: -451.1, y: 0 },
+                { s: 4594.9, x: 462.8, z: -444, y: 0 },
+                { s: 4603.8, x: 466.8, z: -436.1, y: 0 },
+                { s: 4612.5, x: 470, z: -428, y: 0 },
+                { s: 4622.3, x: 472.8, z: -418.6, y: 0 },
+                { s: 4633.4, x: 474.6, z: -407.6, y: 0 },
+                { s: 4642.8, x: 475.1, z: -398.2, y: 0 },
+                { s: 4652.3, x: 475, z: -388.7, y: 0 },
+                { s: 4662, x: 473.8, z: -379.1, y: 0 },
+                { s: 4671.1, x: 471.7, z: -370.2, y: 0 },
+                { s: 4677.3, x: 469.7, z: -364.5, y: 0 }
+            ],
+            turnMarkers: [
+                { id: 1, s: 1090, direction: 'right', speed: 'slow' },
+                { id: 2, s: 1205, direction: 'left', speed: 'slow' },
+                { id: 3, s: 1355, direction: 'right', speed: 'long' },
+                { id: 4, s: 1990, direction: 'right', speed: 'medium' },
+                { id: 5, s: 2385, direction: 'left', speed: 'slow' },
+                { id: 6, s: 2575, direction: 'left', speed: 'fast' },
+                { id: 7, s: 2805, direction: 'left', speed: 'medium' },
+                { id: 8, s: 2905, direction: 'right', speed: 'medium' },
+                { id: 9, s: 3170, direction: 'right', speed: 'fast' },
+                { id: 10, s: 3750, direction: 'left', speed: 'slow' },
+                { id: 11, s: 3840, direction: 'left', speed: 'medium' },
+                { id: 12, s: 4115, direction: 'right', speed: 'medium' },
+                { id: 13, s: 4430, direction: 'right', speed: 'fast' },
+                { id: 14, s: 4585, direction: 'right', speed: 'fast' }
+            ]
+        }
     }
 };
 
@@ -395,6 +667,16 @@ class GameManager {
                 height: 118,
                 forwardOffset: 32,
                 lookAhead: 0,
+                occlusion: false
+            },
+            {
+                id: 'trackOverview',
+                label: 'Track Overview',
+                type: 'trackOverview',
+                fov: 32,
+                near: 1,
+                far: 12000,
+                padding: 1.75,
                 occlusion: false
             }
         ];
@@ -803,7 +1085,8 @@ class GameManager {
             city: 'Tokyo',
             lakes: 'Lakes',
             jungle: 'Rainforest Mud',
-            coastal: 'Mediterranean Coast'
+            coastal: 'Mediterranean Coast',
+            montmelo: 'Montmelo'
         };
 
         return labels[stageId] || stageId || 'Stage';
@@ -878,7 +1161,8 @@ class GameManager {
             city: 1.18,
             lakes: 0.94,
             jungle: 0.9,
-            coastal: 1.02
+            coastal: 1.02,
+            montmelo: 1
         };
 
         return Math.max(4, Math.round(difficulty.trafficCount * (stageScale[stageId] || 1)));
@@ -1222,6 +1506,15 @@ class GameManager {
         const playerSpec = this.getVehicleSpec(playerVehicleType);
         const baseTrackLength = Math.abs(environment.jungleGeneration?.trailLength || environment.trackLength || 5900);
         const trackLength = Math.round(baseTrackLength * (raceMode.lengthMultiplier || 1));
+        const roadWidth = environment.roadWidth || 25;
+        const shoulderWidth = Number.isFinite(environment.shoulderWidth) ? Math.max(0, environment.shoulderWidth) : 0;
+        const closedStoredTrack = Boolean(environment.storedTrack && environment.storedTrack.repeat !== false);
+        const startLine = closedStoredTrack ? 0 : -100;
+        const drivableWidth = Number.isFinite(environment.drivableWidth)
+            ? environment.drivableWidth
+            : environment.terrainStyle === 'race-circuit'
+                ? roadWidth + shoulderWidth * 1.6
+                : roadWidth;
 
         // Initialize the game object
         this.game = {
@@ -1239,7 +1532,9 @@ class GameManager {
             },
             road: {
                 length: trackLength,
-                width: environment.roadWidth || 25,
+                width: roadWidth,
+                shoulderWidth,
+                drivableWidth,
                 segments: []
             },
             car: {
@@ -1307,7 +1602,7 @@ class GameManager {
             },
             startTime: null,
             finishTime: null,
-            startLine: -100,
+            startLine,
             finishLine: -trackLength
         };
         // Generate the road and terrain based on the environment
@@ -3740,7 +4035,8 @@ class GameManager {
         vehicle.updateMatrixWorld(true);
         const liftNeeded = probePoints.reduce((highestLift, localPoint) => {
             const worldPoint = vehicle.localToWorld(localPoint.clone());
-            const roadData = getRoadDataAtZ(worldPoint.z, this.game);
+            const roadProgressZ = Number.isFinite(vehicle.userData?.roadProgressZ) ? vehicle.userData.roadProgressZ : worldPoint.z;
+            const roadData = getRoadDataAtZ(roadProgressZ, this.game);
             return Math.max(highestLift, (roadData.y + padding) - worldPoint.y);
         }, 0);
         const lift = THREE.MathUtils.clamp(liftNeeded, 0, maxLift);
@@ -3785,7 +4081,8 @@ class GameManager {
         vehicle.updateMatrixWorld(true);
         const corrections = contactPoints.map(localPoint => {
             const worldPoint = vehicle.localToWorld(localPoint.clone());
-            const roadData = getRoadDataAtZ(worldPoint.z, this.game);
+            const roadProgressZ = Number.isFinite(vehicle.userData?.roadProgressZ) ? vehicle.userData.roadProgressZ : worldPoint.z;
+            const roadData = getRoadDataAtZ(roadProgressZ, this.game);
             return (roadData.y + contactPadding) - worldPoint.y;
         });
         const averageCorrection = corrections.reduce((sum, correction) => sum + correction, 0) / corrections.length;
@@ -3924,7 +4221,7 @@ class GameManager {
             }
 
             const otherBounds = this.getVehicleCollisionBounds(other.vehicleType);
-            const zGap = Math.abs(z - other.mesh.position.z);
+            const zGap = Math.abs(z - (other.progressZ ?? other.mesh.position.z));
             const xGap = Math.abs(xOffset - other.xOffset);
             const minLongitudinalGap = Math.max(34, (bounds.length + otherBounds.length) * 3.2);
             const minLateralGap = (bounds.width + otherBounds.width) * 0.62;
@@ -3960,16 +4257,30 @@ class GameManager {
         };
     }
 
+    getRoadWorldPosition(roadData, xOffset = 0, y = roadData?.y || 0) {
+        const centerX = Number.isFinite(roadData?.worldX) ? roadData.worldX : roadData?.curve || 0;
+        const centerZ = Number.isFinite(roadData?.worldZ) ? roadData.worldZ : roadData?.z || 0;
+        const normalX = Number.isFinite(roadData?.normalX) ? roadData.normalX : 1;
+        const normalZ = Number.isFinite(roadData?.normalZ) ? roadData.normalZ : 0;
+        return new THREE.Vector3(
+            centerX + normalX * xOffset,
+            y,
+            centerZ + normalZ * xOffset
+        );
+    }
+
     placeTrafficCar(trafficCar, z, xOffset, travelDirection = 1, yawOffset = 0, roll = 0) {
         const frame = this.getVehicleRoadFrame(z, travelDirection, trafficCar.vehicleType);
         const roadData = frame.roadData;
 
+        trafficCar.progressZ = z;
         trafficCar.xOffset = xOffset;
-        trafficCar.mesh.position.set(
-            roadData.curve + xOffset,
-            this.getVehicleGroundY(frame, trafficCar.vehicleType),
-            z
-        );
+        trafficCar.mesh.position.copy(this.getRoadWorldPosition(
+            roadData,
+            xOffset,
+            this.getVehicleGroundY(frame, trafficCar.vehicleType)
+        ));
+        trafficCar.mesh.userData.roadProgressZ = z;
         this.applyVehicleRoadPose(trafficCar.mesh, frame, yawOffset, roll);
         this.alignVehicleToRoadSurface(trafficCar.mesh);
     }
@@ -3998,7 +4309,8 @@ class GameManager {
         const startZ = this.getPlayerStartZ();
         const roadFrame = this.getVehicleRoadFrame(startZ, -1, playerType);
         const roadData = roadFrame.roadData;
-        this.game.car.position.set(roadData.curve, this.getVehicleGroundY(roadFrame, playerType), startZ);
+        this.carPosition.copy(this.getRoadWorldPosition(roadData, 0, this.getVehicleGroundY(roadFrame, playerType)));
+        this.game.car.position.set(this.carPosition.x, this.carPosition.y, startZ);
         this.game.car.speed = 0;
         this.game.car.xOffset = 0;
         this.game.car.lateralVelocity = 0;
@@ -4028,13 +4340,13 @@ class GameManager {
         this.game.car.landingWobblePhase = 0;
         this.game.car.landingDriftAmount = 0;
         this.game.car.lastLandingSpeedLoss = 0;
-        this.carPosition.copy(this.game.car.position);
 
-        this.playerCar.position.copy(this.game.car.position);
+        this.playerCar.position.copy(this.carPosition);
+        this.playerCar.userData.roadProgressZ = startZ;
         this.applyVehicleRoadPose(this.playerCar, roadFrame);
         this.alignVehicleToRoadSurface(this.playerCar);
         this.carPosition.copy(this.playerCar.position);
-        this.game.car.position.copy(this.carPosition);
+        this.game.car.position.set(this.carPosition.x, this.carPosition.y, startZ);
         this.animateVehicleSteeringWheel(this.playerCar, 0, this.game.car.maxSteeringAngle);
     }
 
@@ -4238,7 +4550,7 @@ class GameManager {
 
         const roadFrame = this.getVehicleRoadFrame(countdownZ, -1, 'rally');
         const roadData = roadFrame.roadData;
-        group.position.set(roadData.curve, roadData.y + 5.4, countdownZ);
+        group.position.copy(this.getRoadWorldPosition(roadData, 0, roadData.y + 5.4));
         group.rotation.y = roadFrame.yaw;
 
         return { group, signGroup, textGroup, textLayers, launchLights };
@@ -4633,7 +4945,7 @@ class GameManager {
                 return;
             }
 
-            const remaining = Math.max(0, competitor.mesh.position.z - this.game.finishLine);
+            const remaining = Math.max(0, (competitor.progressZ ?? competitor.mesh.position.z) - this.game.finishLine);
             const estimatedTime = playerTime + remaining / Math.max(0.35, competitor.speed || competitor.baseSpeed || 0.6) / 60;
             results.push({
                 name: competitor.raceName,
@@ -4767,7 +5079,7 @@ class GameManager {
             if (competitor.finishedAt) {
                 return !this.game.finishTime || competitor.finishedAt <= this.getElapsedRaceTime();
             }
-            const competitorProgress = this.game.startLine - competitor.mesh.position.z;
+            const competitorProgress = this.game.startLine - (competitor.progressZ ?? competitor.mesh.position.z);
             return competitorProgress > playerProgress + 0.5;
         }).length;
         return ahead + 1;
@@ -4886,8 +5198,12 @@ class GameManager {
         const rearZ = z - travelDirection * sampleDistance * 0.5;
         const frontRoadData = getRoadDataAtZ(frontZ, this.game);
         const rearRoadData = getRoadDataAtZ(rearZ, this.game);
-        const dx = frontRoadData.curve - rearRoadData.curve;
-        const dz = frontZ - rearZ;
+        const frontWorldX = Number.isFinite(frontRoadData.worldX) ? frontRoadData.worldX : frontRoadData.curve;
+        const frontWorldZ = Number.isFinite(frontRoadData.worldZ) ? frontRoadData.worldZ : frontZ;
+        const rearWorldX = Number.isFinite(rearRoadData.worldX) ? rearRoadData.worldX : rearRoadData.curve;
+        const rearWorldZ = Number.isFinite(rearRoadData.worldZ) ? rearRoadData.worldZ : rearZ;
+        const dx = frontWorldX - rearWorldX;
+        const dz = frontWorldZ - rearWorldZ;
         const dy = frontRoadData.y - rearRoadData.y;
         const horizontalDistance = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
         const forward = new THREE.Vector3(dx, dy, dz).normalize();
@@ -5302,7 +5618,14 @@ class GameManager {
         this.game.car.slipAngle = updatedSlipAngle;
 
         const steeringIntoCurve = steeringInput !== 0 && Math.sign(steeringInput) === Math.sign(roadBend);
-        const curveSlip = roadBend * speedRatio * speedRatio * (steeringIntoCurve ? 0.052 : 0.14) * (this.game.car.curveSlip || 1) * assistProfile.curveSlip;
+        const roadFollowSlipScale = THREE.MathUtils.clamp(1 - (assistProfile.roadFollow || 0), 0, 1);
+        const curveSlip = roadBend
+            * speedRatio
+            * speedRatio
+            * (steeringIntoCurve ? 0.052 : 0.14)
+            * (this.game.car.curveSlip || 1)
+            * assistProfile.curveSlip
+            * roadFollowSlipScale;
         this.game.car.lateralVelocity += curveSlip;
         if (driftAmount > 0.08 && looseRearRatio > 0.16 && activeDriftDirection !== 0) {
             this.game.car.lateralVelocity += activeDriftDirection * driftAmount * looseRearRatio * speedRatio * 0.036;
@@ -5377,13 +5700,14 @@ class GameManager {
         const { jumpOffset, landed, landingImpact } = this.updatePlayerJumpState(speedRatio);
 
         // Update car's position and rotation
-        this.carPosition.set(
-            this.game.car.xOffset + updatedRoadData.curve,
-            this.getVehicleGroundY(updatedRoadFrame, playerType) + jumpOffset,
-            this.game.car.position.z
-        );
-        this.game.car.position.copy(this.carPosition);
+        this.carPosition.copy(this.getRoadWorldPosition(
+            updatedRoadData,
+            this.game.car.xOffset,
+            this.getVehicleGroundY(updatedRoadFrame, playerType) + jumpOffset
+        ));
+        this.game.car.position.set(this.carPosition.x, this.carPosition.y, this.game.car.position.z);
         this.playerCar.position.copy(this.carPosition);
+        this.playerCar.userData.roadProgressZ = this.game.car.position.z;
 
         const slipSide = Math.sign(this.game.car.slipAngle)
             || driftDirection
@@ -5393,7 +5717,15 @@ class GameManager {
         const driftVisualYaw = slipSide * driftAmount * (0.05 + speedRatio * 0.1);
         this.game.car.driveYaw = updatedRoadFrame.yaw + this.game.car.angle;
         const targetVisualYaw = this.game.car.driveYaw + visualSteerYaw + driftVisualYaw;
-        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, 0.18 + driftAmount * 0.06);
+        const roadFollowVisualResponse = (assistProfile.roadFollow || 0)
+            * THREE.MathUtils.lerp(0.24, 0.52, speedRatio)
+            * (1 - driftAmount * 0.65);
+        const visualYawResponse = THREE.MathUtils.clamp(
+            0.18 + driftAmount * 0.06 + roadFollowVisualResponse,
+            0.18,
+            0.76
+        );
+        this.game.car.visualYaw = this.lerpAngle(this.game.car.visualYaw, targetVisualYaw, visualYawResponse);
 
         const maxRoll = Math.PI / 44;
         const targetRoll = (-this.game.car.steeringAngle * (maxRoll / this.game.car.maxSteeringAngle) * speedRatio)
@@ -5416,7 +5748,7 @@ class GameManager {
         }
         this.game.car.lastRoadYaw = updatedRoadFrame.yaw;
         this.carPosition.copy(this.playerCar.position);
-        this.game.car.position.copy(this.carPosition);
+        this.game.car.position.set(this.carPosition.x, this.carPosition.y, this.game.car.position.z);
         const counterSteer = -slipSide * driftAmount * speedRatio * 0.2;
         this.animateVehicleWheels(this.playerCar, this.game.car.speed * 0.72, this.game.car.steeringAngle * 0.85 + counterSteer);
         this.animateVehicleSteeringWheel(this.playerCar, this.game.car.steeringAngle + counterSteer, this.game.car.maxSteeringAngle);
@@ -5449,8 +5781,16 @@ class GameManager {
     getPlayerRoadLimit() {
         const dimensions = this.getVehicleDimensions(this.getPlayerVehicleType());
         const roadData = getRoadDataAtZ(this.game.car.position.z, this.game);
-        const roadWidth = roadData.width || this.game.road.width;
+        const roadWidth = this.getRoadDrivableWidth(roadData);
         return Math.max(2, roadWidth / 2 - dimensions.width / 2 - 0.45);
+    }
+
+    getRoadDrivableWidth(roadData = null) {
+        if (Number.isFinite(this.game?.road?.drivableWidth)) {
+            return this.game.road.drivableWidth;
+        }
+
+        return roadData?.width || this.game?.road?.width || 25;
     }
 
     updateDriftEffects(roadFrame, driftAmount, handbrakeIntensity, steeringInput, speedRatio) {
@@ -5526,6 +5866,8 @@ class GameManager {
         const impactPosition = this.playerCar.position.clone().add(trafficCar.mesh.position).multiplyScalar(0.5);
         const playerStart = this.playerCar.position.clone();
         const trafficStart = trafficCar.mesh.position.clone();
+        const playerStartProgress = this.game.car.position.z;
+        const trafficStartProgress = trafficCar.progressZ ?? trafficCar.mesh.position.z;
         const playerRotStart = this.playerCar.rotation.clone();
         const trafficRotStart = trafficCar.mesh.rotation.clone();
 
@@ -5585,34 +5927,34 @@ class GameManager {
             );
         }
 
-        const playerPeakZ = playerStart.z + playerZKick;
+        const playerPeakZ = playerStartProgress + playerZKick;
         const playerPeakRoad = getRoadDataAtZ(playerPeakZ, this.game);
         const playerType = this.getPlayerVehicleType();
         const playerPeakFrame = this.getVehicleRoadFrame(playerPeakZ, -1, playerType);
         const playerPeakOffset = THREE.MathUtils.clamp(this.game.car.xOffset + side * playerSlide, -borderThreshold, borderThreshold);
-        const playerPeak = new THREE.Vector3(
-            playerPeakRoad.curve + playerPeakOffset,
-            this.getVehicleGroundY(playerPeakFrame, playerType),
-            playerPeakZ
+        const playerPeak = this.getRoadWorldPosition(
+            playerPeakRoad,
+            playerPeakOffset,
+            this.getVehicleGroundY(playerPeakFrame, playerType)
         );
         const playerEndZ = playerPeakZ + 4;
         const playerEndRoad = getRoadDataAtZ(playerEndZ, this.game);
         const playerEndFrame = this.getVehicleRoadFrame(playerEndZ, -1, playerType);
-        const playerEnd = new THREE.Vector3(
-            playerEndRoad.curve,
-            this.getVehicleGroundY(playerEndFrame, playerType),
-            playerEndZ
+        const playerEnd = this.getRoadWorldPosition(
+            playerEndRoad,
+            0,
+            this.getVehicleGroundY(playerEndFrame, playerType)
         );
         const playerRotEnd = new THREE.Euler(playerEndFrame.pitch, playerEndFrame.yaw, 0);
 
-        const trafficEndZ = trafficStart.z + trafficZKick;
+        const trafficEndZ = trafficStartProgress + trafficZKick;
         const trafficEndRoad = getRoadDataAtZ(trafficEndZ, this.game);
         const trafficEndFrame = this.getVehicleRoadFrame(trafficEndZ, 1, trafficCar.vehicleType);
         const trafficEndOffset = THREE.MathUtils.clamp(trafficCar.xOffset - side * trafficSlide, -borderThreshold, borderThreshold);
-        const trafficEnd = new THREE.Vector3(
-            trafficEndRoad.curve + trafficEndOffset,
-            this.getVehicleGroundY(trafficEndFrame, trafficCar.vehicleType),
-            trafficEndZ
+        const trafficEnd = this.getRoadWorldPosition(
+            trafficEndRoad,
+            trafficEndOffset,
+            this.getVehicleGroundY(trafficEndFrame, trafficCar.vehicleType)
         );
 
         this.activeCollision = {
@@ -5623,8 +5965,10 @@ class GameManager {
             playerStart,
             playerPeak,
             playerEnd,
+            playerEndProgress: playerEndZ,
             trafficStart,
             trafficEnd,
+            trafficEndProgress: trafficEndZ,
             playerRotStart,
             playerRotPeak,
             playerRotEnd,
@@ -5691,7 +6035,7 @@ class GameManager {
         this.carPosition.copy(this.playerCar.position);
 
         if (t >= 1) {
-            this.game.car.position.z = collision.playerEnd.z;
+            this.game.car.position.z = collision.playerEndProgress ?? collision.playerEnd.z;
             this.game.car.xOffset = 0;
             this.game.car.lateralVelocity = 0;
             this.game.car.angle = 0;
@@ -5720,12 +6064,13 @@ class GameManager {
             this.game.car.landingDriftAmount = 0;
             this.game.car.lastLandingSpeedLoss = 0;
             this.playerCar.position.copy(collision.playerEnd);
-            const recoveryRoadFrame = this.getVehicleRoadFrame(collision.playerEnd.z, -1, this.getPlayerVehicleType());
+            this.playerCar.userData.roadProgressZ = this.game.car.position.z;
+            const recoveryRoadFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, this.getPlayerVehicleType());
             this.game.car.lastRoadYaw = recoveryRoadFrame.yaw;
             this.applyVehicleRoadPose(this.playerCar, recoveryRoadFrame);
             this.alignVehicleToRoadSurface(this.playerCar);
             this.carPosition.copy(this.playerCar.position);
-            this.game.car.position.copy(this.carPosition);
+            this.game.car.position.set(this.carPosition.x, this.carPosition.y, this.game.car.position.z);
             this.animateVehicleSteeringWheel(this.playerCar, 0, this.game.car.maxSteeringAngle);
 
             const spawnPose = this.getTrafficSpawnPose(
@@ -5925,10 +6270,11 @@ class GameManager {
                 return;
             }
 
-            trafficCar.mesh.position.z += trafficCar.speed;
+            const currentProgressZ = trafficCar.progressZ ?? trafficCar.mesh.position.z;
+            trafficCar.progressZ = currentProgressZ + trafficCar.speed;
 
             // If car is behind the player, move it to the back of the visible road
-            if (trafficCar.mesh.position.z > this.game.car.position.z + 100) {
+            if (trafficCar.progressZ > this.game.car.position.z + 100) {
                 const spawnPose = this.getTrafficSpawnPose(
                     this.game.car.position.z - 1450,
                     this.game.car.position.z - 850,
@@ -5940,7 +6286,7 @@ class GameManager {
                 this.placeTrafficCar(trafficCar, spawnPose.z, spawnPose.xOffset);
             }
 
-            this.placeTrafficCar(trafficCar, trafficCar.mesh.position.z, trafficCar.xOffset);
+            this.placeTrafficCar(trafficCar, trafficCar.progressZ, trafficCar.xOffset);
             this.animateVehicleWheels(trafficCar.mesh, trafficCar.speed * 0.72, 0);
         });
 
@@ -5972,9 +6318,10 @@ class GameManager {
                 return;
             }
 
-            const competitorProgress = this.game.startLine - competitor.mesh.position.z;
-            const currentFrame = this.getVehicleRoadFrame(competitor.mesh.position.z, -1, competitor.vehicleType);
-            const lookAheadFrame = this.getVehicleRoadFrame(competitor.mesh.position.z - 95, -1, competitor.vehicleType);
+            const competitorZ = competitor.progressZ ?? competitor.mesh.position.z;
+            const competitorProgress = this.game.startLine - competitorZ;
+            const currentFrame = this.getVehicleRoadFrame(competitorZ, -1, competitor.vehicleType);
+            const lookAheadFrame = this.getVehicleRoadFrame(competitorZ - 95, -1, competitor.vehicleType);
             const cornerDemand = THREE.MathUtils.clamp(Math.abs(this.getAngleDelta(currentFrame.yaw, lookAheadFrame.yaw)) / 0.16, 0, 1);
             const gridTuning = competitor.gridTuning || this.getGridRaceTuning();
             const catchup = THREE.MathUtils.clamp(
@@ -6006,8 +6353,8 @@ class GameManager {
                 competitor.targetXOffset = competitor.xOffset - Math.sin(competitor.headingOffset || 0) * 5.5;
             }
             const headingLateral = -Math.sin(competitor.headingOffset || 0) * competitor.speed * 0.96;
-            competitor.mesh.position.z -= Math.cos(competitor.headingOffset || 0) * competitor.speed;
-            competitor.targetXOffset += Math.sin((competitor.mesh.position.z * 0.006) + index) * gridTuning.laneChangeRate;
+            competitor.progressZ = competitorZ - Math.cos(competitor.headingOffset || 0) * competitor.speed;
+            competitor.targetXOffset += Math.sin((competitor.progressZ * 0.006) + index) * gridTuning.laneChangeRate;
             competitor.targetXOffset = THREE.MathUtils.clamp(competitor.targetXOffset, -roadLimit, roadLimit);
             const laneReturn = inImpactRecovery ? 0.01 : competitor.contactRecoveryFrames > 0 ? 0.026 : gridTuning.laneReturn;
             competitor.xOffset += (competitor.targetXOffset - competitor.xOffset) * laneReturn + headingLateral + (competitor.lateralVelocity || 0);
@@ -6018,7 +6365,7 @@ class GameManager {
 
             this.placeTrafficCar(
                 competitor,
-                competitor.mesh.position.z,
+                competitor.progressZ,
                 competitor.xOffset,
                 -1,
                 competitor.headingOffset || 0,
@@ -6026,7 +6373,7 @@ class GameManager {
             );
             this.animateVehicleWheels(competitor.mesh, competitor.speed * 0.72, 0);
 
-            if (competitor.mesh.position.z <= this.game.finishLine) {
+            if (competitor.progressZ <= this.game.finishLine) {
                 const elapsed = this.getElapsedRaceTime();
                 competitor.finishedAt = elapsed || 0;
                 this.game.raceResults.push({
@@ -6055,7 +6402,8 @@ class GameManager {
             return;
         }
 
-        const playerRelativeZ = this.game.car.position.z - competitor.mesh.position.z;
+        const competitorZ = competitor.progressZ ?? competitor.mesh.position.z;
+        const playerRelativeZ = this.game.car.position.z - competitorZ;
         const playerBehind = playerRelativeZ > 0 && playerRelativeZ < tuning.awarenessDistance;
         const playerBeside = Math.abs(playerRelativeZ) < 28;
         const playerClosing = this.game.car.speed > competitor.speed + 0.08;
@@ -6076,7 +6424,7 @@ class GameManager {
                 return;
             }
 
-            const dz = competitor.mesh.position.z - other.mesh.position.z;
+            const dz = competitorZ - (other.progressZ ?? other.mesh.position.z);
             if (dz > 0 && dz < nearestAheadDistance && dz < tuning.awarenessDistance * 1.25) {
                 nearestAhead = other;
                 nearestAheadDistance = dz;
@@ -6100,7 +6448,8 @@ class GameManager {
         const competitorBounds = this.getVehicleCollisionBounds(competitor.vehicleType);
         const lateralLimit = (playerBounds.width + competitorBounds.width) * 0.58;
         const longitudinalLimit = (playerBounds.length + competitorBounds.length) * 0.54;
-        const relativeZ = competitor.mesh.position.z - this.game.car.position.z;
+        const competitorZ = competitor.progressZ ?? competitor.mesh.position.z;
+        const relativeZ = competitorZ - this.game.car.position.z;
         const relativeX = competitor.xOffset - this.game.car.xOffset;
         const lateralOverlap = Math.max(0, lateralLimit - Math.abs(this.game.car.xOffset - competitor.xOffset));
         const longitudinalOverlap = Math.max(0, longitudinalLimit - Math.abs(relativeZ));
@@ -6122,7 +6471,7 @@ class GameManager {
         const hitSide = Math.sign(this.game.car.xOffset - competitor.xOffset) || side;
         const playerPush = THREE.MathUtils.clamp(lateralOverlap * 0.62 + impulse * 0.72, 0.28, 1.8);
         const competitorPush = THREE.MathUtils.clamp(lateralOverlap * 0.72 + impulse * 0.86, 0.34, 2.05);
-        const playerBehind = this.game.car.position.z > competitor.mesh.position.z;
+        const playerBehind = this.game.car.position.z > competitorZ;
         const zSeparation = longitudinalOverlap > 0 ? longitudinalOverlap + 0.85 : 0;
         const rearQuarterHit = playerBehind ? 1 : -0.72;
         const offCenter = THREE.MathUtils.clamp(Math.abs(relativeX) / Math.max(0.1, lateralLimit), 0.25, 1.15);
@@ -6139,7 +6488,7 @@ class GameManager {
         this.game.car.speed *= 1 - playerSpeedLoss;
         competitor.xOffset = THREE.MathUtils.clamp(competitor.xOffset - side * competitorPush, -competitorLimit, competitorLimit);
         competitor.targetXOffset = competitor.xOffset;
-        competitor.mesh.position.z += playerBehind ? -zSeparation * 0.42 : zSeparation * 0.58;
+        competitor.progressZ = competitorZ + (playerBehind ? -zSeparation * 0.42 : zSeparation * 0.58);
         competitor.lateralVelocity = (competitor.lateralVelocity || 0) + normalX * impulse * 0.72;
         competitor.yawVelocity = (competitor.yawVelocity || 0) + torque * 0.48;
         competitor.headingOffset = THREE.MathUtils.clamp((competitor.headingOffset || 0) + torque * 1.22, -0.68, 0.68);
@@ -6150,14 +6499,19 @@ class GameManager {
         competitor.speed *= 1 - competitorSpeedLoss;
         const playerFrame = this.getVehicleRoadFrame(this.game.car.position.z, -1, this.getPlayerVehicleType());
         const playerRoadData = playerFrame.roadData;
-        this.game.car.position.x = playerRoadData.curve + this.game.car.xOffset;
-        this.game.car.position.y = this.getVehicleGroundY(playerFrame, this.getPlayerVehicleType());
-        this.playerCar.position.copy(this.game.car.position);
+        this.carPosition.copy(this.getRoadWorldPosition(
+            playerRoadData,
+            this.game.car.xOffset,
+            this.getVehicleGroundY(playerFrame, this.getPlayerVehicleType())
+        ));
+        this.game.car.position.set(this.carPosition.x, this.carPosition.y, this.game.car.position.z);
+        this.playerCar.position.copy(this.carPosition);
+        this.playerCar.userData.roadProgressZ = this.game.car.position.z;
         this.applyVehicleRoadPose(this.playerCar, playerFrame, this.getAngleDelta(playerFrame.yaw, this.game.car.visualYaw || playerFrame.yaw));
         this.alignVehicleToRoadSurface(this.playerCar);
         this.carPosition.copy(this.playerCar.position);
-        this.game.car.position.copy(this.carPosition);
-        this.placeTrafficCar(competitor, competitor.mesh.position.z, competitor.xOffset, -1, competitor.headingOffset || 0);
+        this.game.car.position.set(this.carPosition.x, this.carPosition.y, this.game.car.position.z);
+        this.placeTrafficCar(competitor, competitor.progressZ, competitor.xOffset, -1, competitor.headingOffset || 0);
         this.game.car.trafficCollisionCooldown = 8;
         this.cameraShakeDuration = 17;
         this.cameraShakeFrames = 17;
@@ -6167,7 +6521,9 @@ class GameManager {
 
     resolveRaceCompetitorContact(a, b, lateralLimit, longitudinalLimit, xGap, zGap) {
         const relativeX = b.xOffset - a.xOffset;
-        const relativeZ = b.mesh.position.z - a.mesh.position.z;
+        const aProgressZ = a.progressZ ?? a.mesh.position.z;
+        const bProgressZ = b.progressZ ?? b.mesh.position.z;
+        const relativeZ = bProgressZ - aProgressZ;
         const normalLength = Math.max(0.001, Math.hypot(relativeX, relativeZ));
         const normalX = relativeX / normalLength;
         const normalZ = relativeZ / normalLength;
@@ -6180,7 +6536,7 @@ class GameManager {
         const closingSpeed = Math.max(0.08, (aVx - bVx) * normalX + (aVz - bVz) * normalZ);
         const impulse = THREE.MathUtils.clamp(closingSpeed * 0.34 + lateralOverlap * 0.12 + longitudinalOverlap * 0.08, 0.12, 0.68);
         const side = Math.sign(a.xOffset - b.xOffset) || 1;
-        const aBehind = a.mesh.position.z > b.mesh.position.z;
+        const aBehind = aProgressZ > bProgressZ;
         const rearQuarter = aBehind ? 1 : -1;
         const offCenter = THREE.MathUtils.clamp(Math.abs(relativeX) / Math.max(0.1, lateralLimit), 0.2, 1);
         const torque = THREE.MathUtils.clamp(side * rearQuarter * (impulse * 0.34 + longitudinalOverlap * 0.018) * offCenter, -0.34, 0.34);
@@ -6192,8 +6548,8 @@ class GameManager {
         b.xOffset = THREE.MathUtils.clamp(b.xOffset - side * lateralCorrection, -roadLimit, roadLimit);
         a.targetXOffset = a.xOffset;
         b.targetXOffset = b.xOffset;
-        a.mesh.position.z += aBehind ? zCorrection * 0.56 : -zCorrection * 0.44;
-        b.mesh.position.z += aBehind ? -zCorrection * 0.44 : zCorrection * 0.56;
+        a.progressZ = aProgressZ + (aBehind ? zCorrection * 0.56 : -zCorrection * 0.44);
+        b.progressZ = bProgressZ + (aBehind ? -zCorrection * 0.44 : zCorrection * 0.56);
 
         a.lateralVelocity = (a.lateralVelocity || 0) - normalX * impulse * 0.46;
         b.lateralVelocity = (b.lateralVelocity || 0) + normalX * impulse * 0.46;
@@ -6210,8 +6566,8 @@ class GameManager {
         a.speed *= THREE.MathUtils.clamp(1 - impulse * 0.1, 0.86, 0.96);
         b.speed *= THREE.MathUtils.clamp(1 - impulse * 0.1, 0.86, 0.96);
 
-        this.placeTrafficCar(a, a.mesh.position.z, a.xOffset, -1, a.headingOffset || 0);
-        this.placeTrafficCar(b, b.mesh.position.z, b.xOffset, -1, b.headingOffset || 0);
+        this.placeTrafficCar(a, a.progressZ, a.xOffset, -1, a.headingOffset || 0);
+        this.placeTrafficCar(b, b.progressZ, b.xOffset, -1, b.headingOffset || 0);
     }
 
     resolveTrafficSpacing() {
@@ -6231,7 +6587,9 @@ class GameManager {
                     const aBounds = this.getVehicleCollisionBounds(a.vehicleType);
                     const bBounds = this.getVehicleCollisionBounds(b.vehicleType);
                     const xGap = Math.abs(a.xOffset - b.xOffset);
-                    const zGap = Math.abs(a.mesh.position.z - b.mesh.position.z);
+                    const aProgressZ = a.progressZ ?? a.mesh.position.z;
+                    const bProgressZ = b.progressZ ?? b.mesh.position.z;
+                    const zGap = Math.abs(aProgressZ - bProgressZ);
                     const sameDirectionRace = this.game?.settings?.raceModeId === 'race';
                     const lateralLimit = (aBounds.width + bBounds.width) * 0.62;
                     const longitudinalLimit = sameDirectionRace
@@ -6243,14 +6601,14 @@ class GameManager {
                     }
 
                     const rearCar = sameDirectionRace
-                        ? (a.mesh.position.z > b.mesh.position.z ? a : b)
-                        : (a.mesh.position.z < b.mesh.position.z ? a : b);
+                        ? (aProgressZ > bProgressZ ? a : b)
+                        : (aProgressZ < bProgressZ ? a : b);
                     const correction = (longitudinalLimit - zGap) * 0.62 + 1.2;
                     if (sameDirectionRace) {
                         this.resolveRaceCompetitorContact(a, b, lateralLimit, longitudinalLimit, xGap, zGap);
                     } else {
-                        rearCar.mesh.position.z -= correction;
-                        this.placeTrafficCar(rearCar, rearCar.mesh.position.z, rearCar.xOffset, 1);
+                        rearCar.progressZ = (rearCar.progressZ ?? rearCar.mesh.position.z) - correction;
+                        this.placeTrafficCar(rearCar, rearCar.progressZ, rearCar.xOffset, 1);
                     }
                 }
             }
@@ -6261,7 +6619,7 @@ class GameManager {
         const playerBounds = this.getVehicleCollisionBounds(this.getPlayerVehicleType());
         const trafficBounds = this.getVehicleCollisionBounds(trafficCar.vehicleType);
         const xGap = Math.abs(this.game.car.xOffset - trafficCar.xOffset);
-        const relativeZ = trafficCar.mesh.position.z - this.game.car.position.z;
+        const relativeZ = (trafficCar.progressZ ?? trafficCar.mesh.position.z) - this.game.car.position.z;
         if (this.game?.settings?.raceModeId !== 'race' && relativeZ > 1.5) {
             return false;
         }
@@ -6381,6 +6739,9 @@ class GameManager {
         }
         if (this.camera && this.camera.near !== (mode.near || 0.1)) {
             this.camera.near = mode.near || 0.1;
+        }
+        if (this.camera && this.camera.far !== (mode.far || 1000)) {
+            this.camera.far = mode.far || 1000;
         }
         if (this.camera) {
             this.camera.updateProjectionMatrix();
@@ -6542,6 +6903,50 @@ class GameManager {
             };
         }
 
+        if (mode.type === 'trackOverview') {
+            const segments = this.game?.road?.segments || [];
+            const bounds = segments.reduce((acc, segment) => {
+                const halfWidth = (segment.width || this.game.road.width || 24) * 0.5;
+                const centerX = Number.isFinite(segment.pathX) ? segment.pathX : segment.curve;
+                const centerZ = Number.isFinite(segment.pathZ) ? segment.pathZ : segment.z;
+                acc.minX = Math.min(acc.minX, centerX - halfWidth);
+                acc.maxX = Math.max(acc.maxX, centerX + halfWidth);
+                acc.minZ = Math.min(acc.minZ, centerZ - halfWidth);
+                acc.maxZ = Math.max(acc.maxZ, centerZ + halfWidth);
+                acc.maxY = Math.max(acc.maxY, segment.y || 0);
+                return acc;
+            }, {
+                minX: Infinity,
+                maxX: -Infinity,
+                minZ: Infinity,
+                maxZ: -Infinity,
+                maxY: 0
+            });
+            const hasBounds = Number.isFinite(bounds.minX)
+                && Number.isFinite(bounds.maxX)
+                && Number.isFinite(bounds.minZ)
+                && Number.isFinite(bounds.maxZ);
+            const center = hasBounds
+                ? new THREE.Vector3((bounds.minX + bounds.maxX) * 0.5, bounds.maxY, (bounds.minZ + bounds.maxZ) * 0.5)
+                : this.carPosition.clone();
+            const spanX = hasBounds ? Math.max(1, bounds.maxX - bounds.minX) : 120;
+            const spanZ = hasBounds ? Math.max(1, bounds.maxZ - bounds.minZ) : 120;
+            const aspect = this.renderer?.domElement?.clientWidth && this.renderer?.domElement?.clientHeight
+                ? this.renderer.domElement.clientWidth / this.renderer.domElement.clientHeight
+                : window.innerWidth / Math.max(1, window.innerHeight);
+            const verticalFit = spanZ / (2 * Math.tan(THREE.MathUtils.degToRad(mode.fov) * 0.5));
+            const horizontalFit = spanX / (2 * Math.tan(THREE.MathUtils.degToRad(mode.fov) * 0.5) * Math.max(0.1, aspect));
+            const height = Math.max(verticalFit, horizontalFit, 240) * (mode.padding || 1.15);
+
+            return {
+                mode,
+                carDirection: new THREE.Vector3(0, 0, -1),
+                cameraPosition: center.clone().add(new THREE.Vector3(0, height, 0)),
+                lookAtPosition: center,
+                cameraUp: new THREE.Vector3(0, 0, -1)
+            };
+        }
+
         if (mode.type === 'topDown') {
             const focusPoint = this.carPosition.clone()
                 .add(carDirection.clone().multiplyScalar(mode.forwardOffset || 0));
@@ -6668,6 +7073,17 @@ class GameManager {
         }
 
         const { mode, carDirection, cameraPosition, lookAtPosition, cameraUp } = this.getCameraFrame();
+        if (this.scene) {
+            if (mode.type === 'trackOverview') {
+                if (this.trackOverviewStoredFog === undefined) {
+                    this.trackOverviewStoredFog = this.scene.fog || null;
+                }
+                this.scene.fog = null;
+            } else if (this.trackOverviewStoredFog !== undefined) {
+                this.scene.fog = this.trackOverviewStoredFog;
+                this.trackOverviewStoredFog = undefined;
+            }
+        }
 
         if (this.cameraShakeFrames > 0) {
             const falloff = this.cameraShakeFrames / this.cameraShakeDuration;
@@ -6713,10 +7129,34 @@ class GameManager {
 function getRoadDataAtZ(z, game) {
     const segmentLength = 10;
     const maxIndex = game.road.segments.length - 1;
-    const rawIndex = Math.max(0, Math.min(maxIndex, Math.abs(z) / segmentLength));
-    const index = Math.floor(rawIndex);
-    const t = rawIndex - index;
-    const getSegment = offset => game.road.segments[Math.max(0, Math.min(maxIndex, index + offset))];
+    const hasStoredPath = Boolean(game.road.hasStoredPath)
+        || game.road.segments.some(roadSegment => Number.isFinite(roadSegment.pathX) && Number.isFinite(roadSegment.pathZ));
+    const pathLength = Math.max(1, game.road.length || Math.abs(game.finishLine || 0) || maxIndex * segmentLength);
+    const hasPeriodicStoredPath = hasStoredPath && game.road.segments.length > 4;
+    const periodicSegmentCount = hasPeriodicStoredPath
+        ? Math.max(2, Math.ceil(pathLength / segmentLength))
+        : maxIndex + 1;
+    const distanceFromStart = Number.isFinite(game.startLine)
+        ? game.startLine - z
+        : -z;
+    const progress = hasPeriodicStoredPath
+        ? ((distanceFromStart % pathLength) + pathLength) % pathLength
+        : Math.abs(z);
+    const rawIndex = hasPeriodicStoredPath
+        ? progress / segmentLength
+        : Math.max(0, Math.min(maxIndex, progress / segmentLength));
+    const baseIndex = Math.floor(rawIndex);
+    const index = hasPeriodicStoredPath
+        ? THREE.MathUtils.euclideanModulo(baseIndex, periodicSegmentCount)
+        : baseIndex;
+    const t = rawIndex - baseIndex;
+    const getSegment = offset => {
+        if (hasPeriodicStoredPath) {
+            return game.road.segments[THREE.MathUtils.euclideanModulo(index + offset, periodicSegmentCount)];
+        }
+
+        return game.road.segments[Math.max(0, Math.min(maxIndex, index + offset))];
+    };
     const previousSegment = getSegment(-1);
     const segment = getSegment(0);
     const nextSegment = getSegment(1);
@@ -6732,6 +7172,7 @@ function getRoadDataAtZ(z, game) {
             (-p0 + 3 * p1 - 3 * p2 + p3) * t3
         );
     };
+    const valueAt = (roadSegment, key, fallback) => Number.isFinite(roadSegment?.[key]) ? roadSegment[key] : fallback;
     const curve = smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve);
     const y = smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y);
     const width = smoothValue(
@@ -6741,11 +7182,48 @@ function getRoadDataAtZ(z, game) {
         followingSegment.width || game.road.width
     );
     const nextCurve = smoothValue(segment.curve, nextSegment.curve, followingSegment.curve, getSegment(3).curve);
+    const pathX = smoothValue(
+        valueAt(previousSegment, 'pathX', previousSegment.curve),
+        valueAt(segment, 'pathX', segment.curve),
+        valueAt(nextSegment, 'pathX', nextSegment.curve),
+        valueAt(followingSegment, 'pathX', followingSegment.curve)
+    );
+    const pathZ = smoothValue(
+        valueAt(previousSegment, 'pathZ', previousSegment.z),
+        valueAt(segment, 'pathZ', segment.z),
+        valueAt(nextSegment, 'pathZ', nextSegment.z),
+        valueAt(followingSegment, 'pathZ', followingSegment.z)
+    );
+    const tangentX = smoothValue(
+        valueAt(previousSegment, 'tangentX', 0),
+        valueAt(segment, 'tangentX', 0),
+        valueAt(nextSegment, 'tangentX', 0),
+        valueAt(followingSegment, 'tangentX', 0)
+    );
+    const tangentZ = smoothValue(
+        valueAt(previousSegment, 'tangentZ', -1),
+        valueAt(segment, 'tangentZ', -1),
+        valueAt(nextSegment, 'tangentZ', -1),
+        valueAt(followingSegment, 'tangentZ', -1)
+    );
+    const tangentLength = Math.max(0.0001, Math.hypot(tangentX, tangentZ));
+    const normalizedTangentX = tangentX / tangentLength;
+    const normalizedTangentZ = tangentZ / tangentLength;
 
     return {
         y,
         curve,
+        z,
+        worldX: hasStoredPath ? pathX : curve,
+        worldZ: hasStoredPath ? pathZ : z,
+        pathX,
+        pathZ,
+        tangentX: hasStoredPath ? normalizedTangentX : 0,
+        tangentZ: hasStoredPath ? normalizedTangentZ : -1,
+        normalX: hasStoredPath ? -normalizedTangentZ : 1,
+        normalZ: hasStoredPath ? normalizedTangentX : 0,
+        storedProgress: hasStoredPath ? progress : null,
         width,
-        curvatureAngle: Math.atan2(nextCurve - curve, segmentLength)
+        curvatureAngle: hasStoredPath ? Math.atan2(-normalizedTangentX, -normalizedTangentZ) : Math.atan2(nextCurve - curve, segmentLength)
     };
 }

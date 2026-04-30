@@ -143,6 +143,14 @@
             length: '6.05 KM',
             rallyLength: '18.15 KM',
             laps: '1'
+        },
+        montmelo: {
+            title: 'Montmelo',
+            subtitle: 'Barcelona-Catalunya',
+            description: 'Stored 14-turn GP layout inspired by Circuit de Barcelona-Catalunya, with the 2023 no-chicane final sector.',
+            length: '4.66 KM',
+            rallyLength: '13.97 KM',
+            laps: '1'
         }
     };
     const vehicleMenuImages = {
@@ -249,8 +257,11 @@
             } : null,
             road: game ? {
                 width: game.road.width,
+                drivableWidth: game.road.drivableWidth || game.road.width,
+                shoulderWidth: game.road.shoulderWidth || 0,
                 playerLimit: Number(gameManager.getPlayerRoadLimit().toFixed(2)),
-                segments: game.road.segments.length
+                segments: game.road.segments.length,
+                storedTrack: game.road.segments[0]?.storedTrackId || null
             } : null,
             raceSettings: game ? game.settings : null,
             traffic: game ? {
@@ -473,8 +484,12 @@
         if (selectedStageLaps) {
             selectedStageLaps.textContent = info.laps;
         }
-        if (stageHeroPanel && info.image) {
-            stageHeroPanel.style.setProperty('--stage-hero-image', `url("${info.image}")`);
+        if (stageHeroPanel) {
+            if (info.image) {
+                stageHeroPanel.style.setProperty('--stage-hero-image', `url("${info.image}")`);
+            } else {
+                stageHeroPanel.style.removeProperty('--stage-hero-image');
+            }
         }
 
         if (stageCardSelect) {
@@ -1016,6 +1031,7 @@
 
     function hideGameplayChrome() {
         settingsHud.style.display = 'none';
+        document.body.classList.remove('trackOverviewActive');
         setSettingsPanelOpen(false);
         cameraTunerEnabled = false;
         gameManager.disableDebugFreeCamera?.();
@@ -1044,6 +1060,7 @@
         }
 
         const mode = gameManager.getCameraMode();
+        document.body.classList.toggle('trackOverviewActive', isGameplayActive() && mode.id === 'trackOverview');
         cameraButton.dataset.active = mode.id === 'close' ? 'false' : 'true';
         cameraButton.setAttribute('aria-label', `Camera view: ${mode.label}`);
         cameraButton.setAttribute('title', `Camera view: ${mode.label}`);
@@ -1402,6 +1419,16 @@
         if (e.key.toLowerCase() === 'v' && isGameplayActive()) {
             e.preventDefault();
             cycleCameraMode();
+            return;
+        }
+
+        if (e.key.toLowerCase() === 'm' && isGameplayActive() && gameManager.setCameraMode) {
+            e.preventDefault();
+            cameraTunerEnabled = false;
+            gameManager.setCameraMode('trackOverview');
+            updateCameraButtonUi();
+            updateCameraTunerUi();
+            renderer.render(scene, camera);
             return;
         }
 
