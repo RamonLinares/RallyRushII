@@ -211,16 +211,24 @@ function createJungleBarkTexture(width = 256, height = 512, repeatX = 1.2, repea
     });
 }
 
-function createLakeSkyTexture() {
+function createLakeSkyTexture(environment = {}) {
+    const isSunset = environment.timeOfDay === 'sunset';
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const context = canvas.getContext('2d');
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#78b7cb');
-    skyGradient.addColorStop(0.42, '#a6ccd4');
-    skyGradient.addColorStop(0.72, '#c7d9d7');
-    skyGradient.addColorStop(1, '#d6dfd7');
+    if (isSunset) {
+        skyGradient.addColorStop(0, '#516f9d');
+        skyGradient.addColorStop(0.42, '#d48a67');
+        skyGradient.addColorStop(0.74, '#f2b071');
+        skyGradient.addColorStop(1, '#66503d');
+    } else {
+        skyGradient.addColorStop(0, '#78b7cb');
+        skyGradient.addColorStop(0.42, '#a6ccd4');
+        skyGradient.addColorStop(0.72, '#c7d9d7');
+        skyGradient.addColorStop(1, '#d6dfd7');
+    }
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -306,16 +314,24 @@ function createLakeSkyTexture() {
     return texture;
 }
 
-function createCoastalSkyTexture() {
+function createCoastalSkyTexture(environment = {}) {
+    const isSunset = environment.timeOfDay === 'sunset';
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const context = canvas.getContext('2d');
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#5faed2');
-    skyGradient.addColorStop(0.36, '#94c8dd');
-    skyGradient.addColorStop(0.68, '#c6dcd9');
-    skyGradient.addColorStop(1, '#e5e0c6');
+    if (isSunset) {
+        skyGradient.addColorStop(0, '#4b76a8');
+        skyGradient.addColorStop(0.36, '#cb7a62');
+        skyGradient.addColorStop(0.68, '#f0aa63');
+        skyGradient.addColorStop(1, '#d2a06f');
+    } else {
+        skyGradient.addColorStop(0, '#5faed2');
+        skyGradient.addColorStop(0.36, '#94c8dd');
+        skyGradient.addColorStop(0.68, '#c6dcd9');
+        skyGradient.addColorStop(1, '#e5e0c6');
+    }
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -407,6 +423,7 @@ function createCoastalSkyTexture() {
 
 function createJungleSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -418,6 +435,11 @@ function createJungleSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.34, '#1b2a35');
         skyGradient.addColorStop(0.68, '#253c3a');
         skyGradient.addColorStop(1, '#173421');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#4e6c8e');
+        skyGradient.addColorStop(0.34, '#b8755b');
+        skyGradient.addColorStop(0.68, '#d89b62');
+        skyGradient.addColorStop(1, '#3f6f3a');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#66797b');
         skyGradient.addColorStop(0.32, '#879794');
@@ -520,6 +542,7 @@ function createJungleSkyTexture(environment = {}) {
 
 function createTokyoSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -531,6 +554,11 @@ function createTokyoSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.32, '#17253a');
         skyGradient.addColorStop(0.62, '#2e4052');
         skyGradient.addColorStop(1, '#111923');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#405f91');
+        skyGradient.addColorStop(0.32, '#b96d62');
+        skyGradient.addColorStop(0.62, '#e09b62');
+        skyGradient.addColorStop(1, '#53505c');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#647681');
         skyGradient.addColorStop(0.38, '#87949b');
@@ -715,6 +743,7 @@ function createTokyoSkylineTexture(variant = 0, environment = {}) {
 
 function createDesertSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -727,6 +756,11 @@ function createDesertSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.42, '#1c2940');
         skyGradient.addColorStop(0.74, '#4c342a');
         skyGradient.addColorStop(1, '#1b100d');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#3d5f9c');
+        skyGradient.addColorStop(0.38, '#b66158');
+        skyGradient.addColorStop(0.68, '#f08a45');
+        skyGradient.addColorStop(1, '#934326');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#8c9aa0');
         skyGradient.addColorStop(0.4, '#c0b09a');
@@ -818,6 +852,7 @@ function createDesertSkyTexture(environment = {}) {
 
 function createHighlandSkyTexture(environment = {}) {
     const isNight = Boolean(environment.nightRace);
+    const isSunset = environment.timeOfDay === 'sunset';
     const isRainy = !environment.disableRain;
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -830,6 +865,11 @@ function createHighlandSkyTexture(environment = {}) {
         skyGradient.addColorStop(0.44, '#1e3441');
         skyGradient.addColorStop(0.72, '#33443e');
         skyGradient.addColorStop(1, '#1b241d');
+    } else if (isSunset) {
+        skyGradient.addColorStop(0, '#4d6d9a');
+        skyGradient.addColorStop(0.42, '#c07b66');
+        skyGradient.addColorStop(0.72, '#e3aa70');
+        skyGradient.addColorStop(1, '#6a744a');
     } else if (isRainy) {
         skyGradient.addColorStop(0, '#728895');
         skyGradient.addColorStop(0.42, '#a4b4b9');
@@ -2387,7 +2427,7 @@ function generateRoadAndTerrain(scene, game, environment) {
         const dz = segmentLength;
         const curvatureAngle = Math.atan2(dx, dz);
         
-        return { z, y, curve, curvatureAngle, highwayElevation };
+        return { z, y, curve, curvatureAngle, highwayElevation, width: game.road.width };
     }
 
     for (let i = 0; i < totalSegments; i++) {
@@ -2399,6 +2439,8 @@ function generateRoadAndTerrain(scene, game, environment) {
     const rightTerrainGeometry = new THREE.BufferGeometry();
     
     const halfRoadWidth = game.road.width / 2;
+    const getSegmentWidth = segment => segment?.width || game.road.width;
+    const getSegmentHalfRoadWidth = segment => getSegmentWidth(segment) / 2;
     const terrainWidth = game.terrain.width;
     const terrainSteps = environment.terrainStyle === 'rainforest' ? 22 : environment.terrainStyle === 'highland' ? 34 : environment.terrainStyle === 'sand' ? 16 : 10;
     const shoulderWidth = Number.isFinite(environment.shoulderWidth) ? environment.shoulderWidth : 4;
@@ -2620,6 +2662,8 @@ function generateRoadAndTerrain(scene, game, environment) {
         return baseHeight + Math.max(0, ridgeT * ((coastalBiome.hillsideHeight || 16) + cliffNoise));
     }
 
+    const roadRenderRows = createRoadRenderRows();
+
     function updateGeometries() {
         const roadPositions = [];
         const roadIndices = [];
@@ -2631,12 +2675,13 @@ function generateRoadAndTerrain(scene, game, environment) {
         const rightTerrainIndices = [];
         const rightTerrainUVs = [];
 
-        game.road.segments.forEach((segment, i) => {
-            const leftRoadX = segment.curve - halfRoadWidth;
-            const rightRoadX = segment.curve + halfRoadWidth;
+        roadRenderRows.forEach((segment, i) => {
+            const segmentHalfRoadWidth = getSegmentHalfRoadWidth(segment);
+            const leftRoadX = segment.curve - segmentHalfRoadWidth;
+            const rightRoadX = segment.curve + segmentHalfRoadWidth;
             const leftTerrainStartX = leftRoadX - shoulderWidth;
             const rightTerrainStartX = rightRoadX + shoulderWidth;
-            const v = i / game.road.segments.length;
+            const v = i / Math.max(1, roadRenderRows.length - 1);
 
             // Road vertices
             roadPositions.push(leftRoadX, segment.y, segment.z);
@@ -2667,7 +2712,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 rightTerrainUVs.push(normalizedDistance, v);
             }
 
-            if (i < game.road.segments.length - 1) {
+            if (i < roadRenderRows.length - 1) {
                 const j = i * 2;
                 roadIndices.push(j, j + 1, j + 2, j + 1, j + 3, j + 2);
 
@@ -2709,21 +2754,22 @@ function generateRoadAndTerrain(scene, game, environment) {
         const shoulderIndices = [];
         const shoulderUVs = [];
 
-        game.road.segments.forEach((segment, i) => {
-            const roadEdgeX = segment.curve + side * halfRoadWidth;
+        roadRenderRows.forEach((segment, i) => {
+            const segmentHalfRoadWidth = getSegmentHalfRoadWidth(segment);
+            const roadEdgeX = segment.curve + side * segmentHalfRoadWidth;
             const shoulderEdgeX = roadEdgeX + side * shoulderWidth;
             const roadEdgeY = environment.shoulderStyle === 'jungle-mud' ? segment.y - 0.006 : segment.y + 0.04;
             const shoulderEdgeY = environment.terrainStyle === 'highland'
                 ? getTerrainHeightAt(shoulderEdgeX, segment.z) + 0.006
                 : roadEdgeY;
-            const v = i / game.road.segments.length;
+            const v = i / Math.max(1, roadRenderRows.length - 1);
 
             shoulderPositions.push(roadEdgeX, roadEdgeY, segment.z);
             shoulderPositions.push(shoulderEdgeX, shoulderEdgeY, segment.z);
             shoulderUVs.push(0, v);
             shoulderUVs.push(1, v);
 
-            if (i < game.road.segments.length - 1) {
+            if (i < roadRenderRows.length - 1) {
                 const index = i * 2;
                 shoulderIndices.push(index, index + 1, index + 2, index + 1, index + 3, index + 2);
             }
@@ -2779,7 +2825,6 @@ function generateRoadAndTerrain(scene, game, environment) {
             specular: environment.shoulderStyle === 'jungle-mud' ? 0x080604 : 0x111111
         })
         : null;
-
     const leftTerrain = new THREE.Mesh(leftTerrainGeometry, terrainMaterial);
     const rightTerrain = new THREE.Mesh(rightTerrainGeometry, terrainMaterial);
     const leftShoulder = hasShoulders ? new THREE.Mesh(createShoulderGeometry(-1), shoulderMaterial) : null;
@@ -2844,27 +2889,75 @@ function generateRoadAndTerrain(scene, game, environment) {
     };
     game.stageDecor = stageDecorStats;
 
-    function getLinearRoadDataAtZ(z) {
+    function getCatmullRoadDataAtZ(z) {
         const maxIndex = game.road.segments.length - 1;
         const rawIndex = Math.max(0, Math.min(maxIndex, Math.abs(z) / segmentLength));
         const index = Math.floor(rawIndex);
-        const nextIndex = Math.min(maxIndex, index + 1);
         const t = rawIndex - index;
-        const segment = game.road.segments[index];
-        const nextSegment = game.road.segments[nextIndex];
+        const getSegment = offset => game.road.segments[Math.max(0, Math.min(maxIndex, index + offset))];
+        const previousSegment = getSegment(-1);
+        const segment = getSegment(0);
+        const nextSegment = getSegment(1);
+        const followingSegment = getSegment(2);
+        const smoothValue = (p0, p1, p2, p3) => {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        };
 
         return {
-            curve: THREE.MathUtils.lerp(segment.curve, nextSegment.curve, t),
-            y: THREE.MathUtils.lerp(segment.y, nextSegment.y, t),
-            highwayElevation: THREE.MathUtils.lerp(segment.highwayElevation || 0, nextSegment.highwayElevation || 0, t)
+            curve: smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve),
+            y: smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y),
+            width: smoothValue(
+                getSegmentWidth(previousSegment),
+                getSegmentWidth(segment),
+                getSegmentWidth(nextSegment),
+                getSegmentWidth(followingSegment)
+            ),
+            highwayElevation: smoothValue(
+                previousSegment.highwayElevation || 0,
+                segment.highwayElevation || 0,
+                nextSegment.highwayElevation || 0,
+                followingSegment.highwayElevation || 0
+            )
         };
+    }
+
+    function createRoadRenderRows() {
+        const subdivisions = environment.terrainStyle === 'urban' ? 5 : 4;
+        const rows = [];
+        for (let i = 0; i < game.road.segments.length - 1; i++) {
+            for (let step = 0; step < subdivisions; step++) {
+                const z = game.road.segments[i].z - (segmentLength * step) / subdivisions;
+                rows.push({
+                    ...getCatmullRoadDataAtZ(z),
+                    z
+                });
+            }
+        }
+        const last = game.road.segments[game.road.segments.length - 1];
+        rows.push({
+            ...getCatmullRoadDataAtZ(last.z),
+            z: last.z
+        });
+        return rows;
+    }
+
+    function getLinearRoadDataAtZ(z) {
+        return getCatmullRoadDataAtZ(z);
     }
 
     function getTerrainHeightAt(x, z) {
         const roadData = getLinearRoadDataAtZ(z);
+        const localHalfRoadWidth = roadData.width / 2;
         const distanceFromRoadCenter = Math.abs(x - roadData.curve);
-        const distanceFromRoadEdge = distanceFromRoadCenter - halfRoadWidth;
-        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - halfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
+        const distanceFromRoadEdge = distanceFromRoadCenter - localHalfRoadWidth;
+        const normalizedDistance = Math.min(Math.max((distanceFromRoadCenter - localHalfRoadWidth - shoulderWidth) / terrainWidth, 0), 1);
         let baseHeight = roadData.y;
         if (environment.id === 'city' && roadData.highwayElevation > 0.01) {
             const groundDrop = roadData.highwayElevation * smoothStep(shoulderWidth + 2.5, shoulderWidth + 28, distanceFromRoadEdge);
@@ -3869,7 +3962,7 @@ function generateRoadAndTerrain(scene, game, environment) {
                 new THREE.MeshBasicMaterial({ color: 0x9feeff, transparent: true, opacity: 0.7 })
             ];
 
-            for (let z = startZ - 28; z > endZ; z -= 220) {
+            for (let z = startZ - 28; z > endZ; z -= 150) {
                 [-1, 1].forEach(side => {
                     const pose = getRoadsidePose(z, side, 3.2);
                     const height = 7.8 + Math.random() * 1.4;
@@ -3884,16 +3977,22 @@ function generateRoadAndTerrain(scene, game, environment) {
                     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), glowMaterials[Math.floor(Math.random() * glowMaterials.length)]);
                     bulb.position.set(-side * 2.0, height - 0.34, 0);
                     lamp.add(bulb);
+                    if (isNight) {
+                        const lampLight = new THREE.PointLight(
+                            bulb.material.color.getHex(),
+                            0.68,
+                            32,
+                            2.25
+                        );
+                        lampLight.name = 'city-tokyo-streetlight-real-light';
+                        lampLight.position.copy(bulb.position);
+                        lampLight.castShadow = false;
+                        lamp.add(lampLight);
+                        stageDecorStats.activePointLights += 1;
+                    }
                     lamp.position.set(pose.x, pose.roadY, z);
                     lamp.rotation.y = pose.yaw;
-                    addTokyoObject(lamp, 'streetLights', { cullRadius: 105 });
-
-                    if (isNight) {
-                        const lightPosition = new THREE.Vector3(-side * 2.0, height - 0.34, 0)
-                            .applyAxisAngle(localUp, lamp.rotation.y)
-                            .add(lamp.position);
-                        addDecorPointLight(decor, bulb.material.color.getHex(), 0.72, 19, 2, lightPosition, 14);
-                    }
+                    addTokyoObject(lamp, 'streetLights', { cullRadius: isNight ? 185 : 105 });
                 });
             }
         }
@@ -8556,6 +8655,7 @@ function generateRoadAndTerrain(scene, game, environment) {
     function getAtmosphereSettings() {
         const baseFog = new THREE.Color(environment.fogColor || 0x73b6cf);
         const isNight = Boolean(environment.nightRace);
+        const isSunset = environment.timeOfDay === 'sunset';
         const isRainy = !environment.disableRain;
         const isFoggy = environment.weatherMode === 'fog';
         const fogColor = baseFog.clone();
@@ -8574,6 +8674,14 @@ function generateRoadAndTerrain(scene, game, environment) {
                 color: 'rgba(3, 10, 22, 0.66)',
                 horizon: 'rgba(62, 95, 122, 0.24)'
             };
+        } else if (isSunset) {
+            fogColor.lerp(new THREE.Color(0xe58a4a), 0.42);
+            skyColor.copy(baseFog).lerp(new THREE.Color(0xc16a55), 0.5);
+            fogDensity *= isRainy ? 1.05 : 0.72;
+            skyOverlay = {
+                color: 'rgba(255, 138, 76, 0.2)',
+                horizon: 'rgba(255, 185, 94, 0.36)'
+            };
         } else {
             skyColor.copy(baseFog);
             if (!isRainy) {
@@ -8587,12 +8695,12 @@ function generateRoadAndTerrain(scene, game, environment) {
         }
 
         if (isRainy) {
-            fogColor.lerp(new THREE.Color(isNight ? 0x0d1824 : 0x6f7f82), isNight ? 0.38 : 0.34);
-            skyColor.lerp(new THREE.Color(isNight ? 0x08101d : 0x67797d), isNight ? 0.42 : 0.3);
-            fogDensity *= isNight ? 1.32 : 1.42;
+            fogColor.lerp(new THREE.Color(isNight ? 0x0d1824 : isSunset ? 0x8f6f63 : 0x6f7f82), isNight ? 0.38 : isSunset ? 0.26 : 0.34);
+            skyColor.lerp(new THREE.Color(isNight ? 0x08101d : isSunset ? 0x7e6768 : 0x67797d), isNight ? 0.42 : isSunset ? 0.24 : 0.3);
+            fogDensity *= isNight ? 1.32 : isSunset ? 1.22 : 1.42;
             skyOverlay = {
-                color: isNight ? 'rgba(4, 9, 17, 0.76)' : 'rgba(60, 73, 76, 0.34)',
-                horizon: isNight ? 'rgba(44, 72, 91, 0.28)' : 'rgba(132, 146, 142, 0.22)'
+                color: isNight ? 'rgba(4, 9, 17, 0.76)' : isSunset ? 'rgba(96, 70, 68, 0.28)' : 'rgba(60, 73, 76, 0.34)',
+                horizon: isNight ? 'rgba(44, 72, 91, 0.28)' : isSunset ? 'rgba(205, 132, 84, 0.28)' : 'rgba(132, 146, 142, 0.22)'
             };
         }
 
@@ -8614,15 +8722,15 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         if (isFoggy) {
             fogMode = 'linear';
-            const fogWeatherColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1d252b : 0x7f8f8c), isNight ? 0.46 : 0.38);
-            const skyFogColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1a242c : 0x81918f), isNight ? 0.58 : 0.44);
+            const fogWeatherColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1d252b : isSunset ? 0xa27b6f : 0x7f8f8c), isNight ? 0.46 : isSunset ? 0.34 : 0.38);
+            const skyFogColor = baseFog.clone().lerp(new THREE.Color(isNight ? 0x1a242c : isSunset ? 0x98756f : 0x81918f), isNight ? 0.58 : isSunset ? 0.46 : 0.44);
             fogColor.copy(fogWeatherColor);
             skyColor.lerp(skyFogColor, isNight ? 0.62 : 0.48);
             fogNear = isNight ? 18 : 24;
             fogFar = isNight ? 190 : 225;
             skyOverlay = {
-                color: isNight ? 'rgba(12, 18, 22, 0.52)' : 'rgba(88, 104, 102, 0.16)',
-                horizon: isNight ? 'rgba(84, 104, 110, 0.32)' : 'rgba(118, 134, 130, 0.26)'
+                color: isNight ? 'rgba(12, 18, 22, 0.52)' : isSunset ? 'rgba(103, 82, 80, 0.2)' : 'rgba(88, 104, 102, 0.16)',
+                horizon: isNight ? 'rgba(84, 104, 110, 0.32)' : isSunset ? 'rgba(180, 126, 88, 0.3)' : 'rgba(118, 134, 130, 0.26)'
             };
         }
 
@@ -8657,9 +8765,9 @@ function generateRoadAndTerrain(scene, game, environment) {
         scene.background.dispose();
     }
     const stageSkyTexture = environment.id === 'lakes'
-        ? createLakeSkyTexture()
+        ? createLakeSkyTexture(environment)
         : environment.id === 'coastal'
-            ? createCoastalSkyTexture()
+            ? createCoastalSkyTexture(environment)
             : environment.id === 'jungle'
                 ? createJungleSkyTexture(environment)
                 : environment.id === 'city'
@@ -8857,6 +8965,103 @@ function generateRoadAndTerrain(scene, game, environment) {
 
         scene.add(structureGroup);
     }
+
+    function createSectorBoardTexture(sectorId) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 384;
+        const context = canvas.getContext('2d');
+        const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#071017');
+        gradient.addColorStop(0.55, '#10283a');
+        gradient.addColorStop(1, '#061018');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        context.fillStyle = '#ffd447';
+        context.fillRect(0, 0, canvas.width, 34);
+        context.fillRect(0, canvas.height - 34, canvas.width, 34);
+
+        context.strokeStyle = '#f8fbff';
+        context.lineWidth = 10;
+        context.strokeRect(26, 26, canvas.width - 52, canvas.height - 52);
+
+        context.fillStyle = '#5fe2ff';
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        context.font = '900 72px Arial Black, Impact, sans-serif';
+        context.fillText('RALLY SECTOR', 68, 105);
+
+        context.fillStyle = '#f8fbff';
+        context.font = '900 164px Arial Black, Impact, sans-serif';
+        context.fillText(`S${sectorId}`, 68, 242);
+
+        context.fillStyle = '#ffd447';
+        context.textAlign = 'right';
+        context.font = '900 58px Arial Black, Impact, sans-serif';
+        context.fillText('TIMING', canvas.width - 70, 244);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        if (THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
+        return texture;
+    }
+
+    function createRallySectorBoard(scene, game, sector) {
+        const boardZ = sector.z;
+        const roadData = getRoadDataAtZ(boardZ, game);
+        const boardWidth = Math.max(13, Math.min(game.road.width * 0.76, 21));
+        const boardHeight = 4.2;
+        const boardY = roadData.y + 8.6;
+        const group = new THREE.Group();
+        group.name = `rally-sector-${sector.id}-board`;
+        group.position.set(roadData.curve, boardY, boardZ);
+        group.rotation.y = -roadData.curvatureAngle;
+
+        const boardMaterial = new THREE.MeshBasicMaterial({
+            map: createSectorBoardTexture(sector.id),
+            side: THREE.FrontSide
+        });
+        const board = new THREE.Mesh(new THREE.PlaneGeometry(boardWidth, boardHeight), boardMaterial);
+        group.add(board);
+
+        const frameMaterial = new THREE.MeshBasicMaterial({ color: 0xf8fbff });
+        const accentMaterial = new THREE.MeshBasicMaterial({ color: 0xffd447 });
+        const topFrame = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.8, 0.28, 0.28), frameMaterial);
+        topFrame.position.y = boardHeight * 0.5 + 0.18;
+        const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + 0.8, 0.24, 0.24), frameMaterial);
+        bottomFrame.position.y = -boardHeight * 0.5 - 0.18;
+        const leftCap = new THREE.Mesh(new THREE.BoxGeometry(0.26, boardHeight + 0.62, 0.26), accentMaterial);
+        leftCap.position.x = -boardWidth * 0.5 - 0.24;
+        const rightCap = new THREE.Mesh(new THREE.BoxGeometry(0.26, boardHeight + 0.62, 0.26), accentMaterial);
+        rightCap.position.x = boardWidth * 0.5 + 0.24;
+        group.add(topFrame, bottomFrame, leftCap, rightCap);
+
+        const glow = new THREE.Mesh(
+            new THREE.PlaneGeometry(boardWidth + 1.6, boardHeight + 1.1),
+            new THREE.MeshBasicMaterial({
+                color: 0x5fe2ff,
+                transparent: true,
+                opacity: 0.16,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            })
+        );
+        glow.position.z = -0.1;
+        group.add(glow);
+
+        scene.add(group);
+    }
+
+    if (game.settings?.raceModeId === 'rally' && Array.isArray(game.sectors)) {
+        game.sectors
+            .filter(sector => sector.id < 3)
+            .forEach(sector => createRallySectorBoard(scene, game, sector));
+    }
     
     createRallyStructure(scene, game, game.finishLine, true); // Place at the finish line
 }
@@ -8885,11 +9090,18 @@ function getRoadDataAtZ(z, game) {
     };
     const curve = smoothValue(previousSegment.curve, segment.curve, nextSegment.curve, followingSegment.curve);
     const y = smoothValue(previousSegment.y, segment.y, nextSegment.y, followingSegment.y);
+    const width = smoothValue(
+        previousSegment.width || game.road.width,
+        segment.width || game.road.width,
+        nextSegment.width || game.road.width,
+        followingSegment.width || game.road.width
+    );
     const nextCurve = smoothValue(segment.curve, nextSegment.curve, followingSegment.curve, getSegment(3).curve);
 
     return {
         y,
         curve,
+        width,
         curvatureAngle: Math.atan2(nextCurve - curve, segmentLength)
     };
 }

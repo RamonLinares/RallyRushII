@@ -49,6 +49,7 @@
     const circuitSelect = document.getElementById('circuitSelect');
     const difficultySelect = document.getElementById('difficultySelect');
     const assistSelect = document.getElementById('assistSelect');
+    const raceModeSelect = document.getElementById('raceModeSelect');
     const timeOfDaySelect = document.getElementById('timeOfDaySelect');
     const weatherSelect = document.getElementById('weatherSelect');
     const stageCardSelect = document.getElementById('stageCardSelect');
@@ -65,11 +66,13 @@
     const selectedCarName = document.getElementById('selectedCarName');
     const selectedCarClass = document.getElementById('selectedCarClass');
     const selectedCarStats = document.getElementById('selectedCarStats');
+    const circuitStorageKey = 'rallyRushIISelectedCircuit';
     const timeOfDayStorageKey = 'rallyRushIITimeOfDay';
     const rainStorageKey = 'rallyRushIIRainEnabled';
     const weatherStorageKey = 'rallyRushIIWeatherMode';
     const timeOfDayOptions = [
         { id: 'day', label: 'Day' },
+        { id: 'sunset', label: 'Sunset' },
         { id: 'night', label: 'Night' }
     ];
     const weatherOptions = [
@@ -84,6 +87,7 @@
             description: 'Wet blacktop through green valleys, stone walls, and rolling Highland slopes.',
             image: 'assets/menu/stage-scotland.jpg',
             length: '6.10 KM',
+            rallyLength: '18.30 KM',
             laps: '1'
         },
         desert: {
@@ -92,6 +96,7 @@
             description: 'Wide sun-baked highway across dunes, dry washes, and warm red-rock mesas.',
             image: 'assets/menu/stage-desert.jpg',
             length: '6.40 KM',
+            rallyLength: '19.20 KM',
             laps: '1'
         },
         alpine: {
@@ -100,6 +105,7 @@
             description: 'Narrow mountain asphalt with steep grade changes, snow banks, and tight bends.',
             image: 'assets/menu/stage-alpine.jpg',
             length: '5.80 KM',
+            rallyLength: '17.40 KM',
             laps: '1'
         },
         city: {
@@ -108,6 +114,7 @@
             description: 'Dense neon towers, elevated highway ramps, wet pavement, and urban speed.',
             image: 'assets/menu/stage-city.jpg',
             length: '5.95 KM',
+            rallyLength: '17.85 KM',
             laps: '1'
         },
         lakes: {
@@ -116,6 +123,7 @@
             description: 'Fast lakeside road with dark water, forest belts, shore rocks, and open curves.',
             image: 'assets/menu/stage-lakes.jpg',
             length: '6.25 KM',
+            rallyLength: '18.75 KM',
             laps: '1'
         },
         jungle: {
@@ -124,6 +132,7 @@
             description: 'A humid night run under dense jungle growth, wet road spray, and tight visibility.',
             image: 'assets/menu/stage-jungle.jpg',
             length: '5.70 KM',
+            rallyLength: '17.10 KM',
             laps: '1'
         },
         coastal: {
@@ -132,6 +141,7 @@
             description: 'Cliffside sea views, low white guard walls, pine hillsides, and bright coastal bends.',
             image: 'assets/menu/stage-coastal.jpg',
             length: '6.05 KM',
+            rallyLength: '18.15 KM',
             laps: '1'
         }
     };
@@ -158,10 +168,14 @@
     const cameraTunerCar = document.getElementById('cameraTunerCar');
     const cameraTunerValues = document.getElementById('cameraTunerValues');
     const raceHud = document.getElementById('ui');
+    const fpsCounter = document.getElementById('fpsCounter');
     let isStartingRace = false;
     let startRequestId = 0;
     let garagePreview = null;
     let cameraTunerEnabled = false;
+    let fpsCounterVisible = false;
+    let fpsFrameCount = 0;
+    let fpsSampleStartedAt = performance.now();
     const groundDebugEnabled = new URLSearchParams(window.location.search).has('groundDebug');
     let debugCameraDrag = null;
 
@@ -193,6 +207,7 @@
             stage: circuitSelect.value,
             difficulty: gameManager.getDifficultyProfile ? gameManager.getDifficultyProfile(gameManager.getDifficultyLevel()).label : null,
             drivingAssist: gameManager.getDrivingAssistProfile ? gameManager.getDrivingAssistProfile(gameManager.getDrivingAssistLevel()).label : null,
+            raceMode: gameManager.getRaceModeProfile ? gameManager.getRaceModeProfile(gameManager.getRaceMode()).label : null,
             paused: Boolean(gameManager.isPaused),
             musicEnabled: Boolean(gameManager.musicEnabled),
             settingsOpen: settingsPanel.style.display !== 'none',
@@ -351,6 +366,43 @@
         return event.key === 'Shift';
     }
 
+    function isTextEntryActive() {
+        const activeElement = document.activeElement;
+        if (!activeElement) {
+            return false;
+        }
+
+        return ['INPUT', 'SELECT', 'TEXTAREA'].includes(activeElement.tagName)
+            || activeElement.isContentEditable;
+    }
+
+    function setFpsCounterVisible(isVisible) {
+        fpsCounterVisible = Boolean(isVisible);
+        if (fpsCounter) {
+            fpsCounter.hidden = !fpsCounterVisible;
+        }
+    }
+
+    function updateFpsCounter(timestamp) {
+        if (fpsCounterVisible && fpsCounter) {
+            fpsFrameCount += 1;
+            const elapsed = timestamp - fpsSampleStartedAt;
+            if (elapsed >= 250) {
+                const fps = Math.round((fpsFrameCount * 1000) / elapsed);
+                fpsCounter.textContent = `FPS ${fps}`;
+                fpsFrameCount = 0;
+                fpsSampleStartedAt = timestamp;
+            }
+        } else {
+            fpsFrameCount = 0;
+            fpsSampleStartedAt = timestamp;
+        }
+
+        requestAnimationFrame(updateFpsCounter);
+    }
+
+    requestAnimationFrame(updateFpsCounter);
+
     function createGarageStat(label, value) {
         const stat = document.createElement('div');
         stat.className = 'garageStat';
@@ -369,6 +421,31 @@
 
     function getStageMenuInfo(stageId = circuitSelect.value) {
         return stageMenuData[stageId] || stageMenuData.scotland;
+    }
+
+    function hasCircuitOption(stageId) {
+        return Boolean(circuitSelect && Array.from(circuitSelect.options).some(option => option.value === stageId));
+    }
+
+    function getStoredCircuit() {
+        const stored = localStorage.getItem(circuitStorageKey);
+        return hasCircuitOption(stored) ? stored : 'scotland';
+    }
+
+    function setSelectedCircuit(stageId, persist = true) {
+        if (!circuitSelect || !hasCircuitOption(stageId)) {
+            return;
+        }
+
+        circuitSelect.value = stageId;
+        if (persist) {
+            localStorage.setItem(circuitStorageKey, stageId);
+        }
+        updateStageMenuUi();
+    }
+
+    function restoreSelectedCircuit() {
+        setSelectedCircuit(getStoredCircuit(), false);
     }
 
     function updateStageMenuUi() {
@@ -390,7 +467,8 @@
             selectedStageDescription.textContent = info.description;
         }
         if (selectedStageLength) {
-            selectedStageLength.textContent = info.length;
+            const raceMode = gameManager.getRaceMode ? gameManager.getRaceMode() : 'traffic';
+            selectedStageLength.textContent = raceMode === 'rally' ? info.rallyLength || info.length : info.length;
         }
         if (selectedStageLaps) {
             selectedStageLaps.textContent = info.laps;
@@ -433,8 +511,7 @@
                 <span class="stageCardCheck" aria-hidden="true"></span>
             `;
             card.addEventListener('click', () => {
-                circuitSelect.value = option.value;
-                updateStageMenuUi();
+                setSelectedCircuit(option.value);
             });
             stageCardSelect.appendChild(card);
         });
@@ -464,7 +541,10 @@
                 expert: 'III',
                 full: 'F',
                 sport: 'S',
-                manual: 'M'
+                manual: 'M',
+                traffic: 'T',
+                rally: 'R',
+                race: 'G'
             }[option.id] || '';
             glyph.setAttribute('aria-hidden', 'true');
             const label = document.createElement('span');
@@ -480,11 +560,12 @@
     }
 
     function getTimeOfDayMode() {
-        return localStorage.getItem(timeOfDayStorageKey) === 'night' ? 'night' : 'day';
+        const stored = localStorage.getItem(timeOfDayStorageKey);
+        return ['day', 'sunset', 'night'].includes(stored) ? stored : 'day';
     }
 
     function setTimeOfDayMode(id) {
-        localStorage.setItem(timeOfDayStorageKey, id === 'night' ? 'night' : 'day');
+        localStorage.setItem(timeOfDayStorageKey, ['day', 'sunset', 'night'].includes(id) ? id : 'day');
     }
 
     function getWeatherMode() {
@@ -517,6 +598,18 @@
                 gameManager.getDrivingAssistOptions(),
                 gameManager.getDrivingAssistLevel(),
                 id => gameManager.setDrivingAssistLevel(id)
+            );
+        }
+
+        if (gameManager.getRaceModeOptions) {
+            renderModeSelect(
+                raceModeSelect,
+                gameManager.getRaceModeOptions(),
+                gameManager.getRaceMode(),
+                id => {
+                    gameManager.setRaceMode(id);
+                    updateStageMenuUi();
+                }
             );
         }
 
@@ -1249,6 +1342,7 @@
 
     function showGarageMenu() {
         resetRaceSessionForMenu();
+        restoreSelectedCircuit();
         startScreen.style.display = 'grid';
         updateRaceSetupUi();
         renderStageCards();
@@ -1280,6 +1374,12 @@
         }
 
         if (handleCameraTunerKey(e)) {
+            return;
+        }
+
+        if (e.key.toLowerCase() === 'f' && !isTextEntryActive()) {
+            e.preventDefault();
+            setFpsCounterVisible(!fpsCounterVisible);
             return;
         }
 
@@ -1508,7 +1608,9 @@
 
     restartButton.addEventListener('click', startRaceWithPreload);
 
-    circuitSelect.addEventListener('change', updateStageMenuUi);
+    circuitSelect.addEventListener('change', () => {
+        setSelectedCircuit(circuitSelect.value);
+    });
 
     cameraButton.addEventListener('click', event => {
         event.stopPropagation();
@@ -1554,6 +1656,7 @@
     // Ensure mobile controls are hidden initially and on end screen
     hideMobileControls();
     garagePreview = createGaragePreview();
+    restoreSelectedCircuit();
     updateRaceSetupUi();
     renderStageCards();
     updateStageMenuUi();
